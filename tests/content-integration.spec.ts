@@ -1,0 +1,171 @@
+import { expect, test, type Page } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
+const title = 'مقرر الرحلة الموحّدة';
+async function navigate(page: Page, role: string, section: string) {
+  const switcher = page.getByLabel('تبديل اللوحة', { exact: true });
+  if (await switcher.inputValue() !== role) await switcher.selectOption(role);
+  await page.locator(`nav a[href="/${role}/${section}"]`).click();
+  await expect(page).toHaveURL(new RegExp(`/${role}/${section}$`));
+}
+function editorial(page: Page) { return page.locator('article[data-content-id]').filter({ has: page.getByRole('heading', { name: title, exact: true }) }); }
+async function draft(page: Page) {
+  await page.goto('/teacher/content');
+  await page.getByRole('button', { name: 'إنشاء مقرر', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('عنوان المقرر', { exact: true }).fill(title);
+  await dialog.getByLabel('وصف المقرر', { exact: true }).fill('تعلم الرياضيات من خلال مقرر موحّد بين كل اللوحات.');
+  await dialog.getByRole('button', { name: 'إضافة وحدة', exact: true }).click();
+  const unit = dialog.locator('form > details').first();
+  await unit.locator(':scope > summary').click();
+  await unit.getByLabel('عنوان الوحدة', { exact: true }).fill('وحدة الربط');
+  await unit.getByRole('button', { name: 'إضافة درس', exact: true }).click();
+  const lesson = unit.locator('details').first();
+  await lesson.locator('summary').click();
+  await lesson.getByLabel('عنوان الدرس', { exact: true }).fill('درس الفهم المشترك');
+  await lesson.getByLabel('أهداف الدرس (هدف في كل سطر)', { exact: true }).fill('تطبيق خطوات الحل');
+  await lesson.getByLabel('نص الدرس', { exact: true }).fill('هذا هو النص المعتمد الأول للمقرر الجديد.');
+  await lesson.getByRole('button', { name: 'إضافة مورد', exact: true }).click();
+  await lesson.getByLabel('عنوان المورد', { exact: true }).fill('تدريب مشترك');
+  await lesson.getByLabel('مرجع المورد', { exact: true }).fill('shared-practice.pdf');
+  await dialog.getByRole('button', { name: 'حفظ مسودة المقرر', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  return (await editorial(page).getAttribute('data-content-id'))!;
+}
+async function publish(page: Page) {
+  await editorial(page).getByRole('button', { name: 'إرسال للمراجعة', exact: true }).click();
+  await navigate(page, 'admin', 'content');
+  await editorial(page).getByRole('button', { name: 'اعتماد ونشر تجريبي', exact: true }).click();
+}
+async function enroll(page: Page, id: string) {
+  await navigate(page, 'admin', 'enrollments');
+  await page.getByRole('button', { name: 'إنشاء مجموعة', exact: true }).click();
+  await page.getByLabel('اسم المجموعة', { exact: true }).fill('مجموعة الرحلة');
+  await page.getByLabel('مقرر المجموعة', { exact: true }).selectOption(id);
+  await page.getByLabel(/يوسف أحمد ·/).check();
+  await page.getByRole('button', { name: 'حفظ المجموعة في المعاينة', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+}
+test('published course flows through groups, teacher and learner readers, sessions, calendar, assignments and chat', async ({ page }) => {
+  const errors: string[] = [], writes: string[] = [];
+  page.on('pageerror', e => errors.push(e.message));
+  page.on('request', r => { if (['POST','PUT','PATCH','DELETE'].includes(r.method())) writes.push(r.url()); });
+  const id = await draft(page);
+  await navigate(page, 'teacher', 'courses');
+  await expect(page.getByRole('heading', { name: title, exact: true })).toHaveCount(0);
+  await navigate(page, 'teacher', 'content');
+  await publish(page);
+  await navigate(page, 'student', 'library');
+  await expect(page.getByRole('heading', { name: title, exact: true })).toHaveCount(0);
+  await enroll(page, id);
+  await navigate(page, 'teacher', 'courses');
+  const courseCard = page.locator('article').filter({ has: page.getByRole('heading', { name: title, exact: true }) });
+  await expect(courseCard).toContainText('1 وحدات');
+  await expect(courseCard).toContainText('1 دروس');
+  await courseCard.getByRole('link', { name: 'معاينة المقرر', exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/teacher/learn/${id}$`));
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(title);
+  await navigate(page, 'student', 'courses');
+  await page.getByRole('link', { name: title, exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/student/learn/${id}$`));
+  await page.getByRole('link', { name: /درس الفهم المشترك/ }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('درس الفهم المشترك');
+  await expect(page.getByText('هذا هو النص المعتمد الأول للمقرر الجديد.', { exact: true })).toBeVisible();
+  await expect(page.getByText('shared-practice.pdf', { exact: true })).toBeVisible();
+  await navigate(page, 'student', 'library');
+  await page.locator(`article[data-published-content="${id}"]`).getByRole('link', { name: 'فتح المقرر', exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/student/learn/${id}$`));
+  await navigate(page, 'parent', 'courses');
+  await page.getByRole('link', { name: /يوسف أحمد/ }).click();
+  await page.getByRole('link', { name: title, exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/parent/learn/${id}\\?student=youssef$`));
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(title);
+  await navigate(page, 'teacher', 'sessions');
+  await page.locator('#session-title').fill('حصة المقرر الجديد');
+  await page.locator('#session-course').selectOption(id);
+  await page.locator('#session-date').fill('2026-11-18');
+  await page.locator('#session-time').fill('16:00');
+  await page.getByRole('button', { name: 'إنشاء الحصة التجريبية', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await navigate(page, 'student', 'schedule');
+  await page.getByRole('button', { name: /^حصة المقرر الجديد/ }).click();
+  await expect(page.getByRole('dialog')).toContainText(title);
+  await page.getByRole('link', { name: 'عرض المقرر', exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/student/learn/${id}$`));
+  await navigate(page, 'teacher', 'assignments');
+  await page.getByLabel('عنوان الواجب', { exact: true }).fill('واجب المقرر الجديد');
+  await page.getByLabel('مجموعة الواجب', { exact: true }).selectOption({ label: 'مجموعة الرحلة' });
+  await page.getByLabel('تعليمات الواجب', { exact: true }).fill('طبّق الدرس المعتمد على المثال.');
+  await page.getByLabel('آخر يوم للتسليم', { exact: true }).fill('2099-11-18');
+  await page.getByRole('button', { name: 'نشر الواجب التجريبي', exact: true }).click();
+  await navigate(page, 'student', 'assignments');
+  await expect(page.getByRole('heading', { name: 'واجب المقرر الجديد', exact: true })).toBeVisible();
+  await navigate(page, 'student', 'chat');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  expect(errors).toEqual([]); expect(writes).toEqual([]);
+});
+test('unpublishing blocks new use and readers but preserves groups, sessions and assigned work', async ({ page }) => {
+  const id = await draft(page); await publish(page); await enroll(page, id);
+  await navigate(page, 'teacher', 'sessions');
+  await page.locator('#session-title').fill('حصة تاريخية محفوظة');
+  await page.locator('#session-course').selectOption(id);
+  await page.locator('#session-date').fill('2026-11-18');
+  await page.locator('#session-time').fill('16:00');
+  await page.getByRole('button', { name: 'إنشاء الحصة التجريبية', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible(); await page.keyboard.press('Escape');
+  await navigate(page, 'admin', 'content');
+  await editorial(page).getByRole('button', { name: 'إيقاف النشر التجريبي', exact: true }).click();
+  await page.getByLabel('سبب الإجراء', { exact: true }).fill('مراجعة مؤقتة');
+  await page.getByRole('button', { name: 'تأكيد الإجراء', exact: true }).click();
+  await navigate(page, 'admin', 'enrollments');
+  await expect(page.getByRole('heading', { name: 'مجموعة الرحلة', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'إنشاء مجموعة', exact: true }).click();
+  await expect(page.getByLabel('مقرر المجموعة', { exact: true }).locator(`option[value="${id}"]`)).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await navigate(page, 'teacher', 'sessions');
+  await expect(page.locator(`#session-course option[value="${id}"]`)).toHaveCount(0);
+  await navigate(page, 'teacher', 'assignments');
+  await expect(page.getByLabel('مجموعة الواجب', { exact: true }).locator('option').filter({ hasText: 'مجموعة الرحلة' })).toHaveCount(0);
+  await navigate(page, 'student', 'schedule');
+  await page.getByRole('button', { name: /^حصة تاريخية محفوظة/ }).click();
+  await expect(page.getByRole('dialog')).toContainText(title);
+  await page.getByRole('link', { name: 'عرض المقرر', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'المحتوى غير متاح', exact: true })).toBeVisible();
+  await expect(page.getByText('هذا هو النص المعتمد الأول للمقرر الجديد.', { exact: true })).toHaveCount(0);
+});
+test('unlinked child and student are denied, and draft revisions never replace the published reader', async ({ page }) => {
+  const id = await draft(page); await publish(page); await enroll(page, id);
+  await navigate(page, 'teacher', 'content');
+  await editorial(page).getByRole('button', { name: 'تعديل المحتوى', exact: true }).click();
+  await page.getByLabel('وصف المقرر', { exact: true }).fill('هذا وصف مسودة غير معتمد يجب ألا يظهر للطالب.');
+  await page.getByRole('button', { name: 'حفظ مسودة المقرر', exact: true }).click();
+  await navigate(page, 'student', 'courses');
+  await page.getByRole('link', { name: title, exact: true }).click();
+  await expect(page.getByText('هذا وصف مسودة غير معتمد يجب ألا يظهر للطالب.', { exact: true })).toHaveCount(0);
+  await navigate(page, 'parent', 'courses');
+  await page.getByRole('link', { name: /سلمى أحمد/ }).click();
+  await expect(page.getByRole('link', { name: title, exact: true })).toHaveCount(0);
+  await page.evaluate(id => window.history.pushState({}, '', `/parent/learn/${id}?student=salma`), id);
+  // Navigate with a same-layout Next link so preview state is retained.
+  await page.evaluate(id => { const a = document.createElement('a'); a.href = `/parent/learn/${id}?student=salma`; a.id = 'scope-link'; document.body.appendChild(a); }, id);
+  await page.locator('#scope-link').evaluate(link => link.removeAttribute('href'));
+  await page.getByLabel('تبديل اللوحة', { exact: true }).selectOption('student');
+  await page.locator('nav a[href="/student/courses"]').click();
+  await page.getByRole('link', { name: title, exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(title);
+});
+for (const width of [375,768,1440]) test(`shared course and lesson reader is accessible and responsive at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 1000 });
+  await page.goto('/student/learn/math-prep-1');
+  await page.getByRole('link', { name: /كيف نفهم الأعداد/ }).count();
+  for (const role of ['student', 'teacher', 'parent', 'admin']) {
+    await page.goto(`/${role}/learn/math-prep-1${role === 'parent' ? '?student=youssef' : ''}`);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    const lessonLink = page.getByRole('link').filter({ hasText: 'دقيقة' }).first();
+    await lessonLink.click();
+    await expect(page.getByRole('heading', { name: 'محتوى الدرس', exact: true })).toBeVisible();
+    const scan = await new AxeBuilder({ page }).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
+    expect(scan.violations).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
+});

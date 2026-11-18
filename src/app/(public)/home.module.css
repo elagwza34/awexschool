@@ -1,0 +1,170 @@
+﻿.home {
+  --home-ink: #103c32;
+  --home-gold: #f3b746;
+  background: #fbfdfb;
+  scroll-margin-block-start: 6rem;
+}
+
+.hero {
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
+  background: linear-gradient(140deg, #e7f5ee, #f6f9f4 60%, #dceee7);
+  color: var(--home-ink);
+}
+
+.heroInner {
+  position: relative;
+  display: grid;
+  align-content: center;
+  min-height: clamp(33rem, 76svh, 50rem);
+  padding-block: 4.5rem 6rem;
+}
+
+.heroPhoto {
+  position: absolute;
+  z-index: -1;
+  inset: 0 auto 0 0;
+  width: 56%;
+  mask-image: linear-gradient(to right, #000 76%, transparent);
+}
+
+.heroPhoto img {
+  object-fit: cover;
+  object-position: left center;
+}
+
+.heroCopy {
+  width: min(53%, 39rem);
+}
+
+.heroTitle {
+  font-size: clamp(3rem, 5.7vw, 6rem);
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.heroTitle span {
+  color: #08785e;
+}
+
+.heroDescription {
+  max-width: 32rem;
+  margin-block-start: 1.5rem;
+  color: #325a50;
+  font-size: clamp(1rem, 1.5vw, 1.25rem);
+  line-height: 1.85;
+}
+
+.heroActions,
+.heroBenefits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-block-start: 1.5rem;
+}
+
+.heroBenefits {
+  color: #325a50;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.home .goldButton,
+.home .previewButton {
+  min-height: 3rem;
+  border-radius: 999px;
+  padding-inline: 1.375rem;
+}
+
+.home .goldButton {
+  background: var(--home-gold);
+  color: #20302a;
+}
+
+.home .goldButton:hover {
+  background: #ffca65;
+}
+
+.home .previewButton {
+  border-color: #709389;
+  background: #fff8;
+  color: var(--home-ink);
+}
+
+.home .previewButton:hover {
+  background: white;
+}
+
+.scrollLink {
+  position: absolute;
+  inset-inline-end: var(--layout-gutter, 1.5rem);
+  inset-block-end: 3rem;
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  background: #fff;
+  padding-inline: 0.875rem;
+  color: var(--home-ink);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.finder {
+  position: relative;
+  margin-block-start: -1.5rem;
+  scroll-margin-block-start: 6rem;
+}
+
+.finder form {
+  border-radius: 1.5rem;
+  box-shadow: 0 1rem 3rem #123e3015;
+}
+
+.section {
+  padding-block: clamp(2.5rem, 5vw, 4.5rem);
+}
+
+.subjectBand {
+  background: #eaf5ef;
+}
+
+.closing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  border-radius: 1.5rem;
+  background: linear-gradient(125deg, #0b3f33, #12584a);
+  padding: clamp(1.5rem, 4vw, 3rem);
+  color: white;
+}
+
+@media (max-width: 767px) {
+  .heroInner {
+    min-height: 0;
+    padding-block: 2.5rem clamp(14rem, 62vw, 22rem);
+  }
+
+  .heroCopy {
+    width: 100%;
+  }
+
+  .heroTitle {
+    font-size: clamp(2.5rem, 9vw, 4rem);
+  }
+
+  .heroPhoto {
+    inset: auto 0 0;
+    width: 100%;
+    height: clamp(14rem, 62vw, 22rem);
+    mask-image: linear-gradient(transparent, #000 24%);
+  }
+
+  .heroPhoto img {
+    object-position: left 37%;
+  }
+}

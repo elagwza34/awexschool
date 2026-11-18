@@ -1,0 +1,119 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Menu, Search, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Brand } from "@/components/shared";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+const navigation = [
+  { href: "/stages", title: "المراحل الدراسية" },
+  { href: "/subjects", title: "المواد التعليمية" },
+  { href: "/teachers", title: "مدرسونا" },
+  { href: "/faq", title: "الأسئلة الشائعة" },
+  { href: "/dashboards", title: "لوحات التحكم" },
+];
+
+export function SiteHeader() {
+  const [open, setOpen] = useState(false);
+  const path = usePathname();
+  const isHome = path === "/";
+  useEffect(() => {
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && open) {
+        setOpen(false);
+        document.getElementById("mobile-toggle")?.focus();
+      }
+    };
+    window.addEventListener("keydown", escape);
+    return () => window.removeEventListener("keydown", escape);
+  }, [open]);
+  return (
+    <header
+      data-home-header=""
+      className="fixed inset-x-3 top-3 z-30 mx-auto max-w-[84rem] rounded-[2rem] border border-emerald-950/10 bg-white shadow-md sm:inset-x-7"
+    >
+      <div className="container-shell flex min-h-17 items-center justify-between gap-4">
+        <Brand />
+        <nav
+          aria-label="التنقل الرئيسي"
+          className="hidden items-center gap-5 xl:flex"
+        >
+          {navigation.map(({ href, title }) => (
+            <Link
+              aria-current={path.startsWith(href) ? "page" : undefined}
+              key={href}
+              className={cn(
+                "inline-flex min-h-11 items-center text-sm font-semibold transition-colors hover:text-primary",
+                path.startsWith(href) &&
+                  "text-primary underline decoration-2 underline-offset-8",
+              )}
+              href={href}
+            >
+              {title}
+            </Link>
+          ))}
+        </nav>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" asChild>
+            <Link href="/search" aria-label="البحث" onClick={() => setOpen(false)}>
+              <Search />
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" className="hidden rounded-full sm:inline-flex">
+            <Link href="/login">تسجيل الدخول</Link>
+          </Button>
+          <Button asChild className="hidden rounded-full sm:inline-flex">
+            {isHome ? <a href="#trial">احجز حصة مجانية</a> : <Link href="/#trial">احجز حصة مجانية</Link>}
+          </Button>
+          <Button
+            id="mobile-toggle"
+            aria-label={open ? "إغلاق القائمة" : "فتح القائمة"}
+            aria-expanded={open}
+            aria-controls="mobile-navigation"
+            variant="outline"
+            size="icon"
+            className="xl:hidden"
+            onClick={() => setOpen(!open)}
+          >
+            {open ? <X /> : <Menu />}
+          </Button>
+        </div>
+      </div>
+      {open && (
+        <nav
+          id="mobile-navigation"
+          data-lenis-prevent=""
+          aria-label="التنقل على الهاتف"
+          className="container-shell max-h-[75svh] overflow-y-auto border-t py-4 xl:hidden"
+        >
+          {[
+            ...navigation,
+            { href: isHome ? "#trial" : "/#trial", title: "احجز حصة مجانية" },
+            { href: "/login", title: "تسجيل الدخول" },
+            { href: "/register", title: "ابدأ رحلتك" },
+          ].map(({ href, title }) => (
+            <Link
+              key={href}
+              href={href}
+              aria-current={path === href || path.startsWith(`${href}/`) ? "page" : undefined}
+              className="block rounded-lg px-3 py-3 hover:bg-accent aria-[current=page]:bg-accent aria-[current=page]:font-semibold"
+              onClick={() => setOpen(false)}
+            >
+              {title}
+            </Link>
+          ))}
+        </nav>
+      )}
+      {isHome && (
+        <span
+          aria-hidden="true"
+          data-home-progress
+          className="absolute inset-x-4 bottom-0 h-0.5 origin-right scale-x-0 rounded-full bg-[#1a9b79]"
+        />
+      )}
+    </header>
+  );
+}

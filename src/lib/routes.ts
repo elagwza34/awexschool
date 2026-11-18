@@ -1,0 +1,18 @@
+export const routes = {
+  home: "/",
+  stages: "/stages",
+  subjects: "/subjects",
+  courses: "/courses",
+  teachers: "/teachers",
+  faq: "/faq",
+  login: "/login",
+  register: "/register",
+  search: "/search",
+  stage: (id: string) => `/stages/${encodeURIComponent(id)}`,
+  grade: (id: string) => `/grades/${encodeURIComponent(id)}`,
+  subject: (id: string) => `/subjects/${encodeURIComponent(id)}`,
+  course: (id: string) => `/courses/${encodeURIComponent(id)}`,
+  units: (id: string) => `/courses/${encodeURIComponent(id)}/lessons`,
+  lesson: (id: string) => `/lessons/${encodeURIComponent(id)}`,
+  teacher: (id: string) => `/teachers/${encodeURIComponent(id)}`,
+};
