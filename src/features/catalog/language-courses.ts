@@ -18,14 +18,35 @@ const starters = [
   ["secondary-3", "Building an Argument", "State a claim, explain your reason, and support it with a concrete example.", "Schools should offer reading time. It helps students build vocabulary. For example, a weekly reading log introduces students to words in context.", "Support this claim with a reason and an example: Schools should reduce single-use plastic.", "Schools should reduce single-use plastic because it creates avoidable waste. For example, refill stations let students reuse the same bottle each day."],
 ] as const;
 
-export const languageCourses: Course[] = starters.map(
-  ([gradeId, title, rule, example, challenge, answer]) => {
-    const id = `languages-english-${gradeId}`;
+const followUps = [
+  ["kindergarten-1", "Counting My Toys", "Say the number before the toy name. Say one ball, then two balls.", "One ball. Two balls. Three dolls.", "You can see two toy cars. How many cars are there?", "Two cars."],
+  ["kindergarten-2", "Animals and Sounds", "Use this is to name an animal you can see.", "This is a cat. A cat says meow.", "Point to a dog and name it.", "This is a dog."],
+  ["primary-1", "Where Is It?", "Use in for inside, on for a surface and under for below.", "The pencil is in the bag. The book is on the desk.", "The ball is below the chair. Complete: The ball is ___ the chair.", "The ball is under the chair."],
+  ["primary-2", "My Favourite Food", "Use I like or I don't like to talk about your preferences.", "I like apples. I don't like onions.", "Say that you enjoy bananas but you do not enjoy lemons.", "I like bananas. I don't like lemons."],
+  ["primary-3", "How Often?", "Put usually, sometimes or never before a main verb like read or play.", "I usually read after dinner. I sometimes play football.", "Say you play chess on some days.", "I sometimes play chess."],
+  ["primary-4", "A Visit to the Market", "Ask how many with countable things and how much with things you measure.", "How many oranges do we need? How much rice do we need?", "Ask about the amount of milk for a recipe.", "How much milk do we need?"],
+  ["primary-5", "A Weekend Plan", "Use am, is or are + going to + a verb to describe a plan.", "I'm going to visit my cousin. We are going to play tennis.", "Tell a friend about your plan to make a cake on Saturday.", "I'm going to make a cake on Saturday."],
+  ["primary-6", "Writing a Friendly Email", "Start with a greeting, explain why you are writing, and close with your name.", "Hi Sara, Would you like to come to my birthday party on Friday? See you soon, Mona", "Invite a friend to meet you at the library on Tuesday.", "Hi Omar, Would you like to meet me at the library on Tuesday? See you soon, Ali"],
+  ["preparatory-1", "Making Polite Requests", "Start a polite question with Could you and follow it with a base verb.", "Could you open the window, please?", "Ask someone to repeat the last sentence.", "Could you repeat the last sentence, please?"],
+  ["preparatory-2", "Telling a Story in Order", "Use first, then, after that and finally to guide the reader through events.", "First, we packed our bags. Then we took the bus. Finally, we reached the museum.", "Put these events in order: arrive at the library, borrow a book, go home.", "First, we arrived at the library. Then we borrowed a book. Finally, we went home."],
+  ["preparatory-3", "Giving Advice", "Use should for advice and shouldn't to advise against something.", "You should practise a little every day. You shouldn't leave everything until the night before.", "Give a friend one tip about staying focused while studying.", "You should put your phone away while you study."],
+  ["secondary-1", "Reading Between the Lines", "Support an inference with details from the text. Distinguish the clue from your conclusion.", "Nour checked the clock twice before the results appeared. This suggests she was eager to see them.", "Omar brought an umbrella and wore boots. What weather did he probably expect?", "He probably expected rain. His umbrella and boots are clues."],
+  ["secondary-2", "Writing a Formal Request", "State the purpose early, add the details the reader needs, and end with a polite request.", "Dear Ms Ali, I am writing to ask for an extension on the science project. Would it be possible to submit it on Monday?", "Write a polite request to borrow a projector for a Thursday presentation.", "Dear Mr Hassan, I am writing to ask if our group could borrow a projector for our presentation on Thursday. Thank you for considering our request."],
+  ["secondary-3", "Addressing a Counterargument", "Acknowledge a reasonable objection before explaining how your proposal addresses it.", "Some students may worry that group work is unfair. However, assigning clear roles helps everyone contribute.", "Respond to the concern that a school reading programme might take time away from other subjects.", "A reading programme does take time, but a short weekly session can build comprehension skills that students use in other subjects."],
+] as const;
+
+type LessonOutline = readonly [
+  gradeId: string, title: string, rule: string, example: string, challenge: string, answer: string,
+];
+
+function buildCourses(lessons: readonly LessonOutline[], suffix = ""): Course[] {
+  return lessons.map(([gradeId, title, rule, example, challenge, answer]) => {
+    const id = `languages-english-${gradeId}${suffix}`;
     const unitId = `${id}-u1`;
     return {
       id,
       title,
-      description: `English starter lesson. ${rule}`,
+      description: rule,
       gradeId,
       track: "languages",
       subjectId: "english",
@@ -50,5 +71,10 @@ export const languageCourses: Course[] = starters.map(
         }],
       }],
     };
-  },
-);
+  });
+}
+
+export const languageCourses = [
+  ...buildCourses(starters),
+  ...buildCourses(followUps, "-practice"),
+];

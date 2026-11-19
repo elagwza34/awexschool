@@ -12,7 +12,7 @@ test("every grade provides Arabic and Languages tracks", async ({ page }) => {
     await arabic.focus();
     await page.keyboard.press("ArrowLeft");
     await expect(languages).toHaveAttribute("aria-selected", "true");
-    await expect(page.getByRole("tabpanel").locator("article")).toHaveCount(1);
+    await expect(page.getByRole("tabpanel").locator("article")).toHaveCount(2);
     await arabic.click();
     if (grade.id === "primary-4") {
       await expect(page.getByRole("tabpanel").getByText("أصدقاء الأرقام")).toBeVisible();
@@ -25,7 +25,8 @@ test("a Languages lesson opens from its grade and shows an example and answer", 
   await page.getByRole("tab", { name: "لغات" }).click();
   await page.getByRole("tabpanel").locator('a[href^="/subjects/english"]').click();
   await expect(page).toHaveURL(/track=languages/);
-  await expect(page.locator("article")).toHaveCount(1);
+  await expect(page.locator("article")).toHaveCount(2);
+  await expect(page.getByRole("link", { name: "Telling a Story in Order" })).toBeVisible();
   await page.getByRole("link", { name: "Talking About Experiences" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Talking About Experiences");
   await page.getByRole("link", { name: "شاهد معاينة مجانية" }).click();
