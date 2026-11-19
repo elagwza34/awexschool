@@ -9,18 +9,21 @@ import { EmptyState } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { grades, subjects } from "./mock-data";
 import { filterCourses } from "./service";
+import type { CourseTrack } from "./types";
 
 export function CatalogBrowser({
   initialQuery = "",
   initialGrade = "",
   initialSubject = "",
   fixedSubject,
+  fixedTrack,
   search = false,
 }: {
   initialQuery?: string;
   initialGrade?: string;
   initialSubject?: string;
   fixedSubject?: string;
+  fixedTrack?: CourseTrack;
   search?: boolean;
 }) {
   const [query, setQuery] = useState(initialQuery);
@@ -28,12 +31,13 @@ export function CatalogBrowser({
   const [subject, setSubject] = useState(fixedSubject ?? initialSubject);
   const router = useRouter();
   const pathname = usePathname();
-  const results = filterCourses({ query, grade, subject });
+  const results = filterCourses({ query, grade, subject, track: fixedTrack });
   const apply = (q: string, g: string, s: string) => {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
     if (g) params.set("grade", g);
     if (s && !fixedSubject) params.set("subject", s);
+    if (fixedTrack) params.set("track", fixedTrack);
     router.replace(`${pathname}${params.size ? `?${params}` : ""}`, {
       scroll: false,
     });

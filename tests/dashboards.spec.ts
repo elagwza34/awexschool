@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { courses } from "../src/features/catalog/mock-data";
 
 const roles = ["student", "teacher", "parent", "admin"];
 
@@ -139,7 +140,7 @@ test("admin search, content tabs and demo actions remain local", async ({
     .getByRole("link", { name: "إدارة المحتوى", exact: true })
     .click();
   await expect(page).toHaveURL(/admin\/content/);
-  await expect(page.locator("article[data-content-id]")).toHaveCount(8);
+  await expect(page.locator("article[data-content-id]")).toHaveCount(courses.length);
   await page.getByLabel("حالة المحتوى", { exact: true }).selectOption("review");
   await expect(page.locator("article[data-content-id]")).toHaveCount(0);
   await expect(page.getByLabel("ابحث في مستخدمي المعاينة")).toHaveCount(0);

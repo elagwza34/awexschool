@@ -1,5 +1,6 @@
 import type { Course, Grade, Stage, Subject, Teacher, Unit } from "./types";
 import { getPreviewSteps } from "./lesson-fixtures";
+import { languageCourses } from "./language-courses";
 
 // Fictional fixtures for UI demonstrations; not official curriculum or commercial claims.
 export const stages: Stage[] = [
@@ -217,7 +218,7 @@ function makeUnits(courseId: string, subject: Subject): Unit[] {
   }));
 }
 
-export const courses: Course[] = [
+const arabicCourses: Course[] = [
   {
     id: "math-prep-1",
     title: "الرياضيات.. افهمها بطريقتك",
@@ -292,6 +293,8 @@ export const courses: Course[] = [
     units: makeUnits(item.id, subject),
   };
 });
+
+export const courses: Course[] = [...arabicCourses, ...languageCourses];
 
 export const getGrade = (id: string) => grades.find((g) => g.id === id);
 export const getSubject = (id: string) => subjects.find((s) => s.id === id);

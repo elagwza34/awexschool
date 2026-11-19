@@ -155,7 +155,7 @@ test("search, filters, query URLs, and empty states work", async ({ page }) => {
     page.getByRole("heading", { name: "لم نجد نتائج مطابقة" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "مسح الفلاتر" }).click();
-  await expect(page.locator("article")).toHaveCount(8);
+  await expect(page.locator("article")).toHaveCount(courses.length);
   await page.goto("/subjects/math?grade=primary-4");
   await expect(page.locator("article")).toHaveCount(1);
   await expect(page.getByLabel("الصف الدراسي", { exact: true })).toHaveValue(
