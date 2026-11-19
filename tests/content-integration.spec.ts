@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { courses } from '../src/features/catalog/mock-data';
 const title = 'مقرر الرحلة الموحّدة';
 
 test('curriculum filters carry the selected grade, track and subject into a new draft', async ({ page }) => {
@@ -11,7 +12,10 @@ test('curriculum filters carry the selected grade, track and subject into a new 
   await page.getByLabel('تصفية صف المحتوى', { exact: true }).selectOption('preparatory-2');
   await page.getByLabel('تصفية مسار المحتوى', { exact: true }).selectOption('languages');
   await page.getByLabel('مادة المنهج', { exact: true }).selectOption('english');
-  await expect(page.locator('article[data-content-id]')).toHaveCount(1);
+  const expectedCourses = courses.filter(({ gradeId, track, subjectId }) =>
+    gradeId === 'preparatory-2' && track === 'languages' && subjectId === 'english',
+  );
+  await expect(page.locator('article[data-content-id]')).toHaveCount(expectedCourses.length);
   await expect(page.getByRole('heading', { name: 'Talking About Experiences' })).toBeVisible();
 
   await page.getByRole('button', { name: 'إنشاء مقرر' }).click();
