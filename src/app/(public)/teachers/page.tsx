@@ -19,7 +19,6 @@ export default function TeachersPage() {
             teacher={teacher}
             key={teacher.id}
             compact
-            portrait={`/teachers/${teacher.id}.webp`}
           />
         ))}
       </div>

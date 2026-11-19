@@ -1,4 +1,5 @@
 "use client";
+import { TeacherAvatar } from "@/components/teacher-avatar";
 import { useState } from "react";
 import { Panel } from "@/features/dashboards/dashboard-panels";
 import { Badge } from "@/components/shared";
@@ -161,7 +162,8 @@ export function SessionRecords({
                   {session.status === "cancelled" ? "ملغاة" : "مجدولة"}
                 </Badge>
               </div>
-              <p className="mt-2 text-sm">
+              <p className="mt-2 flex items-center gap-2 text-sm">
+                <TeacherAvatar teacherId={session.teacherId} className="size-6" />
                 {session.groupName} · {session.teacherName}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">

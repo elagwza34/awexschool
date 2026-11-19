@@ -1,4 +1,5 @@
 "use client";
+import { TeacherAvatar } from "@/components/teacher-avatar";
 import { cloneElement, useId, useState, type ReactElement } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge, EmptyState } from "@/components/shared";
@@ -312,7 +313,8 @@ function AssignmentCard({
             : submissionState(assignment, own)}
         </Badge>
       </div>
-      <p className="text-sm text-muted-foreground break-words">
+      <p className="flex items-center gap-2 break-words text-sm text-muted-foreground">
+        <TeacherAvatar teacherId={assignment.teacherId} className="size-6" />
         {assignment.groupName} · {assignment.teacherName}
       </p>
       <p className="text-sm">

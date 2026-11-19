@@ -1,4 +1,5 @@
 "use client";
+import { TeacherAvatar } from "@/components/teacher-avatar";
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
@@ -380,9 +381,10 @@ export function TeacherProfileEditor() {
                   className="size-full object-cover"
                 />
               ) : (
-                <UserRound
-                  aria-hidden="true"
-                  className="size-10 text-primary"
+                <TeacherAvatar
+                  teacherId="ahmed-hassan"
+                  fallback={<UserRound className="size-10 text-primary" />}
+                  className="size-full rounded-none"
                 />
               )}
             </div>

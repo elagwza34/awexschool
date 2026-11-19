@@ -85,6 +85,20 @@ test("the teachers directory stacks compact cards with portraits on mobile", asy
   await expect(page).toHaveURL("/teachers/ahmed-hassan");
 });
 
+test("the same teacher portrait is reused across public and dashboard views", async ({ page }) => {
+  const paths = [
+    "/", "/subjects/math", "/courses", "/courses/math-prep-1",
+    "/teachers/ahmed-hassan", "/teacher/profile", "/student/chat",
+  ];
+  for (const path of paths) {
+    await page.goto(path);
+    const portrait = page.locator('main img[src="/teachers/ahmed-hassan.webp"]:visible').first();
+    await expect(portrait).toBeVisible();
+    await portrait.scrollIntoViewIfNeeded();
+    await expect.poll(() => portrait.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+  }
+});
+
 test("profile subject changes cannot contradict existing teaching assignments", async ({
   page,
 }) => {

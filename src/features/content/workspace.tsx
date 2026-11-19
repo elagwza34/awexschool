@@ -1,4 +1,5 @@
 "use client";
+import { TeacherAvatar } from "@/components/teacher-avatar";
 import { useState } from "react";
 import { Badge, EmptyState } from "@/components/shared";
 import { Button } from "@/components/ui/button";
@@ -152,14 +153,17 @@ function ContentCard({
         <h3 className="break-words font-bold">{course.title}</h3>
         <Badge>{contentStatuses[record.status]}</Badge>
       </div>
-      <p className="text-xs leading-7 text-muted-foreground">
-        {getGrade(course.gradeId)?.name} · {getSubject(course.subjectId)?.name}{" "}
-        ·{" "}
-        {
-          registry.accounts.find(
-            (a) => a.kind === "teacher" && a.entityId === course.teacherId,
-          )?.name
-        }
+      <p className="flex items-center gap-2 text-xs leading-7 text-muted-foreground">
+        <TeacherAvatar teacherId={course.teacherId} className="size-6" />
+        <span>
+          {getGrade(course.gradeId)?.name} · {getSubject(course.subjectId)?.name}{" "}
+          ·{" "}
+          {
+            registry.accounts.find(
+              (a) => a.kind === "teacher" && a.entityId === course.teacherId,
+            )?.name
+          }
+        </span>
       </p>
       <p className="text-sm">
         {course.units.length} وحدات ·{" "}

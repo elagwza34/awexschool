@@ -1,4 +1,5 @@
 "use client";
+import { TeacherAvatar } from "@/components/teacher-avatar";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -119,15 +120,11 @@ export function PortalShell({
                 </DialogContent>
               </Dialog>
               <div className="h-7 border-e" />
-              <span
-                aria-hidden="true"
-                className={cn(
-                  "flex size-10 shrink-0 items-center justify-center rounded-full text-xs font-bold",
-                  tones[profile.tone],
-                )}
-              >
-                {profile.initials}
-              </span>
+              <TeacherAvatar
+                teacherId={role === "teacher" ? "ahmed-hassan" : undefined}
+                fallback={profile.initials}
+                className={tones[profile.tone]}
+              />
               <div className="hidden sm:block">
                 <p className="text-xs font-bold">{profile.name}</p>
                 <p className="text-[10px] text-muted-foreground">

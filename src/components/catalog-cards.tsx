@@ -1,3 +1,4 @@
+import { TeacherAvatar } from "@/components/teacher-avatar";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -141,15 +142,7 @@ export function CourseCard({ course }: { course: Course }) {
           href={routes.teacher(teacher.id)}
           className="mt-3 flex min-h-11 items-center gap-2 text-sm text-muted-foreground"
         >
-          <span
-            aria-hidden="true"
-            className={cn(
-              "flex size-8 items-center justify-center rounded-full text-[10px] font-bold",
-              tones[teacher.tone],
-            )}
-          >
-            {teacher.initials}
-          </span>
+            <TeacherAvatar teacherId={teacher.id} fallback={teacher.initials} className="size-8" />
           أ. {teacher.name}
         </Link>
         <div className="mt-4 flex flex-wrap gap-3 border-t pt-4 text-xs text-muted-foreground">
@@ -170,11 +163,9 @@ export function CourseCard({ course }: { course: Course }) {
 export function TeacherCard({
   teacher,
   compact = false,
-  portrait,
 }: {
   teacher: Teacher;
   compact?: boolean;
-  portrait?: string;
 }) {
   if (compact) {
     return (
@@ -182,15 +173,7 @@ export function TeacherCard({
         href={routes.teacher(teacher.id)}
         className="soft-card flex h-full min-h-20 items-center gap-3 px-3 py-2.5 transition-colors hover:border-primary focus-visible:outline-offset-0"
       >
-        <span
-          aria-hidden="true"
-          className={cn(
-            "relative flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full text-xs font-bold",
-            tones[teacher.tone],
-          )}
-        >
-          {portrait ? <Image src={portrait} alt="" fill sizes="44px" className="object-cover" /> : teacher.initials}
-        </span>
+        <TeacherAvatar teacherId={teacher.id} fallback={teacher.initials} className="size-11" />
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-bold leading-6">أ. {teacher.name}</h3>
           <p className="text-xs leading-5 text-muted-foreground">{teacher.title}</p>
@@ -205,15 +188,7 @@ export function TeacherCard({
       href={routes.teacher(teacher.id)}
       className="soft-card group flex h-full flex-col items-center p-6 text-center transition-all hover:-translate-y-1 hover:border-primary hover:shadow-md"
     >
-      <span
-        aria-hidden="true"
-        className={cn(
-          "mb-4 flex size-20 items-center justify-center rounded-full border-4 border-white text-2xl font-bold shadow-sm ring-1 ring-border",
-          tones[teacher.tone],
-        )}
-      >
-        {teacher.initials}
-      </span>
+      <TeacherAvatar teacherId={teacher.id} fallback={teacher.initials} className="mb-4 size-20 border-4 border-white text-2xl shadow-sm ring-1 ring-border" />
       <h3 className="text-lg font-semibold">أ. {teacher.name}</h3>
       <p className="mt-1 text-sm font-medium text-primary">{teacher.title}</p>
       <span className="mt-3 inline-flex rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-muted-foreground">

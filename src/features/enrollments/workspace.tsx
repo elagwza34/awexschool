@@ -1,4 +1,5 @@
 "use client";
+import { TeacherAvatar } from "@/components/teacher-avatar";
 import { portalCourseHref } from "@/features/content/routes";
 import { useState } from "react";
 import Link from "next/link";
@@ -134,7 +135,8 @@ function GroupEditor({ group }: { group?: LearningGroup }) {
               ))}
             </select>
           </div>
-          <p className="text-sm">
+          <p className="flex items-center gap-2 text-sm">
+            <TeacherAvatar teacherId={teacher?.entityId} className="size-6" />
             المدرس المسند: {teacher?.name ?? "غير محدد"} · {teacher?.status}
           </p>
           <fieldset className="space-y-2">

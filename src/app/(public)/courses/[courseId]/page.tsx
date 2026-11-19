@@ -1,3 +1,4 @@
+import { TeacherAvatar } from "@/components/teacher-avatar";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, BookOpen, Check, Play } from "lucide-react";
@@ -68,15 +69,7 @@ export default async function CoursePage({
             className="mb-6 mt-4 flex min-h-11 items-center gap-3 text-sm font-bold"
             href={`/teachers/${teacher.id}`}
           >
-            <span
-              aria-hidden="true"
-              className={cn(
-                "flex size-10 items-center justify-center rounded-full text-xs",
-                tones[teacher.tone],
-              )}
-            >
-              {teacher.initials}
-            </span>
+            <TeacherAvatar teacherId={teacher.id} fallback={teacher.initials} />
             مع أ. {teacher.name}
             <ArrowLeft aria-hidden="true" className="size-4" />
           </Link>

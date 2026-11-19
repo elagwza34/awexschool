@@ -1,4 +1,5 @@
 "use client";
+import { TeacherAvatar } from "@/components/teacher-avatar";
 
 import Link from "next/link";
 import { BookOpen, Check, LockKeyhole, Play } from "lucide-react";
@@ -121,7 +122,10 @@ export function CourseContent({ course }: { course: Course }) {
       </TabsContent>
       <TabsContent value="teacher">
         <section className="soft-card p-4">
-          <h2 className="text-xl font-semibold">أ. {teacher.name}</h2>
+          <div className="flex items-center gap-3">
+            <TeacherAvatar teacherId={teacher.id} />
+            <h2 className="text-xl font-semibold">أ. {teacher.name}</h2>
+          </div>
           <p className="mt-3 leading-7 text-muted-foreground">{teacher.bio}</p>
           <Link
             className="mt-4 inline-flex min-h-11 items-center font-bold text-primary underline underline-offset-4"
