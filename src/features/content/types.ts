@@ -1,4 +1,4 @@
-import type { SubjectId } from "@/features/catalog/types";
+import type { CourseTrack, SubjectId } from "@/features/catalog/types";
 export interface ContentResource {
   id: string;
   title: string;
@@ -23,6 +23,7 @@ export interface ContentCourse {
   title: string;
   description: string;
   gradeId: string;
+  track?: CourseTrack;
   subjectId: SubjectId;
   teacherId: string;
   term: string;
@@ -38,5 +39,5 @@ export interface ContentRecord {
   status: ContentStatus;
   reviewNote: string;
 }
-export type ContentRole = "teacher" | "admin";
+export type { DashboardRole as ContentRole } from "@/features/dashboards/types";
 export type ContentResult = { ok: true } | { ok: false; error: string };

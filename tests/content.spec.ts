@@ -21,9 +21,10 @@ async function enrollPublished(page: Page, title: string) {
   await page
     .getByLabel("اسم المجموعة", { exact: true })
     .fill("مجموعة المحتوى المعتمد");
-  await page
-    .getByLabel("مقرر المجموعة", { exact: true })
-    .selectOption({ label: title });
+  const courseSelect = page.getByLabel("مقرر المجموعة", { exact: true });
+  const option = courseSelect.locator("option").filter({ hasText: `${title} ·` });
+  await expect(option).toHaveCount(1);
+  await courseSelect.selectOption(await option.getAttribute("value") ?? "");
   await page.getByLabel(/يوسف أحمد ·/).check();
   await page
     .getByRole("button", { name: "حفظ المجموعة في المعاينة", exact: true })

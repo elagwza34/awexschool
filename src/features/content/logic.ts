@@ -1,4 +1,5 @@
 import type { ContentCourse } from "./types";
+import { courseTrackLabels } from "@/features/catalog/types";
 export const contentStatuses = {
   draft: "مسودة",
   review: "بانتظار المراجعة",
@@ -9,6 +10,8 @@ export function validateContent(
   course: ContentCourse,
   publishing = false,
 ): string | undefined {
+  if (course.track !== undefined && !Object.hasOwn(courseTrackLabels, course.track))
+    return "اختر مسار المقرر: عربي أو لغات.";
   if (course.title.trim().length < 3 || course.title.trim().length > 160)
     return "عنوان المقرر من 3 إلى 160 حرفًا.";
   if (

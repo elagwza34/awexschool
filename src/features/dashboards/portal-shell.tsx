@@ -19,12 +19,10 @@ import { cn } from "@/lib/utils";
 import { dashboardProfiles, getDashboardProfile } from "./mock-data";
 import type { DashboardRole } from "./types";
 import { usePortalPreview } from "./preview-context";
-import { studentSections } from "./student-navigation";
-import { teacherSections } from "./teacher-navigation";
-import { parentSections } from "./parent-navigation";
-import { adminSections } from "./admin-navigation";
 import { useEnrollmentPreview } from "@/features/enrollments/context";
-import { isStaffRole, staffSections } from "./staff-data";
+import { isStaffRole } from "./staff-data";
+import { pagePermission, permissionSections } from "./permissions";
+import { usePermissions } from "./permissions-context";
 
 export function PortalShell({
   role,
@@ -33,15 +31,8 @@ export function PortalShell({
   role: DashboardRole;
   children: ReactNode;
 }) {
-  const topSections = isStaffRole(role)
-    ? staffSections(role)
-    : role === "student"
-      ? studentSections
-      : role === "parent"
-        ? parentSections
-        : role === "admin"
-          ? adminSections
-          : teacherSections;
+  const { can } = usePermissions();
+  const topSections = permissionSections(role).filter((section) => can(role, `page:${section.id}`));
   const baseProfile = getDashboardProfile(role);
   const { accounts } = useEnrollmentPreview();
   const previewAccount = accounts.find(
@@ -159,6 +150,7 @@ export function PortalShell({
                   {p.label}
                 </option>
               ))}
+              <option value="owner">لوحة المالك</option>
             </select>
           </div>
         </div>
@@ -216,7 +208,15 @@ export function PortalShell({
           tabIndex={-1}
           className="mx-auto max-w-[1480px] px-4 py-5 sm:px-5 lg:px-6 lg:py-6"
         >
-          {children}
+          {can(role, pagePermission(role, pathname)) ? children : (
+            <section className="soft-card space-y-3 p-6">
+              <h1 className="text-xl font-bold">الصلاحية غير متاحة</h1>
+              <p className="text-sm text-muted-foreground">الدور الحالي لا يملك صلاحية فتح هذا القسم في المعاينة.</p>
+              <Link href="/owner" className="inline-flex min-h-11 items-center font-bold text-primary">
+                الرجوع إلى إدارة الصلاحيات
+              </Link>
+            </section>
+          )}
         </main>
         <footer className="flex flex-wrap justify-between gap-3 border-t px-4 py-4 text-[11px] text-muted-foreground sm:px-6">
           <span>

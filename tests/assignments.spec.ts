@@ -219,6 +219,7 @@ for (const width of [375, 768, 1440])
       await expect(page.getByRole("heading", { level: 1 })).toHaveText(
         "الواجبات والتكليفات",
       );
+      await expect(page).toHaveTitle(/الواجبات والتكليفات/);
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth),
       ).toBeLessThanOrEqual(width);

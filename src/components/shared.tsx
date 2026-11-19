@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -187,7 +188,14 @@ export function Brand({ inverse = false }: { inverse?: boolean }) {
         inverse && "text-white",
       )}
     >
-      <img src="/logo-green-96.webp" alt="liveschool" className="h-16 w-auto my-1.5" />
+      <Image
+        src="/logo-green-96.webp"
+        alt="liveschool"
+        width={169}
+        height={96}
+        unoptimized
+        className="my-1.5 h-16 w-auto"
+      />
     </Link>
   );
 }

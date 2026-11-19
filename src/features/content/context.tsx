@@ -2,6 +2,7 @@
 import { createContext, useContext, type ReactNode } from "react";
 import { grades } from "@/features/catalog/mock-data";
 import { useEnrollmentPreview } from "@/features/enrollments/context";
+import { usePermissions } from "@/features/dashboards/permissions-context";
 import { validateContent } from "./logic";
 import type {
   ContentCourse,
@@ -26,6 +27,7 @@ interface Value {
 const Context = createContext<Value | null>(null);
 export function ContentProvider({ children }: { children: ReactNode }) {
   const registry = useEnrollmentPreview();
+  const { can } = usePermissions();
   const { contentRecords: storedRecords, setContentRecords: setRecords } =
     registry;
   // Published content and enrollment share the same state and owner registry.
@@ -40,11 +42,12 @@ export function ContentProvider({ children }: { children: ReactNode }) {
         : undefined,
     };
   });
-  const canEdit = (role: ContentRole, course: ContentCourse) =>
-    role === "admin"
+  const canAccess = (role: ContentRole, course: ContentCourse) =>
+    (can(role, "page:content") || can(role, "page:curricula")) &&
+    (role === "admin"
       ? registry.isEntityActive("admin", "preview-admin")
-      : course.teacherId === "ahmed-hassan" &&
-        registry.isEntityActive("teacher", "ahmed-hassan");
+      : role !== "teacher" || (course.teacherId === "ahmed-hassan" &&
+        registry.isEntityActive("teacher", "ahmed-hassan")));
   const validAssignment = (course: ContentCourse) =>
     grades.some((g) => g.id === course.gradeId) &&
     registry.accounts.some(
@@ -54,8 +57,9 @@ export function ContentProvider({ children }: { children: ReactNode }) {
   const save: Value["save"] = (course, role, expectedRevision) => {
     const existing = records.find((r) => r.working.id === course.id);
     if (
-      !canEdit(role, course) ||
-      (existing && !canEdit(role, existing.working))
+      !can(role, existing ? "content:edit" : "content:create") ||
+      !canAccess(role, course) ||
+      (existing && !canAccess(role, existing.working))
     )
       return { ok: false, error: "المحتوى غير متاح للتعديل لهذا الحساب." };
     if (
@@ -83,7 +87,7 @@ export function ContentProvider({ children }: { children: ReactNode }) {
         error: error ?? "اختر مدرسًا ومادة متوافقين وصفًا صحيحًا.",
       };
     const record: ContentRecord = {
-      working: structuredClone(course),
+      working: structuredClone({ ...course, track: course.track ?? "arabic" }),
       published: existing?.published,
       retired: existing?.retired,
       revision: (existing?.revision ?? 0) + 1,
@@ -100,13 +104,8 @@ export function ContentProvider({ children }: { children: ReactNode }) {
   };
   const transition: Value["transition"] = (id, action, role, note = "") => {
     const record = records.find((r) => r.working.id === id);
-    if (!record || !canEdit(role, record.working))
+    if (!record || !can(role, `content:${action}`) || !canAccess(role, record.working))
       return { ok: false, error: "المحتوى غير متاح لهذا الحساب." };
-    if (
-      ["approve", "changes", "unpublish"].includes(action) &&
-      role !== "admin"
-    )
-      return { ok: false, error: "هذا الإجراء للإدارة فقط." };
     let next = { ...record };
     if (action === "submit") {
       const error = validateContent(record.working, true);

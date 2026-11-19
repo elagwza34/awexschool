@@ -13,9 +13,11 @@ import {
 } from "@/components/ui/dialog";
 import { Panel } from "@/features/dashboards/dashboard-panels";
 import { useEnrollmentPreview } from "@/features/enrollments/context";
+import { usePermissions } from "@/features/dashboards/permissions-context";
 import Link from "next/link";
 import { portalCourseHref } from "./routes";
-import { grades, getGrade, getSubject } from "@/features/catalog/mock-data";
+import { grades, getGrade, getSubject, stages, subjects } from "@/features/catalog/mock-data";
+import { courseTrackLabels, type CourseTrack } from "@/features/catalog/types";
 import { ContentEditor } from "./editor";
 import { ContentField } from "./fields";
 import { CourseContentPreview } from "./preview";
@@ -138,12 +140,12 @@ function ContentCard({
 }) {
   const { transition } = useContent();
   const registry = useEnrollmentPreview();
+  const { can } = usePermissions();
   const [result, setResult] = useState<ContentResult>();
   const course = record.working;
-  const enabled = registry.isEntityActive(
-    role,
-    role === "admin" ? "preview-admin" : "ahmed-hassan",
-  );
+  const enabled = role === "admin"
+    ? registry.isEntityActive("admin", "preview-admin")
+    : role !== "teacher" || registry.isEntityActive("teacher", "ahmed-hassan");
   return (
     <article
       className="min-w-0 space-y-3 rounded-lg border p-3 sm:p-4"
@@ -182,7 +184,7 @@ function ContentCard({
         <ContentEditor record={record} role={role} />
         <PreviewDialog record={record} />
         {record.published && <PreviewDialog record={record} published />}
-        {(record.status === "draft" || record.status === "changes") && (
+        {can(role, "content:submit") && (record.status === "draft" || record.status === "changes") && (
           <Button
             disabled={!enabled}
             onClick={() => setResult(transition(course.id, "submit", role))}
@@ -190,7 +192,7 @@ function ContentCard({
             إرسال للمراجعة
           </Button>
         )}
-        {record.status === "review" && (
+        {can(role, "content:withdraw") && record.status === "review" && (
           <Button
             variant="outline"
             disabled={!enabled}
@@ -199,23 +201,23 @@ function ContentCard({
             سحب للمسودة
           </Button>
         )}
-        {role === "admin" && record.status === "review" && (
-          <>
+        {can(role, "content:approve") && record.status === "review" && (
             <Button
               disabled={!enabled}
               onClick={() => setResult(transition(course.id, "approve", role))}
             >
               اعتماد ونشر تجريبي
             </Button>
+        )}
+        {can(role, "content:changes") && record.status === "review" && (
             <ReasonAction
               record={record}
               role={role}
               action="changes"
               disabled={!enabled}
             />
-          </>
         )}
-        {role === "admin" && record.published && (
+        {can(role, "content:unpublish") && record.published && (
           <ReasonAction
             record={record}
             role={role}
@@ -232,38 +234,75 @@ function ContentCard({
     </article>
   );
 }
-export function ContentWorkspace({ role }: { role: ContentRole }) {
+export function ContentWorkspace({
+  role,
+  curriculum = false,
+}: {
+  role: ContentRole;
+  curriculum?: boolean;
+}) {
   const { records } = useContent();
-  const { accounts } = useEnrollmentPreview();
+  const { accounts, teacherSubjects } = useEnrollmentPreview();
   const [query, setQuery] = useState(""),
     [status, setStatus] = useState(""),
     [grade, setGrade] = useState(""),
+    [stage, setStage] = useState(""),
+    [subject, setSubject] = useState(""),
+    [track, setTrack] = useState(""),
     [teacher, setTeacher] = useState("");
+  const stageGrades = stage ? grades.filter((item) => item.stageId === stage) : grades;
+  const subjectTeacher = subject && accounts.find(
+    (account) => account.kind === "teacher" && teacherSubjects[account.entityId] === subject,
+  );
+  const defaults = curriculum ? {
+    gradeId: grade || (stage ? stageGrades[0]?.id : undefined) || "preparatory-1",
+    track: (track || "arabic") as CourseTrack,
+    teacherId: (subjectTeacher && subjectTeacher.entityId) || "ahmed-hassan",
+  } : undefined;
   const visible = records.filter(
     (r) =>
-      (role === "admin" || r.working.teacherId === "ahmed-hassan") &&
+      (role !== "teacher" || r.working.teacherId === "ahmed-hassan") &&
       r.working.title.includes(query.trim()) &&
       (!status || r.status === status) &&
       (!grade || r.working.gradeId === grade) &&
+      (!stage || getGrade(r.working.gradeId)?.stageId === stage) &&
+      (!subject || r.working.subjectId === subject) &&
+      (!track || (r.working.track ?? "arabic") === track) &&
       (!teacher || r.working.teacherId === teacher),
   );
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold sm:text-3xl">إدارة المحتوى</h1>
+          <h1 className="text-2xl font-bold sm:text-3xl">{curriculum ? "إدارة المناهج" : "إدارة المحتوى"}</h1>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground">
-            جهّز المقرر ووحداته ودروسه وموارده، ثم راجع النسخة قبل اعتمادها. كل
-            التعديلات مؤقتة داخل اللوحات فقط.
+            {curriculum
+              ? "اختار المرحلة والصف والمسار والمادة، ثم جهّز المقررات وراجعها. التعديلات مؤقتة داخل اللوحات."
+              : "جهّز المقرر ووحداته ودروسه وموارده، ثم راجع النسخة قبل اعتمادها. كل التعديلات مؤقتة داخل اللوحات فقط."}
           </p>
         </div>
-        <ContentEditor role={role} />
+        {curriculum && subject && !subjectTeacher ? (
+          <p role="status" className="text-sm text-muted-foreground">المادة دي محتاجة مدرس مسند قبل إنشاء مقرر.</p>
+        ) : <ContentEditor role={role} defaults={defaults} />}
       </div>
       <Panel
-        title="المقررات والمراجعات"
+        title={curriculum ? "مقررات المنهج" : "المقررات والمراجعات"}
         subtitle="النسخ المعتمدة متاحة للمجموعات والحصص والواجبات داخل اللوحات. المسودات لا تغيّر المحتوى الذي يراه الطلاب."
       >
-        <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className={curriculum
+          ? "mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+          : "mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(0,1fr))]"}>
+          {curriculum && (
+            <ContentField label="المرحلة الدراسية">
+              <select className="field" value={stage} onChange={(e) => {
+                setStage(e.target.value);
+                setGrade("");
+              }}>
+                <option value="">كل المراحل</option>
+                {stages.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              </select>
+            </ContentField>
+          )}
           <ContentField label="بحث المحتوى">
             <input
               className="field"
@@ -294,14 +333,30 @@ export function ContentWorkspace({ role }: { role: ContentRole }) {
               onChange={(e) => setGrade(e.target.value)}
             >
               <option value="">كل الصفوف</option>
-              {grades.map((g) => (
+              {stageGrades.map((g) => (
                 <option key={g.id} value={g.id}>
                   {g.name}
                 </option>
               ))}
             </select>
           </ContentField>
-          {role === "admin" && (
+          {curriculum && (
+            <ContentField label="مادة المنهج">
+              <select className="field" value={subject} onChange={(e) => setSubject(e.target.value)}>
+                <option value="">كل المواد</option>
+                {subjects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              </select>
+            </ContentField>
+          )}
+          <ContentField label="تصفية مسار المحتوى">
+            <select className="field" value={track} onChange={(e) => setTrack(e.target.value)}>
+              <option value="">كل المسارات</option>
+              {Object.entries(courseTrackLabels).map(([id, label]) => (
+                <option key={id} value={id}>{label}</option>
+              ))}
+            </select>
+          </ContentField>
+          {role !== "teacher" && (
             <ContentField label="تصفية مدرس المحتوى">
               <select
                 className="field"

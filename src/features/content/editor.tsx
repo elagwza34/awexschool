@@ -10,7 +10,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { grades, getSubject } from "@/features/catalog/mock-data";
+import { courseTrackLabels, type CourseTrack } from "@/features/catalog/types";
 import { useEnrollmentPreview } from "@/features/enrollments/context";
+import { usePermissions } from "@/features/dashboards/permissions-context";
 import { useContent } from "./context";
 import { ContentField, moveContent } from "./fields";
 import type {
@@ -23,19 +25,24 @@ import type {
 export function ContentEditor({
   record,
   role,
+  defaults,
 }: {
   record?: ContentRecord;
   role: ContentRole;
+  defaults?: Pick<ContentCourse, "gradeId" | "track" | "teacherId">;
 }) {
   const registry = useEnrollmentPreview();
+  const { can } = usePermissions();
   const { save } = useContent();
+  const teacherId = defaults?.teacherId ?? "ahmed-hassan";
   const fresh = (): ContentCourse => ({
     id: crypto.randomUUID(),
     title: "",
     description: "",
-    gradeId: "preparatory-1",
-    teacherId: "ahmed-hassan",
-    subjectId: registry.teacherSubjects["ahmed-hassan"],
+    gradeId: defaults?.gradeId ?? "preparatory-1",
+    track: defaults?.track ?? "arabic",
+    teacherId,
+    subjectId: registry.teacherSubjects[teacherId],
     term: "الفصل الدراسي الأول",
     units: [],
   });
@@ -68,7 +75,8 @@ export function ContentEditor({
   const enabled =
     role === "admin"
       ? registry.isEntityActive("admin", "preview-admin")
-      : registry.isEntityActive("teacher", "ahmed-hassan");
+      : role !== "teacher" || registry.isEntityActive("teacher", "ahmed-hassan");
+  if (!can(role, record ? "content:edit" : "content:create")) return null;
   return (
     <Dialog
       open={open}
@@ -144,10 +152,23 @@ export function ContentEditor({
                   ))}
                 </select>
               </ContentField>
+              <ContentField label="مسار المقرر">
+                <select
+                  className="field"
+                  value={draft.track ?? "arabic"}
+                  onChange={(e) =>
+                    setDraft({ ...draft, track: e.target.value as CourseTrack })
+                  }
+                >
+                  {Object.entries(courseTrackLabels).map(([id, label]) => (
+                    <option key={id} value={id}>{label}</option>
+                  ))}
+                </select>
+              </ContentField>
               <ContentField label="مدرس المقرر">
                 <select
                   className="field"
-                  disabled={!!record || role !== "admin"}
+                  disabled={!!record || role === "teacher"}
                   value={draft.teacherId}
                   onChange={(e) =>
                     setDraft({

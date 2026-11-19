@@ -1,6 +1,7 @@
 "use client";
 import { Badge } from "@/components/shared";
 import { getGrade, getSubject } from "@/features/catalog/mock-data";
+import { courseTrackLabels } from "@/features/catalog/types";
 import type { ContentCourse } from "./types";
 const resourceNames = { pdf: "ملف PDF", video: "فيديو", link: "رابط" };
 export function CourseContentPreview({
@@ -14,6 +15,7 @@ export function CourseContentPreview({
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
         <Badge>{getGrade(course.gradeId)?.name}</Badge>
+        <Badge>المسار: {courseTrackLabels[course.track ?? "arabic"]}</Badge>
         <Badge>{getSubject(course.subjectId)?.name}</Badge>
         <Badge>{course.term}</Badge>
       </div>

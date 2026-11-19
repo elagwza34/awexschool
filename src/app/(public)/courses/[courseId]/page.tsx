@@ -75,7 +75,7 @@ export default async function CoursePage({
           </Link>
           <CourseContent course={course} />
         </div>
-        <aside className="soft-card overflow-hidden lg:sticky lg:top-6">
+        <aside className="soft-card overflow-hidden lg:sticky lg:top-(--site-sticky-top)">
           <div
             className={cn(
               "relative flex h-48 items-center justify-center",

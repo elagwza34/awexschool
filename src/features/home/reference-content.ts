@@ -3,6 +3,7 @@ export const referenceContent = `
 <section class="hero" id="home-top">
   <div class="kit-film"><picture><source media="(max-width: 699px)" srcset="/school-home/img/hero-poster-portrait-720.webp"><img src="/school-home/img/hero-poster-1920.webp" srcset="/school-home/img/hero-poster-960.webp 960w, /school-home/img/hero-poster-1920.webp 1920w" sizes="100vw" alt="" fetchpriority="high" decoding="async"></picture><video data-film="now" muted playsinline loop preload="none" aria-hidden="true" data-hd="/school-home/video/hero-1080.mp4" data-sd="/school-home/video/hero-720.mp4" data-portrait="/school-home/video/hero-portrait.mp4"></video></div>
   <div class="hero-shade" aria-hidden="true"></div>
+  <button class="film-toggle" data-film-toggle type="button" aria-label="تشغيل فيديو الخلفية" hidden><span aria-hidden="true"></span></button>
   <div class="hero-in">
     <p class="hero-live" data-reveal="fade" data-delay="0.1"><span class="live"><i aria-hidden="true"></i>مباشر</span><span class="hero-from">الشيخ زايد، الجيزة</span></p>
     <h1 data-split="words" data-split-now data-delay="0.3">مدرستك معاك في أي مكان.</h1>

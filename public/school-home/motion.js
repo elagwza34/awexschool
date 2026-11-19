@@ -239,15 +239,51 @@ window.mountSchoolHome = function mountSchoolHome(root) {
   function films() {
     const pickSrc = v => { const w = innerWidth * Math.min(devicePixelRatio || 1, 2);
       return innerWidth < 700 && v.dataset.portrait ? v.dataset.portrait : w > 1500 && v.dataset.hd ? v.dataset.hd : v.dataset.sd || v.dataset.hd; };
-    const start = v => { if (saveData) return; if (!v.src) v.src = pickSrc(v); v.play().catch(() => {}); };   // calm visitors keep the (muted) films
-    $$('video[data-film]').forEach(v => {
+    const start = v => { if (!v.src) v.src = pickSrc(v); v.play().catch(() => {}); };
+    const videos = $$('video[data-film]');
+    const toggles = new Map();
+    videos.forEach(v => {
+      const toggle = $('[data-film-toggle]', v.closest('section') ?? root);
+      const settings = { autoplay: !saveData && !calm };
+      toggles.set(v, settings);
       v.muted = true; v.playsInline = true;
       listen(v, 'playing', () => v.classList.add('on'));
-      if (v.dataset.film === 'now') { if (document.readyState === 'complete') start(v); else listen(window, 'load', () => start(v), { once: true }); }
+      if (toggle) {
+        const update = () => {
+          toggle.toggleAttribute('data-playing', !v.paused);
+          const label = v.paused ? 'تشغيل فيديو الخلفية' : 'إيقاف فيديو الخلفية';
+          toggle.setAttribute('aria-label', label);
+          toggle.title = label;
+        };
+        listen(v, 'play', update);
+        listen(v, 'pause', update);
+        listen(v, 'error', update);
+        listen(toggle, 'click', () => {
+          settings.autoplay = v.paused;
+          if (settings.autoplay) start(v);
+          else v.pause();
+        });
+        update();
+        toggle.hidden = false;
+      }
+      if (v.dataset.film === 'now') {
+        const autoplay = () => { if (settings.autoplay) start(v); };
+        if (document.readyState === 'complete') autoplay();
+        else listen(window, 'load', autoplay, { once: true });
+      }
+      cleanup.push(() => {
+        v.pause();
+        v.classList.remove('on');
+        if (toggle) toggle.hidden = true;
+      });
     });
     if (!('IntersectionObserver' in window)) return;
-    const io = new IntersectionObserver(es => es.forEach(e => { const v = e.target; if (e.isIntersecting) start(v); else if (v.src) v.pause(); }), { threshold: 0.15 });
-    $$('video[data-film]').forEach(v => io.observe(v));
+    const io = new IntersectionObserver(es => es.forEach(e => {
+      const v = e.target;
+      if (e.isIntersecting && toggles.get(v).autoplay) start(v);
+      else if (!e.isIntersecting && v.src) v.pause();
+    }), { threshold: 0.15 });
+    videos.forEach(v => io.observe(v));
     cleanup.push(() => io.disconnect());
   }
 
