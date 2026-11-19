@@ -20,12 +20,14 @@ export function filterCourses({
   query = "",
   grade,
   subject,
+  track,
 }: CatalogQuery = {}) {
   const needle = normalizeArabic(query);
   return courses.filter(
     (course) =>
       (!grade || course.gradeId === grade) &&
       (!subject || course.subjectId === subject) &&
+      (!track || (course.track ?? "arabic") === track) &&
       normalizeArabic(
         [
           course.title,

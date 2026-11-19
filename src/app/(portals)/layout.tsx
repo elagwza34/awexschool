@@ -3,6 +3,7 @@ import { StaffPreviewProvider } from "@/features/dashboards/staff-context";
 import { EnrollmentPreviewProvider } from "@/features/enrollments/context";
 import { AssignmentProvider } from "@/features/assignments/context";
 import { ContentProvider } from "@/features/content/context";
+import { PermissionPreviewProvider } from "@/features/dashboards/permissions-context";
 
 export default function PortalsLayout({
   children,
@@ -13,9 +14,11 @@ export default function PortalsLayout({
     <EnrollmentPreviewProvider>
       <PortalPreviewProvider>
         <AssignmentProvider>
-          <ContentProvider>
-            <StaffPreviewProvider>{children}</StaffPreviewProvider>
-          </ContentProvider>
+          <PermissionPreviewProvider>
+            <ContentProvider>
+              <StaffPreviewProvider>{children}</StaffPreviewProvider>
+            </ContentProvider>
+          </PermissionPreviewProvider>
         </AssignmentProvider>
       </PortalPreviewProvider>
     </EnrollmentPreviewProvider>

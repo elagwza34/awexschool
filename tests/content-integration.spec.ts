@@ -1,6 +1,33 @@
 import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 const title = 'مقرر الرحلة الموحّدة';
+
+test('curriculum filters carry the selected grade, track and subject into a new draft', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto('/admin');
+  await page.getByRole('link', { name: 'إدارة المناهج', exact: true }).click();
+  await expect(page).toHaveURL('/admin/curricula');
+  await page.getByLabel('المرحلة الدراسية', { exact: true }).selectOption('preparatory');
+  await page.getByLabel('تصفية صف المحتوى', { exact: true }).selectOption('preparatory-2');
+  await page.getByLabel('تصفية مسار المحتوى', { exact: true }).selectOption('languages');
+  await page.getByLabel('مادة المنهج', { exact: true }).selectOption('english');
+  await expect(page.locator('article[data-content-id]')).toHaveCount(1);
+  await expect(page.getByRole('heading', { name: 'Talking About Experiences' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'إنشاء مقرر' }).click();
+  const editor = page.getByRole('dialog');
+  await expect(editor.getByLabel('صف المقرر', { exact: true })).toHaveValue('preparatory-2');
+  await expect(editor.getByLabel('مسار المقرر')).toHaveValue('languages');
+  await expect(editor.getByLabel('مدرس المقرر')).toHaveValue('nour-ibrahim');
+  await editor.getByLabel('عنوان المقرر').fill('مقرر إنجليزي جديد');
+  await editor.getByLabel('وصف المقرر').fill('مسودة لمقرر إضافي في مسار اللغات.');
+  await editor.getByRole('button', { name: 'حفظ مسودة المقرر' }).click();
+  await expect(page.getByRole('heading', { name: 'مقرر إنجليزي جديد' })).toBeVisible();
+  await page.getByLabel('المرحلة الدراسية', { exact: true }).selectOption('primary');
+  await expect(page.getByLabel('تصفية صف المحتوى', { exact: true })).toHaveValue('');
+  await expect(page.getByRole('heading', { name: 'مقرر إنجليزي جديد' })).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);
+});
 async function navigate(page: Page, role: string, section: string) {
   const switcher = page.getByLabel('تبديل اللوحة', { exact: true });
   if (await switcher.inputValue() !== role) await switcher.selectOption(role);
@@ -8,10 +35,14 @@ async function navigate(page: Page, role: string, section: string) {
   await expect(page).toHaveURL(new RegExp(`/${role}/${section}$`));
 }
 function editorial(page: Page) { return page.locator('article[data-content-id]').filter({ has: page.getByRole('heading', { name: title, exact: true }) }); }
-async function draft(page: Page) {
+async function draft(page: Page, track?: "arabic" | "languages") {
   await page.goto('/teacher/content');
   await page.getByRole('button', { name: 'إنشاء مقرر', exact: true }).click();
   const dialog = page.getByRole('dialog');
+  if (track) {
+    await expect(dialog.getByLabel('مسار المقرر', { exact: true })).toHaveValue('arabic');
+    await dialog.getByLabel('مسار المقرر', { exact: true }).selectOption(track);
+  }
   await dialog.getByLabel('عنوان المقرر', { exact: true }).fill(title);
   await dialog.getByLabel('وصف المقرر', { exact: true }).fill('تعلم الرياضيات من خلال مقرر موحّد بين كل اللوحات.');
   await dialog.getByRole('button', { name: 'إضافة وحدة', exact: true }).click();
@@ -49,7 +80,11 @@ test('published course flows through groups, teacher and learner readers, sessio
   const errors: string[] = [], writes: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
   page.on('request', r => { if (['POST','PUT','PATCH','DELETE'].includes(r.method())) writes.push(r.url()); });
-  const id = await draft(page);
+  const id = await draft(page, "languages");
+  await editorial(page).getByRole('button', { name: 'معاينة نسخة العمل' }).click();
+  await expect(page.getByRole('dialog')).toContainText('المسار: لغات');
+  await expect(page.getByRole('dialog')).toContainText('الصف الأول الإعدادي');
+  await page.keyboard.press('Escape');
   await navigate(page, 'teacher', 'courses');
   await expect(page.getByRole('heading', { name: title, exact: true })).toHaveCount(0);
   await navigate(page, 'teacher', 'content');
@@ -67,6 +102,7 @@ test('published course flows through groups, teacher and learner readers, sessio
   await navigate(page, 'student', 'courses');
   await page.getByRole('link', { name: title, exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/student/learn/${id}$`));
+  await expect(page.getByText('المسار: لغات', { exact: true })).toBeVisible();
   await page.getByRole('link', { name: /درس الفهم المشترك/ }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('درس الفهم المشترك');
   await expect(page.getByText('هذا هو النص المعتمد الأول للمقرر الجديد.', { exact: true })).toBeVisible();
@@ -137,10 +173,17 @@ test('unlinked child and student are denied, and draft revisions never replace t
   const id = await draft(page); await publish(page); await enroll(page, id);
   await navigate(page, 'teacher', 'content');
   await editorial(page).getByRole('button', { name: 'تعديل المحتوى', exact: true }).click();
+  await page.getByLabel('مسار المقرر', { exact: true }).selectOption('languages');
   await page.getByLabel('وصف المقرر', { exact: true }).fill('هذا وصف مسودة غير معتمد يجب ألا يظهر للطالب.');
   await page.getByRole('button', { name: 'حفظ مسودة المقرر', exact: true }).click();
+  const trackFilter = page.getByLabel('تصفية مسار المحتوى', { exact: true });
+  await trackFilter.selectOption('arabic');
+  await expect(editorial(page)).toHaveCount(0);
+  await trackFilter.selectOption('languages');
+  await expect(editorial(page)).toBeVisible();
   await navigate(page, 'student', 'courses');
   await page.getByRole('link', { name: title, exact: true }).click();
+  await expect(page.getByText('المسار: عربي', { exact: true })).toBeVisible();
   await expect(page.getByText('هذا وصف مسودة غير معتمد يجب ألا يظهر للطالب.', { exact: true })).toHaveCount(0);
   await navigate(page, 'parent', 'courses');
   await page.getByRole('link', { name: /سلمى أحمد/ }).click();
@@ -164,6 +207,7 @@ for (const width of [375,768,1440]) test(`shared course and lesson reader is acc
     const lessonLink = page.getByRole('link').filter({ hasText: 'دقيقة' }).first();
     await lessonLink.click();
     await expect(page.getByRole('heading', { name: 'محتوى الدرس', exact: true })).toBeVisible();
+    await expect(page).toHaveTitle(/المحتوى التعليمي/);
     const scan = await new AxeBuilder({ page }).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
     expect(scan.violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);

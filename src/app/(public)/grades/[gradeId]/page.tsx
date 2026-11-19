@@ -12,6 +12,12 @@ import {
   SectionHeading,
 } from "@/components/shared";
 import { CourseCard, SubjectCard } from "@/components/catalog-cards";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+const tracks = [
+  { id: "arabic", label: "عربي" },
+  { id: "languages", label: "لغات" },
+] as const;
 
 export const dynamicParams = false;
 export function generateStaticParams() {
@@ -37,9 +43,6 @@ export default async function GradePage({
   if (!grade) notFound();
   const stage = stages.find((s) => s.id === grade.stageId)!;
   const available = courses.filter((c) => c.gradeId === gradeId);
-  const offeredSubjects = subjects.filter((s) =>
-    available.some((c) => c.subjectId === s.id),
-  );
   return (
     <div className="container-shell py-6 md:py-8">
       <Breadcrumbs
@@ -54,30 +57,49 @@ export default async function GradePage({
         title={grade.name}
         description="اختار مادتك، واستكشف المقررات والدروس المتاحة في العرض التجريبي."
       />
-      {available.length ? (
-        <>
-          <div className="mb-8 grid gap-3 md:grid-cols-3">
-            {offeredSubjects.map((subject) => (
-              <SubjectCard
-                key={subject.id}
-                subject={subject}
-                href={`/subjects/${subject.id}?grade=${grade.id}`}
-              />
-            ))}
-          </div>
-          <SectionHeading title="مقررات صفك الدراسي" />
-          <div className="mb-7 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {available.map((course) => (
-              <CourseCard key={course.id} course={course} />
-            ))}
-          </div>
-        </>
-      ) : (
-        <EmptyState
-          title="لسه بنجهّز مساحة هذا الصف"
-          description="لا تتوفر بيانات نموذجية لهذا الصف حاليًا. يمكنك استكشاف المقررات الأخرى للتعرّف على التجربة."
-        />
-      )}
+      <Tabs key={grade.id} dir="rtl" defaultValue="arabic" className="gap-5">
+        <TabsList aria-label="مسار الدراسة" className="w-full justify-start sm:w-fit">
+          {tracks.map(({ id, label }) => (
+            <TabsTrigger value={id} key={id} className="min-w-24 px-5">
+              {label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        {tracks.map(({ id, label }) => {
+          const trackCourses = available.filter((course) => (course.track ?? "arabic") === id);
+          const offeredSubjects = subjects.filter((subject) =>
+            trackCourses.some((course) => course.subjectId === subject.id),
+          );
+          return (
+            <TabsContent value={id} key={id}>
+              {trackCourses.length ? (
+                <>
+                  <div className="mb-8 grid gap-3 md:grid-cols-3">
+                    {offeredSubjects.map((subject) => (
+                      <SubjectCard
+                        key={subject.id}
+                        subject={subject}
+                        href={`/subjects/${subject.id}?grade=${grade.id}&track=${id}`}
+                      />
+                    ))}
+                  </div>
+                  <SectionHeading title="مقررات صفك الدراسي" />
+                  <div className="mb-7 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {trackCourses.map((course) => (
+                      <CourseCard key={course.id} course={course} />
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <EmptyState
+                  title={`مقررات مسار ${label} غير متاحة لهذا الصف حاليًا`}
+                  description="تقدر تستكشف المسار التاني أو تختار صف دراسي تاني."
+                />
+              )}
+            </TabsContent>
+          );
+        })}
+      </Tabs>
     </div>
   );
 }

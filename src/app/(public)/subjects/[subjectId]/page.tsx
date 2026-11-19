@@ -33,7 +33,7 @@ export default async function SubjectPage({
   const { subjectId } = await params;
   const subject = subjects.find((s) => s.id === subjectId);
   if (!subject) notFound();
-  const { grade, q } = parseCatalogQuery(await searchParams);
+  const { grade, q, track } = parseCatalogQuery(await searchParams);
   return (
     <div className="container-shell py-6 md:py-8">
       <Breadcrumbs
@@ -57,8 +57,9 @@ export default async function SubjectPage({
         </section>
       )}
       <CatalogBrowser
-        key={`${grade}-${q}`}
+        key={`${grade}-${q}-${track}`}
         fixedSubject={subject.id}
+        fixedTrack={track}
         initialGrade={grade}
         initialQuery={q}
       />

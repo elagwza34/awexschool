@@ -234,7 +234,7 @@ export function StudentProfileEditor() {
           </p>
         </div>
       </div>
-      <div className="space-y-4 xl:sticky xl:top-5">
+      <div className="space-y-4 xl:sticky xl:top-(--site-sticky-top)">
         <Panel title="بروفايل الطالب">
           <div className="text-center">
             <span className="mx-auto mb-4 flex size-24 items-center justify-center rounded-md border-4 border-white bg-secondary text-primary ring-1 ring-border">

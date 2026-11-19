@@ -41,6 +41,11 @@ export default function DashboardPreviewsPage() {
       />
       <DemoNotice className="mb-6" />
       <div className="mb-8 grid gap-4 md:grid-cols-2">
+        <Link href="/owner" className="soft-card space-y-3 p-5 transition-colors hover:border-primary">
+          <ShieldCheck aria-hidden="true" className="size-7 text-primary" />
+          <h2 className="text-xl font-semibold">لوحة المالك</h2>
+          <p className="text-sm text-muted-foreground">إدارة صلاحيات الأدوار وتجربة أثرها على اللوحات.</p>
+        </Link>
         {dashboardProfiles.map((profile) => {
           const Icon = icons[profile.role];
           return (

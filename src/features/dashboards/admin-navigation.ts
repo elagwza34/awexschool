@@ -4,6 +4,7 @@ export const adminSections = [
   { id: "enrollments", href: "/admin/enrollments", label: "الربط والمجموعات" },
   { id: "team", href: "/admin/team", label: "فريق الإدارة" },
   { id: "content", href: "/admin/content", label: "إدارة المحتوى" },
+  { id: "curricula", href: "/admin/curricula", label: "إدارة المناهج" },
   { id: "integrations", href: "/admin/integrations", label: "ربط Meet وZoom" },
   { id: "chat", href: "/admin/chat", label: "المحادثات" },
   { id: "schedule", href: "/admin/schedule", label: "الجدول الأسبوعي" },

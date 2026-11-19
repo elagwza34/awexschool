@@ -57,11 +57,15 @@ export interface Unit {
   title: string;
   lessons: Lesson[];
 }
+export const courseTrackLabels = { arabic: "عربي", languages: "لغات" } as const;
+export type CourseTrack = keyof typeof courseTrackLabels;
+
 export interface Course {
   id: string;
   title: string;
   description: string;
   gradeId: string;
+  track?: CourseTrack;
   subjectId: SubjectId;
   teacherId: string;
   term: string;
@@ -72,6 +76,7 @@ export interface CatalogQuery {
   query?: string;
   grade?: string;
   subject?: string;
+  track?: CourseTrack;
 }
 export interface CatalogService {
   listCourses(query?: CatalogQuery): Promise<Course[]>;

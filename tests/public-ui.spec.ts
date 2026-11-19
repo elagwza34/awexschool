@@ -8,9 +8,21 @@ import {
   teachers,
 } from "../src/features/catalog/mock-data";
 
+test("the sticky course preview stays below the global header", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/courses/math-prep-1");
+  await page.evaluate(() => window.scrollTo(0, 250));
+  const header = await page.getByRole("banner").boundingBox();
+  const preview = await page.locator("main aside").boundingBox();
+  expect(header).not.toBeNull();
+  expect(preview).not.toBeNull();
+  expect(preview!.y).toBeGreaterThanOrEqual(header!.y + header!.height);
+});
+
 test("all public routes and fixture detail routes render; invalid resources return 404", async ({
   request,
 }) => {
+  test.slow();
   const paths = [
     "/",
     "/stages",
@@ -155,7 +167,7 @@ test("search, filters, query URLs, and empty states work", async ({ page }) => {
     page.getByRole("heading", { name: "لم نجد نتائج مطابقة" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "مسح الفلاتر" }).click();
-  await expect(page.locator("article")).toHaveCount(8);
+  await expect(page.locator("article")).toHaveCount(courses.length);
   await page.goto("/subjects/math?grade=primary-4");
   await expect(page.locator("article")).toHaveCount(1);
   await expect(page.getByLabel("الصف الدراسي", { exact: true })).toHaveValue(

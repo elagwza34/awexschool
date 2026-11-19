@@ -36,6 +36,7 @@
   --radius: 0.5rem;
   --layout-section-space: clamp(1.5rem, 3vw, 2rem);
   --layout-panel-padding: clamp(0.75rem, 1.5vw, 1rem);
+  --site-sticky-top: 6rem;
 }
 
 @layer base {

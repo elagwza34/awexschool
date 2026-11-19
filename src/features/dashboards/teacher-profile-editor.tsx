@@ -366,7 +366,7 @@ export function TeacherProfileEditor() {
           </p>
         </div>
       </div>
-      <aside className="space-y-4 xl:sticky xl:top-5">
+      <aside className="space-y-4 xl:sticky xl:top-(--site-sticky-top)">
         <Panel title="معاينة الملف المهني">
           <div className="mb-4 flex justify-center">
             <div className="relative flex size-24 items-center justify-center overflow-hidden rounded-md border-4 border-white bg-secondary ring-1 ring-border">

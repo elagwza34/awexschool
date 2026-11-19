@@ -1,4 +1,50 @@
 import { expect, test } from "@playwright/test";
+import { grades } from "../src/features/catalog/mock-data";
+
+test("the hero leaves its background video paused when motion is reduced", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveClass(/kit-ready/);
+  await expect(page.getByRole("button", { name: "تشغيل فيديو الخلفية" })).toBeVisible();
+  const video = page.locator("video[data-film]");
+  await expect(video).toHaveJSProperty("paused", true);
+  expect(await video.getAttribute("src")).toBeNull();
+});
+
+test("every grade provides Arabic and Languages tracks", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  for (const grade of grades) {
+    await page.goto(`/grades/${grade.id}`);
+    const arabic = page.getByRole("tab", { name: "عربي", exact: true });
+    const languages = page.getByRole("tab", { name: "لغات", exact: true });
+    await expect(arabic).toHaveAttribute("aria-selected", "true");
+    await arabic.focus();
+    await page.keyboard.press("ArrowLeft");
+    await expect(languages).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("tabpanel").locator("article")).toHaveCount(1);
+    await arabic.click();
+    if (grade.id === "primary-4") {
+      await expect(page.getByRole("tabpanel").getByText("أصدقاء الأرقام")).toBeVisible();
+    }
+  }
+});
+
+test("a Languages lesson opens from its grade and shows an example and answer", async ({ page }) => {
+  await page.goto("/grades/preparatory-2");
+  await page.getByRole("tab", { name: "لغات" }).click();
+  await page.getByRole("tabpanel").locator('a[href^="/subjects/english"]').click();
+  await expect(page).toHaveURL(/track=languages/);
+  await expect(page.locator("article")).toHaveCount(1);
+  await page.getByRole("link", { name: "Talking About Experiences" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Talking About Experiences");
+  await page.getByRole("link", { name: "شاهد معاينة مجانية" }).click();
+  await expect(page).toHaveURL("/lessons/languages-english-preparatory-2-u1-l1");
+  await expect(page.getByText("I have visited Aswan.", { exact: false })).toBeVisible();
+  const next = page.getByRole("button", { name: "الفكرة التالية" });
+  await next.click();
+  await next.click();
+  await expect(page.getByText("Have you ever visited Luxor?")).toBeVisible();
+});
 
 test("public and dashboard pages share the home header", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });

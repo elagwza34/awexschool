@@ -196,6 +196,32 @@ html[lang=ar] .reference-home .lead { font-size: 1.12rem; }
 /* ── hero ── */
 .reference-home .hero { position: relative; height: 100svh; min-height: 660px; overflow: hidden; background: var(--mint2); color: var(--ink); --film-bg: var(--mint2); }
 .reference-home .hero .kit-film { position: absolute; inset: 0; }
+.reference-home .film-toggle {
+  position: absolute;
+  z-index: 2;
+  inset-block-start: 6.5rem;
+  inset-inline-end: var(--g);
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: #ffffffe8;
+  color: var(--ink);
+}
+.reference-home .film-toggle span {
+  width: 0;
+  height: 0;
+  border-block: 6px solid transparent;
+  border-left: 10px solid currentColor;
+}
+.reference-home .film-toggle[data-playing] span {
+  width: 11px;
+  height: 13px;
+  border-block: 0;
+  border-inline: 3px solid currentColor;
+}
 .reference-home .hero-shade { position: absolute; inset: 0; pointer-events: none;
   background: radial-gradient(ellipse 56% 72% at 24% 50%, rgba(243, 250, 247, .9), rgba(243, 250, 247, .55) 55%, rgba(243, 250, 247, 0) 100%), linear-gradient(180deg, rgba(243, 250, 247, .55) 0%, rgba(243, 250, 247, 0) 28%), linear-gradient(0deg, rgba(243, 250, 247, .9) 0%, rgba(243, 250, 247, 0) 26%); }
 .reference-home .hero-shade { background: radial-gradient(ellipse 56% 72% at 76% 50%, rgba(243, 250, 247, .9), rgba(243, 250, 247, .55) 55%, rgba(243, 250, 247, 0) 100%), linear-gradient(180deg, rgba(243, 250, 247, .55) 0%, rgba(243, 250, 247, 0) 28%), linear-gradient(0deg, rgba(243, 250, 247, .9) 0%, rgba(243, 250, 247, 0) 26%); }

@@ -6,6 +6,7 @@ export const contentFixtures: ContentRecord[] = courses.map((course) => {
     title: course.title,
     description: course.description,
     gradeId: course.gradeId,
+    track: course.track ?? "arabic",
     subjectId: course.subjectId,
     teacherId: course.teacherId,
     term: course.term,
