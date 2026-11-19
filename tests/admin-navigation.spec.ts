@@ -43,7 +43,7 @@ for (const width of [375, 768, 1440]) {
       );
     }
     await page.goBack();
-    await expect(page).toHaveURL(/\/admin\/schedule$/);
+    await expect(page).toHaveURL(new RegExp(`${adminSections.at(-2)!.href}$`));
     expect(errors).toEqual([]);
   });
 }
