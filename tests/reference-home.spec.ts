@@ -2,6 +2,21 @@ import { expect, test } from "@playwright/test";
 
 import { grades } from "../src/features/catalog/mock-data";
 
+test("the stages page links its languages card to the filtered catalog", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/stages");
+  const card = page.getByRole("link", { name: /كورسات اللغات/ });
+  await card.locator("img").scrollIntoViewIfNeeded();
+  await expect.poll(() => card.locator("img").evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+  await card.click();
+  await expect(page).toHaveURL("/courses?track=languages");
+  await expect(page.getByRole("heading", { name: "كورسات اللغات", level: 1 })).toBeVisible();
+  await expect(page.locator("article")).toHaveCount(grades.length * 2);
+  await page.getByLabel("الصف الدراسي", { exact: true }).selectOption("preparatory-2");
+  await expect(page).toHaveURL(/track=languages/);
+  await expect(page.locator("article")).toHaveCount(2);
+});
+
 test("every grade provides Arabic and Languages tracks", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   for (const grade of grades) {
