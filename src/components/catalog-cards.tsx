@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -21,7 +22,7 @@ const stageIcons = {
   secondary: GraduationCap,
 };
 
-export function StageCard({ stage }: { stage: Stage }) {
+export function StageCard({ stage, image }: { stage: Stage; image?: string }) {
   const Icon = stageIcons[stage.id];
   const yearCount = grades.filter((grade) => grade.stageId === stage.id).length;
   return (
@@ -29,6 +30,17 @@ export function StageCard({ stage }: { stage: Stage }) {
       href={routes.stage(stage.id)}
       className="soft-card group relative flex flex-col p-4 transition-colors hover:border-primary"
     >
+      {image && (
+        <div className="relative mb-4 aspect-[16/10] overflow-hidden rounded-xl bg-muted">
+          <Image
+            src={image}
+            alt=""
+            fill
+            sizes="(min-width: 1240px) 260px, (min-width: 1024px) 25vw, (min-width: 640px) 48vw, 92vw"
+            className="object-cover"
+          />
+        </div>
+      )}
       <div className="flex items-start justify-between">
         <span
           className={cn(
