@@ -1,4 +1,50 @@
 import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+
+test("delegated user creation saves a record and explains duplicate emails", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/owner");
+  await page.getByLabel("الدور").selectOption("support");
+  await page.getByRole("checkbox", { name: "المستخدمون والأدوار", exact: true }).check();
+  await page.getByRole("checkbox", { name: "إضافة مستخدم", exact: true }).check();
+  const scan = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
+  expect(scan.violations.map(({ id }) => id)).toEqual([]);
+  await page.getByRole("link", { name: "اختبار الوصول إلى المستخدمون والأدوار" }).click();
+
+  for (const name of ["سارة الاختبار", "مريم الاختبار"]) {
+    await page.getByRole("button", { name: "إضافة مستخدم", exact: true }).click();
+    await page.getByLabel("اسم المستخدم").fill(name);
+    await page.getByLabel("بريد المستخدم").fill("preview-account@example.com");
+    await page.getByRole("button", { name: "حفظ المستخدم في المعاينة" }).click();
+    if (name === "سارة الاختبار") {
+      await expect(page.getByRole("row", { name: /سارة الاختبار/ })).toContainText("بانتظار المراجعة");
+      await expect(page.getByRole("button", { name: "تعديل سارة الاختبار" })).toHaveCount(0);
+    } else {
+      await expect(page.getByRole("alert")).toContainText("البريد مستخدم بالفعل");
+    }
+  }
+});
+
+test("owner controls user actions independently of page access", async ({ page }) => {
+  await page.goto("/owner");
+  await page.getByRole("checkbox", { name: "إضافة مستخدم", exact: true }).uncheck();
+  await page.getByRole("checkbox", { name: "تغيير حالة المستخدم", exact: true }).uncheck();
+  await page.getByRole("link", { name: "اختبار الوصول إلى المستخدمون والأدوار" }).click();
+  await expect(page.getByRole("button", { name: "إضافة مستخدم", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: /تعديل يوسف/ }).click();
+  await expect(page.getByLabel("اسم المستخدم")).toBeEditable();
+  await expect(page.getByRole("combobox", { name: "حالة المستخدم" })).toHaveCount(0);
+});
+
+test("owner can remove assignment creation while keeping the teacher workspace", async ({ page }) => {
+  await page.goto("/owner");
+  await page.getByLabel("الدور").selectOption("teacher");
+  const create = page.getByRole("checkbox", { name: "إنشاء واجب", exact: true });
+  await create.uncheck();
+  await page.getByRole("link", { name: "اختبار الوصول إلى الواجبات والتكليفات" }).click();
+  await expect(page.getByRole("heading", { name: "الواجبات والتكليفات" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "نشر الواجب التجريبي" })).toHaveCount(0);
+});
 
 test("owner can revoke and restore direct access to curricula", async ({ page }) => {
   await page.goto("/owner");

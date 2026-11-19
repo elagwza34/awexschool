@@ -104,6 +104,26 @@ export interface StaffRequest {
   owner: "support" | "customer-service";
   status: RequestStatus;
   details: string;
+  contactEmail?: string;
+  source?: RequestSource;
+  category?: RequestCategory;
+}
+
+export type RequestSource = "visitor" | "student" | "parent";
+export const requestSources = { visitor: "زائر", student: "طالب", parent: "ولي أمر" } as const;
+export const requestCategories = {
+  technical: { label: "مشكلة تقنية · الدعم الفني", owner: "support" },
+  inquiry: { label: "استفسار أو طلب · خدمة العملاء", owner: "customer-service" },
+  complaint: { label: "شكوى · خدمة العملاء", owner: "customer-service" },
+} as const;
+export type RequestCategory = keyof typeof requestCategories;
+
+export interface RequestDraft {
+  category: RequestCategory;
+  title: string;
+  details: string;
+  name?: string;
+  email?: string;
 }
 export const staffRequestFixtures: StaffRequest[] = [
   {

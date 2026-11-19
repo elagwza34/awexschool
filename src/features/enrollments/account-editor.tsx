@@ -10,12 +10,18 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useEnrollmentPreview } from "./context";
+import { usePermissions } from "@/features/dashboards/permissions-context";
+import type { DashboardRole } from "@/features/dashboards/types";
 import type { PreviewAccount } from "./data";
-export function AccountEditor({ account }: { account: PreviewAccount }) {
+export function AccountEditor({ account, actor }: { account: PreviewAccount; actor: DashboardRole }) {
   const { updateAccount } = useEnrollmentPreview();
+  const { can } = usePermissions();
+  const canEdit = can(actor, "users:edit");
+  const canChangeStatus = can(actor, "users:status");
   const [open, setOpen] = useState(false),
     [error, setError] = useState(""),
     [message, setMessage] = useState("");
+  if (!canEdit && !canChangeStatus) return null;
   return (
     <>
       <Dialog
@@ -48,10 +54,10 @@ export function AccountEditor({ account }: { account: PreviewAccount }) {
               event.preventDefault();
               const data = new FormData(event.currentTarget);
               const result = updateAccount(account.id, {
-                name: String(data.get("name")),
-                email: String(data.get("email")),
-                status: String(data.get("status")) as PreviewAccount["status"],
-              });
+                name: String(data.get("name") ?? account.name),
+                email: String(data.get("email") ?? account.email),
+                status: (data.get("status") ?? account.status) as PreviewAccount["status"],
+              }, actor);
               if (!result.ok) {
                 setError(result.error);
                 return;
@@ -72,6 +78,7 @@ export function AccountEditor({ account }: { account: PreviewAccount }) {
                 name="name"
                 className="field"
                 defaultValue={account.name}
+                readOnly={!canEdit}
                 required
                 minLength={2}
                 maxLength={160}
@@ -91,11 +98,12 @@ export function AccountEditor({ account }: { account: PreviewAccount }) {
                 dir="ltr"
                 className="field"
                 defaultValue={account.email}
+                readOnly={!canEdit}
                 required
                 maxLength={254}
               />
             </div>
-            <div>
+            {canChangeStatus && <div>
               <label
                 htmlFor="account-status"
                 className="mb-2 block text-sm font-semibold"
@@ -112,7 +120,7 @@ export function AccountEditor({ account }: { account: PreviewAccount }) {
                 <option>بانتظار المراجعة</option>
                 <option>معطل</option>
               </select>
-            </div>
+            </div>}
             {error && (
               <p role="alert" className="text-sm text-destructive">
                 {error}

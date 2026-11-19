@@ -1,4 +1,7 @@
 "use client";
+import { usePermissions } from "@/features/dashboards/permissions-context";
+import type { DashboardRole } from "@/features/dashboards/types";
+import type { TeacherProfileDraft } from "@/features/dashboards/management-types";
 import {
   createContext,
   useContext,
@@ -43,29 +46,41 @@ import { teacherSubjectConflict } from "@/features/catalog/teacher-assignments";
 import { contentFixtures } from "@/features/content/data";
 import { toPortalCourse, type PortalCourse } from "@/features/content/catalog";
 import type { ContentRecord } from "@/features/content/types";
+import { availableSeats, groupDays, holdsSeat, reservationDuration, type JoinRequest } from "./registration";
 
 interface EnrollmentValue {
   contentRecords: ContentRecord[];
   setContentRecords: Dispatch<SetStateAction<ContentRecord[]>>;
   catalogCourses: PortalCourse[];
   teacherSubjects: Record<string, SubjectId>;
+  teacherProfiles: Record<string, TeacherProfileDraft>;
   saveTeacherSubject: (
     teacherId: string,
     subjectId: SubjectId,
   ) => MutationResult;
   accounts: PreviewAccount[];
   groups: LearningGroup[];
+  joinRequests: JoinRequest[];
+  reserveSeat: (groupId: string) => MutationResult;
+  payReservation: (id: string) => MutationResult;
+  decideJoinRequest: (id: string, decision: "approved" | "rejected") => MutationResult;
   assignments: Record<string, string>;
   guardianLinks: GuardianLink[];
   staffMembers: StaffMember[];
   addStaffMember: (draft: Omit<StaffMember, "id">) => MutationResult;
+  addAccount: (
+    draft: Pick<PreviewAccount, "name" | "email" | "kind"> & { teacherProfile?: TeacherProfileDraft },
+    actor: DashboardRole,
+  ) => MutationResult;
   updateAccount: (
     id: string,
     draft: Pick<PreviewAccount, "name" | "email" | "status">,
+    actor: DashboardRole,
   ) => MutationResult;
   assignCourse: (courseId: string, teacherId: string) => MutationResult;
   saveGroup: (
     draft: Omit<LearningGroup, "id"> & { id?: string },
+    actor?: DashboardRole,
   ) => MutationResult;
   linkGuardian: (parentId: string, studentId: string) => MutationResult;
   unlinkGuardian: (parentId: string, studentId: string) => void;
@@ -82,6 +97,8 @@ export function EnrollmentPreviewProvider({
 }: {
   children: ReactNode;
 }) {
+  const { can } = usePermissions();
+  const [teacherProfiles, setTeacherProfiles] = useState<Record<string, TeacherProfileDraft>>({});
   const [teacherSubjects, setTeacherSubjects] = useState<
     Record<string, SubjectId>
   >(
@@ -95,6 +112,7 @@ export function EnrollmentPreviewProvider({
     [guardianLinks, setGuardianLinks] = useState(guardianLinkFixtures),
     [staffMembers, setStaffMembers] = useState(staffMemberFixtures);
   const [contentRecords, setContentRecords] = useState(contentFixtures);
+  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const assignments = {
     ...Object.fromEntries(
       contentRecords.map((record) => [
@@ -139,11 +157,39 @@ export function EnrollmentPreviewProvider({
     );
   const validEmail = (email: string) =>
     email.length <= 254 && /^\S+@\S+\.\S+$/.test(email);
-  const updateAccount: EnrollmentValue["updateAccount"] = (id, draft) => {
-    if (!accounts.some((account) => account.id === id))
+  const addAccount: EnrollmentValue["addAccount"] = (draft, actor) => {
+    if (!can(actor, "page:users") || !can(actor, "users:create"))
+      return { ok: false, error: "صلاحية إضافة المستخدم غير متاحة." };
+    const labels = { student: "طالب", parent: "ولي أمر", teacher: "مدرس", admin: "إدارة" };
+    const name = draft.name.trim();
+    const email = draft.email.trim().toLowerCase();
+    if (name.length < 2 || name.length > 160 || !validEmail(email) || !Object.hasOwn(labels, draft.kind))
+      return { ok: false, error: "راجع الاسم والبريد والدور." };
+    if (emailUsed(email)) return { ok: false, error: "البريد مستخدم بالفعل في المعاينة." };
+    const profile = draft.teacherProfile;
+    if (draft.kind === "teacher" && (!profile || !getSubject(profile.specialization)))
+      return { ok: false, error: "كمّل الملف المهني للمدرس الأول." };
+    const id = crypto.randomUUID();
+    setAccounts((previous) => [...previous, {
+      id, entityId: id, name, email, kind: draft.kind,
+      role: labels[draft.kind], status: "بانتظار المراجعة",
+    }]);
+    if (draft.kind === "teacher" && profile) {
+      setTeacherProfiles((previous) => ({ ...previous, [id]: profile }));
+      setTeacherSubjects((previous) => ({ ...previous, [id]: profile.specialization }));
+    }
+    return { ok: true };
+  };
+  const updateAccount: EnrollmentValue["updateAccount"] = (id, draft, actor) => {
+    const account = accounts.find((item) => item.id === id);
+    if (!account)
       return { ok: false, error: "المستخدم غير موجود." };
     const name = draft.name.trim(),
       email = draft.email.trim().toLowerCase();
+    if (!can(actor, "page:users") ||
+      ((name !== account.name || email !== account.email.toLowerCase()) && !can(actor, "users:edit")) ||
+      (draft.status !== account.status && !can(actor, "users:status")))
+      return { ok: false, error: "صلاحية إجراء هذا التغيير غير متاحة." };
     if (
       name.length < 2 ||
       name.length > 160 ||
@@ -199,7 +245,55 @@ export function EnrollmentPreviewProvider({
     setAssignments((previous) => ({ ...previous, [courseId]: teacherId }));
     return { ok: true };
   };
-  const saveGroup: EnrollmentValue["saveGroup"] = (draft) => {
+  const groupOpenForJoining = (group: LearningGroup) => group.active && Boolean(group.day && group.time) &&
+    catalogCourses.some((course) => course.id === group.courseId) && isEntityActive("teacher", assignments[group.courseId]);
+  const reserveSeat: EnrollmentValue["reserveSeat"] = (groupId) => {
+    const group = groups.find(({ id }) => id === groupId);
+    const now = Date.now();
+    if (!group || !groupOpenForJoining(group) || !isEntityActive("student", previewStudentId))
+      return { ok: false, error: "المجموعة أو حساب الطالب غير متاح للتسجيل حاليًا." };
+    if (group.studentIds.includes(previewStudentId) || joinRequests.some((request) =>
+      request.groupId === groupId && request.studentId === previewStudentId && holdsSeat(request, now)))
+      return { ok: false, error: "عندك عضوية أو حجز بالفعل للمجموعة دي." };
+    if (!availableSeats(group, joinRequests, now))
+      return { ok: false, error: "المجموعة اكتملت أو آخر مكان فيها محجوز حاليًا." };
+    const id = crypto.randomUUID();
+    setJoinRequests((previous) => [...previous, {
+      id, groupId, studentId: previewStudentId, fee: group.fee, expiresAt: now + reservationDuration, status: "reserved",
+    }]);
+    return { ok: true };
+  };
+  const payReservation: EnrollmentValue["payReservation"] = (id) => {
+    const request = joinRequests.find((item) => item.id === id && item.studentId === previewStudentId);
+    if (!request || request.status !== "reserved" || !holdsSeat(request, Date.now()))
+      return { ok: false, error: "الحجز انتهى. احجز مرة تانية لو فيه مكان." };
+    const group = groups.find((item) => item.id === request.groupId);
+    if (!group || !groupOpenForJoining(group) || !isEntityActive("student", previewStudentId))
+      return { ok: false, error: "المجموعة أو حساب الطالب غير متاح للدفع التجريبي." };
+    setJoinRequests((previous) => previous.map((item) => item.id === id ? { ...item, status: "paid" } : item));
+    return { ok: true };
+  };
+  const decideJoinRequest: EnrollmentValue["decideJoinRequest"] = (id, decision) => {
+    if (!can("admin", "page:group-requests") || !can("admin", "groups:approve") || !isEntityActive("admin", "preview-admin"))
+      return { ok: false, error: "صلاحية مراجعة الطلبات غير متاحة." };
+    const request = joinRequests.find((item) => item.id === id && item.status === "paid");
+    if (!request) return { ok: false, error: "الطلب مش بانتظار الموافقة بعد الدفع." };
+    if (decision === "approved") {
+      const group = groups.find((item) => item.id === request.groupId);
+      if (!group || !groupOpenForJoining(group) || !isEntityActive("student", request.studentId))
+        return { ok: false, error: "فعّل المجموعة وحساب الطالب قبل الموافقة." };
+      if (!group.studentIds.includes(request.studentId) && group.studentIds.length >= group.capacity)
+        return { ok: false, error: "المجموعة مكتملة. راجع السعة قبل الموافقة." };
+      setGroups((previous) => previous.map((item) => item.id === group.id
+        ? { ...item, studentIds: [...new Set([...item.studentIds, request.studentId])] } : item));
+    }
+    setJoinRequests((previous) => previous.map((item) => item.id === id ? { ...item, status: decision } : item));
+    return { ok: true };
+  };
+  const saveGroup: EnrollmentValue["saveGroup"] = (draft, actor = "admin") => {
+    if (!can(actor, "groups:manage") || !(can(actor, "page:group-requests") || can(actor, "page:enrollments")) ||
+      (actor === "admin" ? !isEntityActive("admin", "preview-admin") : !staffMembers.some((member) => member.role === actor)))
+      return { ok: false, error: "صلاحية إدارة المجموعات غير متاحة." };
     const name = draft.name.trim(),
       course = historyCourses.find((course) => course.id === draft.courseId);
     if (
@@ -218,6 +312,18 @@ export function EnrollmentPreviewProvider({
       };
     const studentIds = [...new Set(draft.studentIds)];
     const previous = groups.find((group) => group.id === draft.id);
+    const held = joinRequests.filter((request) => request.groupId === draft.id && holdsSeat(request, Date.now()));
+    if (!Number.isInteger(draft.capacity) || draft.capacity < 1 || draft.capacity > 500 ||
+      new Set([...studentIds, ...held.map((request) => request.studentId)]).size > draft.capacity)
+      return { ok: false, error: "السعة من 1 إلى 500 ولازم تكفي الأعضاء والأماكن المحجوزة." };
+    if (previous && held.length && (draft.courseId !== previous.courseId || !draft.active))
+      return { ok: false, error: "راجع الحجوزات الحالية قبل تعطيل المجموعة أو تغيير المقرر." };
+    if (held.some((request) => studentIds.includes(request.studentId) && !previous?.studentIds.includes(request.studentId)))
+      return { ok: false, error: "راجع طلب انضمام الطالب بدل إضافته يدويًا أثناء الحجز." };
+    if (!Number.isSafeInteger(draft.fee) || draft.fee < 0 || draft.fee > 99999999 ||
+      (draft.day && !Object.hasOwn(groupDays, draft.day)) ||
+      (draft.time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(draft.time)) || Boolean(draft.day) !== Boolean(draft.time))
+      return { ok: false, error: "راجع السعر واليوم والساعة. حدد اليوم والوقت مع بعض لعرض المجموعة." };
     if (
       !catalogCourses.some((item) => item.id === draft.courseId) &&
       (!previous ||
@@ -250,6 +356,10 @@ export function EnrollmentPreviewProvider({
       courseId: course.id,
       studentIds,
       active: draft.active,
+      capacity: draft.capacity,
+      fee: draft.fee,
+      day: draft.day,
+      time: draft.time,
     };
     setGroups((previous) =>
       draft.id
@@ -423,14 +533,20 @@ export function EnrollmentPreviewProvider({
         setContentRecords,
         catalogCourses,
         teacherSubjects,
+        teacherProfiles,
         saveTeacherSubject,
         accounts,
         groups,
+        joinRequests,
+        reserveSeat,
+        payReservation,
+        decideJoinRequest,
         assignments,
         guardianLinks,
         staffMembers,
         addStaffMember,
         updateAccount,
+        addAccount,
         assignCourse,
         saveGroup,
         linkGuardian,

@@ -21,7 +21,10 @@ export function SiteFooter() {
               {[
                 ["المراحل الدراسية", "/stages"],
                 ["كل المقررات", "/courses"],
+                ["المجموعات الدراسية", "/groups"],
                 ["مدرسونا", "/teachers"],
+                ["انضم إلينا كمدرس", "/teachers/apply"],
+                ["قدّم شكوى أو طلب", "/contact"],
                 ["الباقات التوضيحية", "/pricing"],
                 ["لوحات التحكم", "/dashboards"],
               ].map(([label, href]) => (

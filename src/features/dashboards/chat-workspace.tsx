@@ -22,6 +22,7 @@ import { studentFixtures } from "@/features/enrollments/data";
 import { adminThreadsForRole } from "./admin-chat-data";
 import { previewStudentId, previewTeacherId, type ChatRole } from "./chat-data";
 import { usePortalPreview } from "./preview-context";
+import { ChatAttachment, ChatAttachmentField } from "@/features/chat/attachment";
 
 export function ChatWorkspace({
   role,
@@ -41,6 +42,9 @@ export function ChatWorkspace({
   const [roleFilter, setRoleFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState("");
+  const [attachment, setAttachment] = useState<File>();
+  const [recording, setRecording] = useState(false);
+  const canSend = !recording && Boolean(draft.trim() || attachment);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
@@ -124,13 +128,14 @@ export function ChatWorkspace({
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [selectedId, messages.length, mobileOpen]);
   const send = () => {
-    if (!selected) return;
-    const result = sendChatMessage(role, selected.id, draft);
+    if (!selected || !canSend) return;
+    const result = sendChatMessage(role, selected.id, draft, attachment);
     if (!result.ok) {
       setError(result.error ?? "تعذّر إضافة الرسالة للمعاينة.");
       return;
     }
     setDraft("");
+    setAttachment(undefined);
     setError("");
     setStatus("اتضافت الرسالة للمعاينة فقط. لم تُرسل إلى شخص حقيقي.");
   };
@@ -175,6 +180,8 @@ export function ChatWorkspace({
                     setRoleFilter(event.target.value);
                     setSelectedId("");
                     setDraft("");
+                    setAttachment(undefined);
+                    setRecording(false);
                     setError("");
                     setStatus("");
                     setMobileOpen(false);
@@ -240,10 +247,15 @@ export function ChatWorkspace({
                     type="button"
                     aria-pressed={selectedId === contact.id}
                     onClick={() => {
-                      setSelectedId(contact.id);
-                      setDraft("");
-                      setError("");
-                      setStatus("");
+                      if (contact.id !== selectedId) {
+                        setSelectedId(contact.id);
+                        setDraft("");
+                        setAttachment(undefined);
+                        setRecording(false);
+                        setError("");
+                        setStatus("");
+                      }
+                      if (!mobileOpen) setRecording(false);
                       setMobileOpen(true);
                     }}
                     className={cn(
@@ -271,7 +283,7 @@ export function ChatWorkspace({
                         {contact.description}
                       </span>
                       <span className="mt-2 block truncate text-xs text-muted-foreground">
-                        {latest?.text ??
+                        {(latest?.text || latest?.attachment?.name) ??
                           (administration
                             ? "ابدأ محادثة"
                             : "ابدأ محادثة عن المقرر")}
@@ -307,7 +319,7 @@ export function ChatWorkspace({
                     size="icon"
                     aria-label="رجوع للمحادثات"
                     className="md:hidden"
-                    onClick={() => setMobileOpen(false)}
+                    onClick={() => { setMobileOpen(false); setRecording(false); }}
                   >
                     <ArrowRight aria-hidden="true" />
                   </Button>
@@ -374,6 +386,7 @@ export function ChatWorkspace({
                             <p className="whitespace-pre-wrap break-words text-sm leading-7 [overflow-wrap:anywhere]">
                               {message.text}
                             </p>
+                            {message.attachment && <ChatAttachment file={message.attachment} />}
                             <time
                               dateTime={message.sentAt}
                               className={cn(
@@ -450,16 +463,17 @@ export function ChatWorkspace({
                       !e.nativeEvent.isComposing
                     ) {
                       e.preventDefault();
-                      if (draft.trim()) formRef.current?.requestSubmit();
+                      if (canSend) formRef.current?.requestSubmit();
                     }
                   }}
                 />
+                <ChatAttachmentField key={`${selected.id}:${mobileOpen}`} file={attachment} onFile={setAttachment} onBusy={setRecording} />
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                   <p className="text-[10px] text-muted-foreground">
                     <bdi>Enter</bdi> للإضافة · <bdi>Shift + Enter</bdi> لسطر
                     جديد · {draft.length}/٢٠٠٠
                   </p>
-                  <Button type="submit" disabled={!draft.trim()}>
+                  <Button type="submit" disabled={!canSend}>
                     <Send aria-hidden="true" className="rtl:rotate-180" />
                     إرسال في المعاينة
                   </Button>

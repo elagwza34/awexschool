@@ -13,6 +13,8 @@ export interface ChatMessage {
   threadId: string;
   sender: ChatRole;
   text: string;
+  attachment?: File;
+  senderName?: string;
   sentAt: string;
 }
 export const previewStudentId = "youssef";

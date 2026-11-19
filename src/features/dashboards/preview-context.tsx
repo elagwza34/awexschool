@@ -3,6 +3,12 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { providerFixtures, teacherProfileFixture } from "./management-fixtures";
 import { useEnrollmentPreview } from "@/features/enrollments/context";
+import { classHasEnded, parseSessionRate, type SessionAccrual } from "@/features/finance/logic";
+import { usePermissions } from "./permissions-context";
+import type { Permission } from "./permissions";
+import { attachmentError } from "@/features/chat/attachment";
+import { groupChatPermission, isGroupChatMember } from "@/features/chat/groups";
+import { previewStudentId } from "./chat-data";
 import { adminThreadsForRole } from "./admin-chat-data";
 import {
   studentProfileFixture,
@@ -31,6 +37,11 @@ import {
 } from "@/features/sessions/logic";
 
 interface PreviewContextValue {
+  sessionRates: Record<string, number>;
+  accruals: SessionAccrual[];
+  saveSessionRate: (teacherId: string, value: string) => string | undefined;
+  approveSessionAccrual: (id: string) => string | undefined;
+  recordTeacherPayout: (teacherId: string) => string | undefined;
   attendance: AttendanceRegister;
   updateSession: (
     id: string,
@@ -49,7 +60,10 @@ interface PreviewContextValue {
     role: ChatRole,
     threadId: string,
     text: string,
+    attachment?: File,
   ) => { ok: boolean; error?: string };
+  sendGroupMessage: (role: "student" | "teacher", groupId: string, text: string, attachment?: File) => { ok: boolean; error?: string };
+  groupMessages: ChatMessage[];
   studentProfile: StudentProfileDraft;
   saveStudentProfile: (profile: StudentProfileDraft) => void;
   teacherProfile: TeacherProfileDraft;
@@ -68,7 +82,9 @@ interface PreviewContextValue {
 const PreviewContext = createContext<PreviewContextValue | null>(null);
 
 export function PortalPreviewProvider({ children }: { children: ReactNode }) {
+  const { can } = usePermissions();
   const {
+    accounts,
     getTeacherCourses,
     groups,
     assignments,
@@ -78,10 +94,12 @@ export function PortalPreviewProvider({ children }: { children: ReactNode }) {
   } = useEnrollmentPreview();
   const [chatMessages, setChatMessages] =
     useState<ChatMessage[]>(chatMessageFixtures);
+  const [groupMessages, setGroupMessages] = useState<ChatMessage[]>([]);
   const sendChatMessage: PreviewContextValue["sendChatMessage"] = (
     role,
     threadId,
     text,
+    attachment,
   ) => {
     const content = text.trim();
     const senderEntity =
@@ -108,8 +126,10 @@ export function PortalPreviewProvider({ children }: { children: ReactNode }) {
       )
     )
       return { ok: false, error: "المحادثة غير متاحة لهذا الدور في المعاينة." };
-    if (!content || content.length > 2000)
-      return { ok: false, error: "اكتب رسالة من حرف واحد إلى ٢٠٠٠ حرف." };
+    const fileError = attachment && attachmentError(attachment);
+    if (fileError) return { ok: false, error: fileError };
+    if ((!content && !attachment) || content.length > 2000)
+      return { ok: false, error: "اكتب رسالة لحد ٢٠٠٠ حرف أو اختار مرفق." };
     setChatMessages((previous) => [
       ...previous,
       {
@@ -117,6 +137,7 @@ export function PortalPreviewProvider({ children }: { children: ReactNode }) {
         threadId,
         sender: role,
         text: content,
+        attachment,
         sentAt: new Date().toISOString(),
       },
     ]);
@@ -124,6 +145,25 @@ export function PortalPreviewProvider({ children }: { children: ReactNode }) {
   };
   const [studentProfile, saveStudentProfile] = useState(studentProfileFixture);
   const [teacherProfile, setTeacherProfile] = useState(teacherProfileFixture);
+  const sendGroupMessage: PreviewContextValue["sendGroupMessage"] = (role, groupId, text, attachment) => {
+    const group = groups.find(({ id }) => id === groupId);
+    const memberId = role === "student" ? previewStudentId : previewTeacherId;
+    if (!can(role, groupChatPermission) || !group || !isGroupChatMember(role, group, assignments) ||
+      !isEntityActive(role, memberId))
+      return { ok: false, error: "الشات متاح للأعضاء النشطين في المجموعة." };
+    const content = text.trim();
+    const fileError = attachment && attachmentError(attachment);
+    if (fileError) return { ok: false, error: fileError };
+    if ((!content && !attachment) || content.length > 2000)
+      return { ok: false, error: "اكتب رسالة لحد ٢٠٠٠ حرف أو اختار مرفق." };
+    const message = {
+      id: crypto.randomUUID(), threadId: groupId, sender: role,
+      senderName: role === "student" ? studentProfile.displayName : teacherProfile.displayName,
+      text: content, attachment, sentAt: new Date().toISOString(),
+    };
+    setGroupMessages((previous) => [...previous, message]);
+    return { ok: true };
+  };
   const saveTeacherProfile: PreviewContextValue["saveTeacherProfile"] = (
     profile,
   ) => {
@@ -138,6 +178,44 @@ export function PortalPreviewProvider({ children }: { children: ReactNode }) {
   };
   const [providers, setProviders] = useState(providerFixtures);
   const [sessions, setSessions] = useState<SessionPreview[]>([]);
+  const [sessionRates, setSessionRates] = useState<Record<string, number>>({});
+  const [accruals, setAccruals] = useState<SessionAccrual[]>([]);
+  const canManageFinance = (permission: Permission) =>
+    can("admin", "page:finance") && can("admin", permission) &&
+    isEntityActive("admin", "preview-admin");
+
+  function saveSessionRate(teacherId: string, value: string) {
+    if (!canManageFinance("finance:rate")) return "صلاحية تحديد سعر الحصة غير متاحة.";
+    if (!accounts.some((account) => account.kind === "teacher" && account.entityId === teacherId))
+      return "المدرس غير موجود في المعاينة.";
+    const amount = parseSessionRate(value);
+    if (amount === undefined) return "اكتب سعرًا من 0.01 إلى 999999.99 جنيه، بمنزلتين عشريتين بحد أقصى.";
+    setSessionRates((previous) => ({ ...previous, [teacherId]: amount }));
+  }
+
+  function approveSessionAccrual(id: string) {
+    if (!canManageFinance("finance:approve")) return "صلاحية اعتماد الحصة غير متاحة.";
+    const session = sessions.find((item) => item.id === id);
+    if (!session || session.status === "cancelled" || !classHasEnded(session, new Date()))
+      return "اعتمد الحصة بعد انتهاء موعدها. الحصص الملغاة لا تُحتسب.";
+    if (accruals.some((entry) => entry.sessionId === id)) return "الحصة معتمدة بالفعل.";
+    const amount = sessionRates[session.teacherId];
+    if (amount === undefined) return "حدد سعر الحصة لهذا المدرس أولًا.";
+    setAccruals((previous) => previous.some((entry) => entry.sessionId === id) ? previous : [
+      ...previous,
+      { sessionId: id, teacherId: session.teacherId, title: session.title, date: session.date, amount },
+    ]);
+  }
+
+  function recordTeacherPayout(teacherId: string) {
+    if (!canManageFinance("finance:pay")) return "صلاحية تسجيل الصرف غير متاحة.";
+    const pendingIds = new Set(accruals.filter((entry) => entry.teacherId === teacherId && !entry.paidAt).map((entry) => entry.sessionId));
+    if (!pendingIds.size) return "لا توجد حصص مستحقة لهذا المدرس.";
+    const paidAt = new Date().toISOString();
+    setAccruals((previous) => previous.map((entry) =>
+      pendingIds.has(entry.sessionId) && !entry.paidAt ? { ...entry, paidAt } : entry,
+    ));
+  }
   const saveProvider = (settings: ProviderPreviewSettings) =>
     setProviders((previous) => ({
       ...previous,
@@ -248,7 +326,7 @@ export function PortalPreviewProvider({ children }: { children: ReactNode }) {
     const existing = sessions.find(
       (session) => session.id === id && session.teacherId === previewTeacherId,
     );
-    if (!existing || existing.status === "cancelled")
+    if (!existing || existing.status === "cancelled" || accruals.some((entry) => entry.sessionId === id))
       return { error: "الحصة غير متاحة للتعديل." };
     const result = prepareSession(draft, existing);
     if (result.session)
@@ -266,7 +344,8 @@ export function PortalPreviewProvider({ children }: { children: ReactNode }) {
     if (
       !isEntityActive("teacher", previewTeacherId) ||
       !session ||
-      session.status === "cancelled"
+      session.status === "cancelled" ||
+      accruals.some((entry) => entry.sessionId === id)
     )
       return { ok: false, error: "الحصة غير متاحة للإلغاء." };
     const cancellationReason = reason.trim();
@@ -310,12 +389,19 @@ export function PortalPreviewProvider({ children }: { children: ReactNode }) {
   return (
     <PreviewContext.Provider
       value={{
+        sessionRates,
+        accruals,
+        saveSessionRate,
+        approveSessionAccrual,
+        recordTeacherPayout,
         attendance,
         updateSession,
         cancelSession,
         saveAttendance,
         chatMessages,
         sendChatMessage,
+        sendGroupMessage,
+        groupMessages,
         studentProfile,
         saveStudentProfile,
         teacherProfile,

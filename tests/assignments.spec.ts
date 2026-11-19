@@ -31,6 +31,32 @@ function card(page: Page, title = "واجب الكسور") {
     .locator("article[data-assignment-id]")
     .filter({ has: page.getByRole("heading", { name: title, exact: true }) });
 }
+test("owner can delegate grading to admin and revoke student submission separately", async ({ page }) => {
+  await page.goto("/teacher/assignments");
+  await publish(page);
+  await role(page, "student");
+  await page.getByLabel("إجابتك", { exact: true }).fill("إجابة للتصحيح من الإدارة");
+  await page.getByRole("button", { name: "تسليم الإجابة", exact: true }).click();
+  await expect(card(page)).toContainText("بانتظار التصحيح");
+
+  await page.getByLabel("تبديل اللوحة").selectOption("owner");
+  await page.getByLabel("الدور").selectOption("student");
+  await page.getByRole("checkbox", { name: "تسليم واجب", exact: true }).uncheck();
+  await page.getByRole("link", { name: "اختبار الوصول إلى الواجبات والتكليفات" }).click();
+  await expect(card(page)).toContainText("إجابة للتصحيح من الإدارة");
+  await expect(page.getByRole("button", { name: "تحديث الإجابة", exact: true })).toHaveCount(0);
+
+  await page.getByLabel("تبديل اللوحة").selectOption("owner");
+  await page.getByLabel("الدور").selectOption("admin");
+  await page.getByRole("checkbox", { name: "تصحيح واجب", exact: true }).check();
+  await page.getByRole("link", { name: "اختبار الوصول إلى الواجبات والتكليفات" }).click();
+  await card(page).locator("summary").click();
+  await page.getByLabel("درجة الطالب", { exact: true }).fill("9");
+  await page.getByLabel("ملاحظات التصحيح", { exact: true }).fill("أحسنت، راجع آخر خطوة.");
+  await page.getByRole("button", { name: "حفظ التصحيح", exact: true }).click();
+  await role(page, "student");
+  await expect(card(page)).toContainText("الدرجة: 9 / 10");
+});
 test("deadline validation, Cairo day, late submissions and zero grades remain distinct", () => {
   const draft = {
     title: "واجب جديد",

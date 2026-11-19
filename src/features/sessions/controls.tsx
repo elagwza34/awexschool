@@ -164,7 +164,7 @@ export function AttendanceDialog({
 }
 
 export function SessionControls({ session }: { session: SessionPreview }) {
-  const { updateSession, cancelSession } = usePortalPreview();
+  const { updateSession, cancelSession, accruals } = usePortalPreview();
   const { groups, assignments, getTeacherCourses, isEntityActive } =
     useEnrollmentPreview();
   const [editOpen, setEditOpen] = useState(false),
@@ -182,6 +182,7 @@ export function SessionControls({ session }: { session: SessionPreview }) {
   const editable =
     session.status !== "cancelled" &&
     isEntityActive("teacher", previewTeacherId);
+  const financiallyApproved = accruals.some((entry) => entry.sessionId === session.id);
   const update = <K extends keyof SessionDraft>(
     key: K,
     value: SessionDraft[K],
@@ -201,7 +202,10 @@ export function SessionControls({ session }: { session: SessionPreview }) {
   };
   return (
     <div className="mt-3 flex flex-wrap items-center gap-2">
-      {editable && (
+      {financiallyApproved && (
+        <p className="text-xs font-semibold text-primary">تم تأكيد تقديم الحصة واحتسابها ضمن المستحقات.</p>
+      )}
+      {editable && !financiallyApproved && (
         <>
           <Dialog
             open={editOpen}

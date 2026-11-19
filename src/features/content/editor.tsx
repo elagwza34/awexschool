@@ -179,7 +179,7 @@ export function ContentEditor({
                   }
                 >
                   {registry.accounts
-                    .filter((a) => a.kind === "teacher")
+                    .filter((a) => a.kind === "teacher" && registry.teacherSubjects[a.entityId])
                     .map((a) => (
                       <option key={a.id} value={a.entityId}>
                         {a.name}

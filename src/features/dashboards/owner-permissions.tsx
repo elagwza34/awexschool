@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { dashboardProfiles } from "./mock-data";
 import { usePermissions } from "./permissions-context";
-import { contentPermissions, permissionSections, type ContentPermission, type Permission } from "./permissions";
+import { assignmentPermissions, contentPermissions, financePermissions, permissionSections, userPermissions, type ContentPermission, type Permission } from "./permissions";
 import type { DashboardRole } from "./types";
 
 export function OwnerPermissions() {
@@ -18,6 +18,15 @@ export function OwnerPermissions() {
   const actions = (Object.keys(contentPermissions) as ContentPermission[]).map((action) => ({
     permission: `content:${action}` as const, label: contentPermissions[action],
   }));
+
+  const users = Object.entries(userPermissions)
+    .filter(([permission]) => permission !== "users:review-teachers" || role === "admin")
+    .map(([permission, label]) => ({ permission: permission as keyof typeof userPermissions, label }));
+  const assignments = (Object.keys(assignmentPermissions) as (keyof typeof assignmentPermissions)[])
+    .filter((permission) => role === "teacher" ? permission !== "assignments:submit" :
+      role === "student" ? permission === "assignments:submit" :
+      role === "admin" && permission === "assignments:grade")
+    .map((permission) => ({ permission, label: assignmentPermissions[permission] }));
 
   function renderPermission({ permission, label, href }: { permission: Permission; label: string; href?: string }) {
     return (
@@ -70,17 +79,57 @@ export function OwnerPermissions() {
           استعادة الافتراضي
         </Button>
       </div>
-      <p role="status" className="sr-only">{message}</p>
+      <p role="status" className={message ? "rounded-lg border bg-secondary p-3 text-sm font-semibold" : "sr-only"}>{message}</p>
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <section className="soft-card space-y-3 p-4">
           <h2 className="text-lg font-bold">الوصول للأقسام</h2>
           <ul className="grid gap-2">{access.map(renderPermission)}</ul>
         </section>
-        <section className="soft-card space-y-3 p-4">
-          <h2 className="text-lg font-bold">إجراءات المحتوى والمناهج</h2>
-          <p className="text-sm leading-7 text-muted-foreground">الإجراءات تحتاج صلاحية الدخول لإدارة المحتوى أو المناهج.</p>
-          <ul className="grid gap-2">{actions.map(renderPermission)}</ul>
-        </section>
+        <div className="grid gap-4">
+          {permissionSections(role).some(({ id }) => id === "group-requests") && (
+            <section className="soft-card space-y-3 p-4">
+              <h2 className="text-lg font-bold">إجراءات المجموعات</h2>
+              <ul className="grid gap-2">
+                {renderPermission({ permission: "groups:manage", label: "إنشاء وتعديل المجموعات" })}
+                {role === "admin" && renderPermission({ permission: "groups:approve", label: "اعتماد طلبات انضمام المجموعات" })}
+              </ul>
+            </section>
+          )}
+          {role === "admin" && (
+            <section className="soft-card space-y-3 p-4">
+              <h2 className="text-lg font-bold">إجراءات مستحقات المدرسين</h2>
+              <p className="text-sm text-muted-foreground">الإجراءات تحتاج صلاحية الدخول إلى مستحقات المدرسين.</p>
+              <ul className="grid gap-2">
+                {Object.entries(financePermissions).map(([permission, label]) =>
+                  renderPermission({ permission: permission as keyof typeof financePermissions, label }),
+                )}
+              </ul>
+            </section>
+          )}
+          <section className="soft-card space-y-3 p-4">
+            <h2 className="text-lg font-bold">إجراءات المستخدمين</h2>
+            <p className="text-sm leading-7 text-muted-foreground">
+              الإضافة تنشئ سجلًا للمراجعة. تعديل البيانات يغيّر الاسم والبريد. تغيير الحالة يتيح تفعيل الحساب أو تعطيله.
+              {can(role, "page:users") ? "" : " فعّل الوصول إلى المستخدمين والأدوار لتطبيق الإجراءات."}
+            </p>
+            <ul className="grid gap-2">{users.map(renderPermission)}</ul>
+          </section>
+          {assignments.length > 0 && (
+            <section className="soft-card space-y-3 p-4">
+              <h2 className="text-lg font-bold">إجراءات الواجبات</h2>
+              <p className="text-sm leading-7 text-muted-foreground">
+                سحب الإجراء يترك سجل الواجبات ظاهرًا للدور طالما الوصول للقسم متاح.
+                {can(role, "page:assignments") ? "" : " فعّل الوصول إلى الواجبات والتكليفات لتطبيق الإجراءات."}
+              </p>
+              <ul className="grid gap-2">{assignments.map(renderPermission)}</ul>
+            </section>
+          )}
+          <section className="soft-card space-y-3 p-4">
+            <h2 className="text-lg font-bold">إجراءات المحتوى والمناهج</h2>
+            <p className="text-sm leading-7 text-muted-foreground">الإجراءات تحتاج صلاحية الدخول لإدارة المحتوى أو المناهج.</p>
+            <ul className="grid gap-2">{actions.map(renderPermission)}</ul>
+          </section>
+        </div>
       </div>
     </main>
   );

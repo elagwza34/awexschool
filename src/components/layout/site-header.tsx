@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 const navigation = [
   { href: "/stages", title: "المراحل الدراسية" },
   { href: "/subjects", title: "المواد التعليمية" },
+  { href: "/groups", title: "المجموعات الدراسية" },
   { href: "/teachers", title: "مدرسونا" },
   { href: "/faq", title: "الأسئلة الشائعة" },
   { href: "/dashboards", title: "لوحات التحكم" },
