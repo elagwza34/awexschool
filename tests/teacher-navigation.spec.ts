@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { teacherSections } from "../src/features/dashboards/teacher-navigation";
+import { defaultPermission, permissionSections } from "../src/features/dashboards/permissions";
+
+const teacherSections = permissionSections("teacher").filter(({ id }) => defaultPermission("teacher", `page:${id}`));
 
 for (const width of [375, 768, 1440]) {
   test(`teacher pages use horizontal top navigation at ${width}px`, async ({

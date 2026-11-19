@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { studentSections } from "../src/features/dashboards/student-navigation";
+import { defaultPermission, permissionSections } from "../src/features/dashboards/permissions";
+
+const studentSections = permissionSections("student").filter(({ id }) => defaultPermission("student", `page:${id}`));
 
 for (const width of [375, 768, 1440]) {
   test(`student sections are independent pages with horizontal navigation at ${width}px`, async ({
