@@ -62,6 +62,29 @@ test("subject teacher cards scroll horizontally within the mobile row", async ({
   await expect(page).toHaveURL("/teachers/mahmoud-samir");
 });
 
+test("the teachers directory stacks compact cards with portraits on mobile", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/teachers");
+  let previousTop = -Infinity;
+  for (const teacher of teachers) {
+    const card = page.locator(`main a[href="/teachers/${teacher.id}"]`);
+    await expect(card).toBeVisible();
+    const portrait = card.locator("img");
+    await portrait.scrollIntoViewIfNeeded();
+    await expect.poll(() => portrait.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+    const box = await card.evaluate((element) => ({
+      top: element.getBoundingClientRect().top + window.scrollY,
+      height: element.getBoundingClientRect().height,
+    }));
+    expect(box.top).toBeGreaterThan(previousTop);
+    expect(box.height).toBeLessThan(120);
+    previousTop = box.top;
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);
+  await page.locator('main a[href="/teachers/ahmed-hassan"]').click();
+  await expect(page).toHaveURL("/teachers/ahmed-hassan");
+});
+
 test("profile subject changes cannot contradict existing teaching assignments", async ({
   page,
 }) => {

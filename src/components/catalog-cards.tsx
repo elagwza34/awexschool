@@ -170,9 +170,11 @@ export function CourseCard({ course }: { course: Course }) {
 export function TeacherCard({
   teacher,
   compact = false,
+  portrait,
 }: {
   teacher: Teacher;
   compact?: boolean;
+  portrait?: string;
 }) {
   if (compact) {
     return (
@@ -183,11 +185,11 @@ export function TeacherCard({
         <span
           aria-hidden="true"
           className={cn(
-            "flex size-10 shrink-0 items-center justify-center rounded-full text-xs font-bold",
+            "relative flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full text-xs font-bold",
             tones[teacher.tone],
           )}
         >
-          {teacher.initials}
+          {portrait ? <Image src={portrait} alt="" fill sizes="44px" className="object-cover" /> : teacher.initials}
         </span>
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-bold leading-6">أ. {teacher.name}</h3>

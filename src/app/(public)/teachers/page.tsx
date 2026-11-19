@@ -11,11 +11,16 @@ export default function TeachersPage() {
       <PageIntro
         eyebrow="الفهم يبدأ بمدرس قريب منك"
         title="ناس بتحب تشرح.. وتسمع سؤالك"
-        description="تعرّف على نماذج ملفات المدرسين، وطريقة شرحهم، والمقررات التي يقدمونها."
+        description="تعرّف على نماذج ملفات المدرسين ومقرراتهم. صور البروفايل افتراضية."
       />
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {teachers.map((teacher) => (
-          <TeacherCard teacher={teacher} key={teacher.id} />
+          <TeacherCard
+            teacher={teacher}
+            key={teacher.id}
+            compact
+            portrait={`/teachers/${teacher.id}.webp`}
+          />
         ))}
       </div>
       <DemoNotice />
