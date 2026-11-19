@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { useEnrollmentPreview } from "@/features/enrollments/context";
 import { usePortalPreview } from "@/features/dashboards/preview-context";
+import { usePermissions } from "@/features/dashboards/permissions-context";
 import {
   previewStudentId,
   previewTeacherId,
@@ -18,15 +19,19 @@ interface Value {
     studentId: string,
     score: number,
     feedback: string,
+    role?: "admin" | "teacher",
   ) => Result;
 }
 const Context = createContext<Value | null>(null);
 export function AssignmentProvider({ children }: { children: ReactNode }) {
   const registry = useEnrollmentPreview();
+  const { can } = usePermissions();
   const { sessions, teacherProfile } = usePortalPreview();
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const create: Value["create"] = (draft) => {
+    if (!can("teacher", "page:assignments") || !can("teacher", "assignments:create"))
+      return { ok: false, error: "صلاحية إنشاء الواجب غير متاحة." };
     const error = validateAssignment(draft);
     if (error) return { ok: false, error };
     const group = registry.groups.find(
@@ -71,6 +76,8 @@ export function AssignmentProvider({ children }: { children: ReactNode }) {
     return { ok: true };
   };
   const submit: Value["submit"] = (id, answer) => {
+    if (!can("student", "page:assignments") || !can("student", "assignments:submit"))
+      return { ok: false, error: "صلاحية تسليم الواجب غير متاحة." };
     const assignment = assignments.find(
       (a) => a.id === id && a.studentIds.includes(previewStudentId),
     );
@@ -96,16 +103,20 @@ export function AssignmentProvider({ children }: { children: ReactNode }) {
     ]);
     return { ok: true };
   };
-  const grade: Value["grade"] = (id, studentId, score, feedback) => {
+  const grade: Value["grade"] = (id, studentId, score, feedback, role = "teacher") => {
+    if (!can(role, "page:assignments") || !can(role, "assignments:grade"))
+      return { ok: false, error: "صلاحية تصحيح الواجب غير متاحة." };
     const assignment = assignments.find(
       (a) =>
         a.id === id &&
-        a.teacherId === previewTeacherId &&
+        (role === "admin" || a.teacherId === previewTeacherId) &&
         a.studentIds.includes(studentId),
     );
     if (
       !assignment ||
-      !registry.isEntityActive("teacher", previewTeacherId) ||
+      !(role === "admin"
+        ? registry.isEntityActive("admin", "preview-admin")
+        : registry.isEntityActive("teacher", previewTeacherId)) ||
       !submissions.some(
         (s) => s.assignmentId === id && s.studentId === studentId,
       )

@@ -20,8 +20,22 @@ import {
 } from "@/features/dashboards/chat-data";
 import { useEnrollmentPreview } from "./context";
 import { studentFixtures, type LearningGroup } from "./data";
+import { groupChatHref, groupChatPermission } from "@/features/chat/groups";
+import { usePermissions } from "@/features/dashboards/permissions-context";
+import type { DashboardRole } from "@/features/dashboards/types";
+import { formatGroupFee, groupDays } from "./registration";
 
-function GroupEditor({ group }: { group?: LearningGroup }) {
+function GroupChatLink({ role, groupId }: { role: DashboardRole; groupId: string }) {
+  const { can } = usePermissions();
+  return can(role, groupChatPermission) ? (
+    <Link href={groupChatHref(role, groupId)} className="inline-flex min-h-11 items-center text-sm font-semibold text-primary underline underline-offset-4">
+      {role === "admin" ? "مراقبة شات المجموعة" : "افتح شات المجموعة"}
+    </Link>
+  ) : null;
+}
+
+export function GroupEditor({ group, actor = "admin" }: { group?: LearningGroup; actor?: DashboardRole }) {
+  const { can } = usePermissions();
   const {
     catalogCourses: courses,
     resolveCourse,
@@ -41,6 +55,7 @@ function GroupEditor({ group }: { group?: LearningGroup }) {
     group && !courses.some((course) => course.id === group.courseId)
       ? resolveCourse(group.courseId)
       : undefined;
+  if (!can(actor, "groups:manage")) return null;
   return (
     <Dialog
       open={open}
@@ -81,7 +96,11 @@ function GroupEditor({ group }: { group?: LearningGroup }) {
               courseId,
               studentIds,
               active: form.get("active") === "on",
-            });
+              capacity: Number(form.get("capacity")),
+              fee: Math.round(Number(form.get("fee")) * 100),
+              day: String(form.get("day") ?? ""),
+              time: String(form.get("time") ?? ""),
+            }, actor);
             if (!result.ok) {
               setError(result.error);
               return;
@@ -89,6 +108,24 @@ function GroupEditor({ group }: { group?: LearningGroup }) {
             setOpen(false);
           }}
         >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="grid gap-2 text-sm font-semibold">سعة المجموعة
+              <input className="field" type="number" name="capacity" min={1} max={500} defaultValue={group?.capacity ?? 12} required />
+            </label>
+            <label className="grid gap-2 text-sm font-semibold">سعر الاشتراك بالجنيه
+              <input className="field" type="number" name="fee" min={0} max={999999.99} step="0.01" defaultValue={(group?.fee ?? 0) / 100} required />
+            </label>
+            <label className="grid gap-2 text-sm font-semibold">يوم المجموعة
+              <select className="field" name="day" defaultValue={group?.day ?? ""}>
+                <option value="">اختار اليوم</option>
+                {Object.entries(groupDays).map(([id, label]) => <option value={id} key={id}>{label}</option>)}
+              </select>
+            </label>
+            <label className="grid gap-2 text-sm font-semibold">وقت المجموعة بتوقيت القاهرة
+              <input className="field" name="time" type="time" defaultValue={group?.time ?? ""} />
+            </label>
+          </div>
+          <p className="text-xs text-muted-foreground">المجموعة النشطة تظهر للطلاب بعد تحديد اليوم والوقت.</p>
           <div>
             <label
               htmlFor="group-name"
@@ -330,7 +367,9 @@ function GuardianLinks() {
   const { accounts, guardianLinks, linkGuardian, unlinkGuardian } =
     useEnrollmentPreview();
   const parents = accounts.filter((item) => item.kind === "parent"),
-    students = accounts.filter((item) => item.kind === "student");
+    students = accounts.filter((item) =>
+      item.kind === "student" && studentFixtures.some(({ id }) => id === item.entityId),
+    );
   const [parentId, setParentId] = useState(parents[0]?.id ?? ""),
     [studentId, setStudentId] = useState(students[0]?.entityId ?? ""),
     [error, setError] = useState(""),
@@ -494,9 +533,13 @@ export function AdminEnrollments() {
                     }{" "}
                     · {group.studentIds.length} طلاب ·{" "}
                     {group.active ? "مفعّلة" : "متوقفة"}
+                    {" · "}{group.studentIds.length}/{group.capacity}{" · "}{formatGroupFee(group.fee)}
                   </p>
                 </div>
-                <GroupEditor group={group} />
+                <div className="flex flex-wrap items-center gap-3">
+                  <GroupChatLink role="admin" groupId={group.id} />
+                  <GroupEditor group={group} />
+                </div>
               </article>
             ))}
           </div>
@@ -537,6 +580,7 @@ export function TeacherGroups() {
             >
               معاينة المقرر
             </Link>
+            <div><GroupChatLink role="teacher" groupId={group.id} /></div>
             <ul className="space-y-2">
               {group.studentIds.map((id) => {
                 const student = accounts.find(
@@ -569,8 +613,10 @@ export function TeacherGroups() {
 
 export function StudentGroupsSummary({
   studentId = previewStudentId,
+  showChat = false,
 }: {
   studentId?: string;
+  showChat?: boolean;
 }) {
   const { groups, assignments, accounts } = useEnrollmentPreview();
   const visible = groups.filter(
@@ -592,6 +638,7 @@ export function StudentGroupsSummary({
                   account.entityId === assignments[group.courseId],
               )?.name ?? getTeacher(assignments[group.courseId])?.name}
             </p>
+            {showChat && <GroupChatLink role="student" groupId={group.id} />}
           </li>
         ))}
       </ul>

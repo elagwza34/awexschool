@@ -1,4 +1,5 @@
 "use client";
+import { usePermissions } from "@/features/dashboards/permissions-context";
 import { cloneElement, useId, useState, type ReactElement } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge, EmptyState } from "@/components/shared";
@@ -222,9 +223,11 @@ function StudentAnswer({
 function GradeForm({
   assignment,
   submission,
+  role,
 }: {
   assignment: Assignment;
   submission: Submission;
+  role: "admin" | "teacher";
 }) {
   const { grade } = useAssignments();
   const { isEntityActive } = useEnrollmentPreview();
@@ -242,6 +245,7 @@ function GradeForm({
             submission.studentId,
             score.trim() ? Number(score) : NaN,
             feedback,
+            role,
           ),
         );
       }}
@@ -272,7 +276,9 @@ function GradeForm({
       <Button
         type="submit"
         className="justify-self-start"
-        disabled={!isEntityActive("teacher", previewTeacherId)}
+        disabled={role === "admin"
+          ? !isEntityActive("admin", "preview-admin")
+          : !isEntityActive("teacher", previewTeacherId)}
       >
         حفظ التصحيح
       </Button>
@@ -289,6 +295,7 @@ function AssignmentCard({
   learnerId?: string;
 }) {
   const { submissions } = useAssignments();
+  const { can } = usePermissions();
   const { accounts } = useEnrollmentPreview();
   const { sessions } = usePortalPreview();
   const own = submissions.find(
@@ -384,14 +391,14 @@ function AssignmentCard({
                   )}
                 </>
               )}
-              {role === "teacher" && submission && (
-                <GradeForm assignment={assignment} submission={submission} />
+              {(role === "teacher" || role === "admin") && submission && can(role, "assignments:grade") && (
+                <GradeForm assignment={assignment} submission={submission} role={role} />
               )}
             </div>
           </details>
         );
       })}
-      {role === "student" && (
+      {role === "student" && can(role, "assignments:submit") && (
         <StudentAnswer assignment={assignment} submission={own} />
       )}
     </article>
@@ -507,7 +514,18 @@ function Records({ role, learnerId }: { role: Role; learnerId?: string }) {
           />
         ))}
       </div>
-      {!visible.length && <EmptyState title="لا توجد واجبات مطابقة للعرض" />}
+      {!visible.length && (
+        eligible.length ? (
+          <div className="space-y-3">
+            <EmptyState title="لا توجد واجبات مطابقة للتصفية" />
+            <Button variant="outline" onClick={() => {
+              setTeacher("");
+              setGroup("");
+              setStatus("");
+            }}>مسح التصفية</Button>
+          </div>
+        ) : <EmptyState title="لا توجد واجبات هنا لسه" />
+      )}
     </Panel>
   );
 }
@@ -530,20 +548,21 @@ function ParentRecords() {
   );
 }
 export function AssignmentsWorkspace({ role }: { role: Role }) {
+  const { can } = usePermissions();
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold sm:text-3xl">الواجبات والتكليفات</h1>
       <p className="text-sm leading-7 text-muted-foreground">
         {role === "teacher"
-          ? "انشر واجبًا للمجموعة وراجع الإجابات وسجّل الدرجة والملاحظات."
+          ? "تابع واجبات مجموعاتك وإجابات الطلاب."
           : role === "admin"
-            ? "متابعة الواجبات والتسليم والتصحيح؛ عرض فقط."
+            ? "تابع الواجبات والتسليم والتصحيح من لوحة الإدارة."
             : role === "parent"
               ? "اختار ابنًا لمتابعة واجباته والتسليم وملاحظات المدرس."
               : "راجع المطلوب وسلّم إجابتك وتابع تصحيح المدرس."}{" "}
         محاكاة بدون حفظ دائم.
       </p>
-      {role === "teacher" && <AssignmentCreator />}
+      {role === "teacher" && can(role, "assignments:create") && <AssignmentCreator />}
       {role === "parent" ? (
         <ParentRecords />
       ) : (

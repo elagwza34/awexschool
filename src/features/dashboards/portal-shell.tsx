@@ -133,7 +133,12 @@ export function PortalShell({
             <ShieldCheck aria-hidden="true" className="size-4 shrink-0" />
             معاينة واجهة فقط · بيانات افتراضية، بدون حساب أو صلاحيات فعلية
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {(role === "student" || role === "parent") && can(role, "page:help") && (
+              <Link href={`/${role}/help`} className="inline-flex min-h-11 items-center px-2 text-xs font-bold text-primary underline underline-offset-4">
+                قدّم شكوى أو طلب
+              </Link>
+            )}
             <label htmlFor="dashboard-role" className="text-xs font-bold">
               تبديل اللوحة
             </label>
@@ -209,10 +214,11 @@ export function PortalShell({
           {can(role, pagePermission(role, pathname)) ? children : (
             <section className="soft-card space-y-3 p-6">
               <h1 className="text-xl font-bold">الصلاحية غير متاحة</h1>
-              <p className="text-sm text-muted-foreground">الدور الحالي لا يملك صلاحية فتح هذا القسم في المعاينة.</p>
-              <Link href="/owner" className="inline-flex min-h-11 items-center font-bold text-primary">
-                الرجوع إلى إدارة الصلاحيات
-              </Link>
+              <p className="text-sm leading-7 text-muted-foreground">الدور الحالي لا يملك صلاحية فتح هذا القسم في المعاينة. اختار قسمًا متاحًا أو راجع إعدادات الدور.</p>
+              <div className="flex flex-wrap gap-3">
+                {topSections[0] && <Button asChild><Link href={topSections[0].href}>افتح قسمًا متاحًا</Link></Button>}
+                <Button asChild variant="outline"><Link href="/owner">راجع صلاحيات الدور</Link></Button>
+              </div>
             </section>
           )}
         </main>

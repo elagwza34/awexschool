@@ -5,6 +5,7 @@ export const teacherSections = [
   { id: "content", href: "/teacher/content", label: "إدارة المحتوى" },
   { id: "groups", href: "/teacher/groups", label: "مجموعاتي وطلابي" },
   { id: "sessions", href: "/teacher/sessions", label: "الحصص والاجتماعات" },
+  { id: "finance", href: "/teacher/finance", label: "مستحقاتي" },
   { id: "schedule", href: "/teacher/schedule", label: "الجدول الأسبوعي" },
   { id: "attendance", href: "/teacher/attendance", label: "الحضور والغياب" },
   {

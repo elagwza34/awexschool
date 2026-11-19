@@ -162,7 +162,7 @@ export function StudentView({
         >
           <LearningCards entries={studentCourses} />
           <div className="mt-4">
-            <StudentGroupsSummary />
+            <StudentGroupsSummary showChat />
           </div>
         </Panel>
       )}

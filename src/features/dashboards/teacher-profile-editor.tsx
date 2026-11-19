@@ -13,6 +13,7 @@ import { curriculumOptions } from "./management-fixtures";
 import { usePortalPreview } from "./preview-context";
 import type { TeacherProfileDraft } from "./management-types";
 import type { StageId, SubjectId } from "@/features/catalog/types";
+import { IntroVideoField } from "@/features/teachers/intro-video";
 
 type ProfileTextKey =
   | "fullName"
@@ -28,6 +29,7 @@ export function TeacherProfileEditor() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [videoPending, setVideoPending] = useState(false);
   const uploadRef = useRef<HTMLInputElement>(null);
   useEffect(
     () => () => {
@@ -61,6 +63,7 @@ export function TeacherProfileEditor() {
     <form
       onSubmit={(event) => {
         event.preventDefault();
+        if (videoPending) return;
         const emptyName = (["fullName", "displayName"] as const).find(
           (key) => !draft[key].trim(),
         );
@@ -198,6 +201,10 @@ export function TeacherProfileEditor() {
               maxLength={1000}
             />
           </div>
+        </Panel>
+        <Panel title="فيديو الشرح">
+          <IntroVideoField file={draft.introVideo} onPending={setVideoPending}
+            onChange={(file) => update("introVideo", file)} />
         </Panel>
         <Panel
           title="التخصص والمنهج الدراسي"
@@ -344,7 +351,7 @@ export function TeacherProfileEditor() {
             </p>
           )}
           <div className="flex flex-wrap gap-3">
-            <Button type="submit">
+            <Button type="submit" disabled={videoPending}>
               <Save aria-hidden="true" />
               حفظ الملف في المعاينة
             </Button>

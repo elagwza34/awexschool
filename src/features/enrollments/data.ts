@@ -12,6 +12,10 @@ export interface LearningGroup {
   courseId: string;
   studentIds: string[];
   active: boolean;
+  capacity: number;
+  fee: number;
+  day: string;
+  time: string;
 }
 export interface GuardianLink {
   parentId: string;
@@ -69,6 +73,10 @@ export const groupFixtures: LearningGroup[] = courses.map((course) => ({
     )
     .map((child) => child.id),
   active: true,
+  capacity: 12,
+  fee: Math.round((course.price ?? 150) * 100),
+  day: ["sat", "sun", "mon", "tue", "wed", "thu"][courses.indexOf(course) % 6],
+  time: "17:00",
 }));
 export const guardianLinkFixtures: GuardianLink[] = children.map((child) => ({
   parentId: "u4",

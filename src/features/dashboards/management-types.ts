@@ -3,6 +3,7 @@ import type { DashboardRole } from "./types";
 
 export type MeetingProvider = "google-meet" | "zoom";
 export interface TeacherProfileDraft {
+  introVideo?: File;
   fullName: string;
   displayName: string;
   email: string;

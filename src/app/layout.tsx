@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
 import { SiteHeader } from "@/components/layout/site-header";
+import { TeacherApplicationsProvider } from "@/features/teachers/applications-context";
+import { PermissionPreviewProvider } from "@/features/dashboards/permissions-context";
+import { EnrollmentPreviewProvider } from "@/features/enrollments/context";
+import { StaffPreviewProvider } from "@/features/dashboards/staff-context";
 import "@fontsource-variable/cairo";
 import "./globals.css";
 
@@ -23,7 +27,13 @@ export default function RootLayout({
           انتقل إلى المحتوى
         </a>
         <SiteHeader />
-        {children}
+        <PermissionPreviewProvider>
+          <EnrollmentPreviewProvider>
+            <StaffPreviewProvider>
+              <TeacherApplicationsProvider>{children}</TeacherApplicationsProvider>
+            </StaffPreviewProvider>
+          </EnrollmentPreviewProvider>
+        </PermissionPreviewProvider>
       </body>
     </html>
   );

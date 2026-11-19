@@ -8,6 +8,7 @@ import {
   staffRoles,
   staffSections,
   requestStatusLabels,
+  requestCategories,
   type RequestStatus,
 } from "./staff-data";
 import type { StaffRole } from "./types";
@@ -28,7 +29,7 @@ export function StaffWorkspace({
   const visible = relevant.filter(
     (item) =>
       (filter === "all" || item.status === filter) &&
-      `${item.id} ${item.title} ${item.sender}`.includes(query.trim()),
+      `${item.id} ${item.title} ${item.sender} ${item.contactEmail ?? ""}`.toLowerCase().includes(query.trim().toLowerCase()),
   );
   const logs =
     role === "manager"
@@ -151,8 +152,10 @@ export function StaffWorkspace({
                 <p className="text-xs text-muted-foreground">
                   <bdi>{item.id}</bdi> · {item.sender}
                 </p>
+                {item.category && <p className="mt-1 text-xs text-muted-foreground">{requestCategories[item.category].label}</p>}
+                {item.contactEmail && <p className="mt-1 break-all text-xs text-muted-foreground"><bdi>{item.contactEmail}</bdi></p>}
                 <h3 className="my-3 font-bold">{item.title}</h3>
-                <p className="mb-4 text-sm leading-7 text-muted-foreground">
+                <p className="mb-4 whitespace-pre-wrap break-words text-sm leading-7 text-muted-foreground">
                   {item.details}
                 </p>
                 {role === "manager" ? (

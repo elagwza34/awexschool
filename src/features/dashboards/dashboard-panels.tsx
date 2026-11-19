@@ -2,6 +2,7 @@
 import { portalCourseHref } from "@/features/content/routes";
 import { useEnrollmentPreview } from "@/features/enrollments/context";
 import { AccountEditor } from "@/features/enrollments/account-editor";
+import { TeacherProfileDetails } from "@/features/teachers/profile-details";
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
@@ -28,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { schedule } from "./mock-data";
 import type {
   DashboardMetric,
+  DashboardRole,
   LearningCourse,
   MetricIcon,
   ReviewItem,
@@ -547,8 +549,8 @@ export function ReviewTable({
     </Panel>
   );
 }
-export function UsersTable({ role }: { role?: string }) {
-  const { accounts } = useEnrollmentPreview();
+export function UsersTable({ role, actor = "admin" }: { role?: string; actor?: DashboardRole }) {
+  const { accounts, teacherProfiles } = useEnrollmentPreview();
   const [query, setQuery] = useState("");
   const filtered = accounts.filter(
     (user) =>
@@ -629,8 +631,14 @@ export function UsersTable({ role }: { role?: string }) {
                       className="min-h-11 bg-secondary px-3 text-xs text-primary hover:bg-accent"
                     />
                     <div className="mt-2">
-                      <AccountEditor account={user} />
+                      <AccountEditor account={user} actor={actor} />
                     </div>
+                    {teacherProfiles[user.entityId] && (
+                      <details className="my-2">
+                        <summary className="min-h-11 cursor-pointer py-3 font-semibold">الملف المهني</summary>
+                        <TeacherProfileDetails profile={teacherProfiles[user.entityId]} />
+                      </details>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -639,7 +647,12 @@ export function UsersTable({ role }: { role?: string }) {
         </div>
       ) : (
         <p className="rounded-xl border border-dashed p-7 text-center text-sm text-muted-foreground">
-          لا توجد نتائج مطابقة. جرّب اسمًا آخر.
+          {query.trim() ? "لا توجد نتائج مطابقة. امسح البحث لعرض كل المستخدمين." : "مفيش مستخدمين في الدور ده لسه."}
+          {query.trim() && (
+            <Button variant="outline" className="mx-auto mt-3 flex" onClick={() => setQuery("")}>
+              مسح البحث
+            </Button>
+          )}
         </p>
       )}
     </div>
