@@ -90,6 +90,11 @@ export function PortalShell({
           <div className="flex min-h-16 items-center justify-between gap-3 px-4 sm:px-5 lg:px-6">
             <p className="min-w-0 text-sm font-bold sm:text-base">{profile.label}</p>
             <div className="flex items-center gap-2 sm:gap-3">
+              {role === "admin" && (
+                <Button variant="outline" asChild>
+                  <a href="/admin/site-locks">أقفال الموقع</a>
+                </Button>
+              )}
               <Dialog>
                 <DialogTrigger asChild>
                   <Button
