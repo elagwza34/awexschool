@@ -33,6 +33,7 @@ export default async function SubjectPage({
   const { subjectId } = await params;
   const subject = subjects.find((s) => s.id === subjectId);
   if (!subject) notFound();
+  const teachers = getTeachersForSubject(subject.id);
   const { grade, q, track } = parseCatalogQuery(await searchParams);
   return (
     <div className="container-shell py-6 md:py-8">
@@ -43,15 +44,19 @@ export default async function SubjectPage({
         ]}
       />
       <PageIntro title={subject.name} description={subject.description} />
-      {getTeachersForSubject(subject.id).length > 0 && (
+      {teachers.length > 0 && (
         <section className="mb-7">
-          <SectionHeading
-            title="مدرسو المادة"
-            description="المادة ممكن يدرّسها أكثر من مدرس، وكل مدرس مرتبط بمادة واحدة."
-          />
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {getTeachersForSubject(subject.id).map((teacher) => (
-              <TeacherCard key={teacher.id} teacher={teacher} />
+          <SectionHeading title="مدرسو المادة" />
+          <div
+            role="region"
+            aria-label="بطاقات مدرسو المادة"
+            tabIndex={teachers.length > 1 ? 0 : undefined}
+            className="flex min-w-0 snap-x snap-proximity gap-3 overflow-x-auto overscroll-x-contain px-1 py-1 [scrollbar-width:thin] md:flex-wrap md:overflow-visible"
+          >
+            {teachers.map((teacher) => (
+              <div key={teacher.id} className="w-[min(15rem,85%)] shrink-0 snap-start md:w-60">
+                <TeacherCard teacher={teacher} compact />
+              </div>
             ))}
           </div>
         </section>

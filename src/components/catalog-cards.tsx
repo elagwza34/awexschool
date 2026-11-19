@@ -167,7 +167,37 @@ export function CourseCard({ course }: { course: Course }) {
     </article>
   );
 }
-export function TeacherCard({ teacher }: { teacher: Teacher }) {
+export function TeacherCard({
+  teacher,
+  compact = false,
+}: {
+  teacher: Teacher;
+  compact?: boolean;
+}) {
+  if (compact) {
+    return (
+      <Link
+        href={routes.teacher(teacher.id)}
+        className="soft-card flex h-full min-h-20 items-center gap-3 px-3 py-2.5 transition-colors hover:border-primary focus-visible:outline-offset-0"
+      >
+        <span
+          aria-hidden="true"
+          className={cn(
+            "flex size-10 shrink-0 items-center justify-center rounded-full text-xs font-bold",
+            tones[teacher.tone],
+          )}
+        >
+          {teacher.initials}
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-sm font-bold leading-6">أ. {teacher.name}</h3>
+          <p className="text-xs leading-5 text-muted-foreground">{teacher.title}</p>
+        </div>
+        <ArrowLeft aria-hidden="true" className="size-4 shrink-0 text-primary" />
+      </Link>
+    );
+  }
+
   return (
     <Link
       href={routes.teacher(teacher.id)}

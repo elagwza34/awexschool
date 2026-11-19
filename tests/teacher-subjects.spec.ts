@@ -48,6 +48,20 @@ test("subject page lists multiple teachers and does not mix unrelated subjects",
   ).toBeVisible();
 });
 
+test("subject teacher cards scroll horizontally within the mobile row", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/subjects/math");
+  const row = page.getByRole("region", { name: "بطاقات مدرسو المادة" });
+  const cards = row.getByRole("link");
+  await expect(cards).toHaveCount(2);
+  expect(await row.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+  await cards.last().scrollIntoViewIfNeeded();
+  await expect.poll(() => row.evaluate((element) => Math.abs(element.scrollLeft))).toBeGreaterThan(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);
+  await cards.last().click();
+  await expect(page).toHaveURL("/teachers/mahmoud-samir");
+});
+
 test("profile subject changes cannot contradict existing teaching assignments", async ({
   page,
 }) => {
