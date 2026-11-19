@@ -72,17 +72,22 @@ test("the teachers directory stacks compact cards with portraits on mobile", asy
     const portrait = card.locator("img");
     await portrait.scrollIntoViewIfNeeded();
     await expect.poll(() => portrait.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+    expect((await portrait.boundingBox())?.width).toBeGreaterThanOrEqual(80);
     const box = await card.evaluate((element) => ({
       top: element.getBoundingClientRect().top + window.scrollY,
       height: element.getBoundingClientRect().height,
     }));
     expect(box.top).toBeGreaterThan(previousTop);
-    expect(box.height).toBeLessThan(120);
+    expect(box.height).toBeLessThan(144);
     previousTop = box.top;
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);
   await page.locator('main a[href="/teachers/ahmed-hassan"]').click();
   await expect(page).toHaveURL("/teachers/ahmed-hassan");
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/teachers");
+  const desktopPortrait = page.locator('main a[href="/teachers/ahmed-hassan"] img');
+  expect((await desktopPortrait.boundingBox())?.width).toBeGreaterThanOrEqual(96);
 });
 
 test("the same teacher portrait is reused across public and dashboard views", async ({ page }) => {

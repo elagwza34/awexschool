@@ -13,12 +13,12 @@ export default function TeachersPage() {
         title="ناس بتحب تشرح.. وتسمع سؤالك"
         description="تعرّف على نماذج ملفات المدرسين ومقرراتهم. صور البروفايل افتراضية."
       />
-      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {teachers.map((teacher) => (
           <TeacherCard
             teacher={teacher}
             key={teacher.id}
-            compact
+            variant="directory"
           />
         ))}
       </div>

@@ -162,21 +162,33 @@ export function CourseCard({ course }: { course: Course }) {
 }
 export function TeacherCard({
   teacher,
-  compact = false,
+  variant = "default",
 }: {
   teacher: Teacher;
-  compact?: boolean;
+  variant?: "default" | "compact" | "directory";
 }) {
-  if (compact) {
+  if (variant !== "default") {
+    const directory = variant === "directory";
     return (
       <Link
         href={routes.teacher(teacher.id)}
-        className="soft-card flex h-full min-h-20 items-center gap-3 px-3 py-2.5 transition-colors hover:border-primary focus-visible:outline-offset-0"
+        className={cn(
+          "soft-card flex h-full items-center transition-colors hover:border-primary focus-visible:outline-offset-0",
+          directory ? "min-h-28 gap-4 p-3 sm:p-4" : "min-h-20 gap-3 px-3 py-2.5",
+        )}
       >
-        <TeacherAvatar teacherId={teacher.id} fallback={teacher.initials} className="size-11" />
+        <TeacherAvatar
+          teacherId={teacher.id}
+          fallback={teacher.initials}
+          className={directory ? "size-20 rounded-xl sm:size-24" : "size-11"}
+        />
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-bold leading-6">أ. {teacher.name}</h3>
-          <p className="text-xs leading-5 text-muted-foreground">{teacher.title}</p>
+          <h3 className={cn("font-bold leading-6", directory ? "text-base" : "text-sm")}>
+            أ. {teacher.name}
+          </h3>
+          <p className={cn("leading-5 text-muted-foreground", directory ? "mt-1 text-sm" : "text-xs")}>
+            {teacher.title}
+          </p>
         </div>
         <ArrowLeft aria-hidden="true" className="size-4 shrink-0 text-primary" />
       </Link>

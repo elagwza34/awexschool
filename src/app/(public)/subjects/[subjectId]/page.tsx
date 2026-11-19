@@ -55,7 +55,7 @@ export default async function SubjectPage({
           >
             {teachers.map((teacher) => (
               <div key={teacher.id} className="w-[min(15rem,85%)] shrink-0 snap-start md:w-60">
-                <TeacherCard teacher={teacher} compact />
+                <TeacherCard teacher={teacher} variant="compact" />
               </div>
             ))}
           </div>
