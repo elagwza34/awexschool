@@ -61,7 +61,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         if (error) throw error;
         setMessage("تم تسجيل الدخول بنجاح. جاري التوجيه...");
         setTimeout(() => {
-          router.push("/account");
+          router.push("/account?from=login");
         }, 1000);
       }
     } catch (err) {

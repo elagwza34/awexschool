@@ -41,10 +41,16 @@ function Credentials({ newUser = false }: { newUser?: boolean }) {
   </>;
 }
 
-export default async function AccountPage({ searchParams }: { searchParams: Promise<{ message?: string; page?: string }> }) {
-  const { message, page } = await searchParams;
+export default async function AccountPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ message?: string; page?: string; from?: string }>;
+}) {
+  const { message, page, from } = await searchParams;
   const account = await getAccount();
-  if (account) {
+  if (!account) redirect("/login");
+  // بعد تسجيل الدخول مباشرة، وجه المستخدم للوحة دوره الأساسية
+  if (from === "login") {
     const dashboardRole = ["admin", "teacher", "student", "parent"].find((r) =>
       account.roles.includes(r),
     );
@@ -52,7 +58,6 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
       redirect(`/${dashboardRole}`);
     }
   }
-  if (!account) redirect("/login");
   const admin = account?.roles.includes("owner") ? ownerClient() : null;
   const pageNumber = Math.max(1, Math.min(1000, Number.parseInt(page ?? "1", 10) || 1));
   const directory = admin ? await admin.auth.admin.listUsers({ page: pageNumber, perPage: 25 }) : null;
