@@ -30,7 +30,7 @@ test("password recovery accepts a pasted email code and a new password", async (
 });
 
 test("signup activation offers email code entry and a separate resend form", async ({ page }) => {
-  await page.goto("/register?message=confirm");
+  await page.goto("/register?message=code");
   await expect(page.getByLabel("كود التفعيل")).toHaveAttribute("autocomplete", "one-time-code");
   await expect(page.getByRole("button", { name: "تفعيل الحساب" })).toBeVisible();
   await page.getByText("الرسالة موصلتش؟ أعد الإرسال").click();

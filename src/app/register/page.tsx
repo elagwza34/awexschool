@@ -7,7 +7,7 @@ export const metadata = { title: "تسجيل جديد" };
 
 export default async function RegisterPage({ searchParams }: { searchParams: Promise<{ message?: string }> }) {
   const { message } = await searchParams;
-  const activation = message === "confirm" || message === "resent" || message?.startsWith("code-");
+  const activation = message === "confirm" || message === "resent" || message === "code" || message?.startsWith("code-");
   if (activation) return <AuthCard title="تفعيل البريد الإلكتروني" description="اكتب البريد اللي سجلت بيه والكود الموجود في رسالة LiveSchool. تقدر كمان تستخدم رابط التأكيد في الرسالة.">
     {(message === "confirm" || message === "resent") && <FormMessage>لو التسجيل محتاج تأكيد، هتوصلك رسالة. راجع البريد غير المرغوب فيه لو مش ظاهرة.</FormMessage>}
     {message === "code-invalid" && <FormMessage error>راجع البريد والكود. لو الكود انتهت صلاحيته، اطلب واحد جديد.</FormMessage>}
