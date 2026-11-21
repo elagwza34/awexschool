@@ -45,6 +45,18 @@ const PermissionContext = createContext<{
 export function PermissionPreviewProvider({ children }: { children: ReactNode }) {
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const overrides = readOverrides(snapshot);
+  // تنظيف بيانات الجلسة المخزنة من التعديلات السابقة (تبديل اللوحة)
+  if (typeof window !== "undefined") {
+    try {
+      const parsed = JSON.parse(snapshot);
+      if (parsed && typeof parsed === "object") {
+        const hasDashboardRoleOverride = Object.values(parsed as Record<string, Record<string, boolean>>).some(
+          (perms) => Object.keys(perms).some((p) => p.startsWith("page:dashboard")),
+        );
+        if (hasDashboardRoleOverride) sessionStorage.removeItem(storageKey);
+      }
+    } catch {}
+  }
 
   return (
     <PermissionContext.Provider value={{
