@@ -7,6 +7,8 @@ import { useEffect, useState } from "react";
 import { Brand } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase";
+import { signOut } from "@/features/auth/account-actions";
 import { SocialLinks } from "./social-links";
 import type { SocialLinksConfig } from "@/features/auth/social-links";
 
@@ -22,6 +24,29 @@ export function SiteHeader({ socialLinks }: { socialLinks: SocialLinksConfig }) 
   const [open, setOpen] = useState(false);
   const path = usePathname();
   const isHome = path === "/";
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [checking, setChecking] = useState(true);
+  useEffect(() => {
+    const supabase = createClient();
+    let mounted = true;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (mounted) {
+        setIsLoggedIn(!!session);
+        setChecking(false);
+      }
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (mounted) {
+        setIsLoggedIn(!!session);
+        setChecking(false);
+      }
+    });
+    return () => {
+      mounted = false;
+      sub?.subscription.unsubscribe();
+    };
+  }, []);
+
   useEffect(() => {
     const escape = (event: KeyboardEvent) => {
       if (event.key === "Escape" && open) {
@@ -65,9 +90,20 @@ export function SiteHeader({ socialLinks }: { socialLinks: SocialLinksConfig }) 
               <Search />
             </Link>
           </Button>
-          <Button asChild variant="ghost" className="hidden rounded-full sm:inline-flex">
-            <Link href="/login">تسجيل الدخول</Link>
-          </Button>
+          {checking ? null : isLoggedIn ? (
+            <>
+              <Button asChild variant="ghost" className="hidden rounded-full sm:inline-flex">
+                <Link href="/account" onClick={() => setOpen(false)}>لوحة التحكم</Link>
+              </Button>
+              <form action={signOut} className="inline">
+                <Button variant="ghost" className="hidden rounded-full sm:inline-flex">تسجيل الخروج</Button>
+              </form>
+            </>
+          ) : (
+            <Button asChild variant="ghost" className="hidden rounded-full sm:inline-flex">
+              <Link href="/login">تسجيل الدخول</Link>
+            </Button>
+          )}
           <Button asChild className="hidden rounded-full sm:inline-flex">
             {isHome ? <a href="#trial">احجز حصة مجانية</a> : <Link href="/#trial">احجز حصة مجانية</Link>}
           </Button>
@@ -95,19 +131,38 @@ export function SiteHeader({ socialLinks }: { socialLinks: SocialLinksConfig }) 
           {[
             ...navigation,
             { href: isHome ? "#trial" : "/#trial", title: "احجز حصة مجانية" },
-            { href: "/login", title: "تسجيل الدخول" },
-            { href: "/register", title: "ابدأ رحلتك" },
-          ].map(({ href, title }) => (
-            <Link
-              key={href}
-              href={href}
-              aria-current={path === href || path.startsWith(`${href}/`) ? "page" : undefined}
-              className="block rounded-lg px-3 py-3 hover:bg-accent aria-[current=page]:bg-accent aria-[current=page]:font-semibold"
-              onClick={() => setOpen(false)}
-            >
-              {title}
-            </Link>
-          ))}
+            ...(checking
+              ? []
+              : isLoggedIn
+                ? [
+                    { href: "/account", title: "لوحة التحكم" },
+                    { href: "/account", title: "تسجيل الخروج", logout: true },
+                  ]
+                : [
+                    { href: "/login", title: "تسجيل الدخول" },
+                    { href: "/register", title: "ابدأ رحلتك" },
+                  ]),
+          ].map((item) => {
+            const { href, title } = item;
+            const logout = "logout" in item && item.logout;
+            return logout ? (
+              <form key={href} action={signOut} className="w-full">
+                <Button variant="outline" className="w-full">
+                  {title}
+                </Button>
+              </form>
+            ) : (
+              <Link
+                key={href}
+                href={href}
+                aria-current={path === href || path.startsWith(`${href}/`) ? "page" : undefined}
+                className="block rounded-lg px-3 py-3 hover:bg-accent aria-[current=page]:bg-accent aria-[current=page]:font-semibold"
+                onClick={() => setOpen(false)}
+              >
+                {title}
+              </Link>
+            )
+          })}
           <SocialLinks links={socialLinks} className="mt-3 border-t pt-4" showLabels />
         </nav>
       )}

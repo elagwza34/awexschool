@@ -44,6 +44,14 @@ function Credentials({ newUser = false }: { newUser?: boolean }) {
 export default async function AccountPage({ searchParams }: { searchParams: Promise<{ message?: string; page?: string }> }) {
   const { message, page } = await searchParams;
   const account = await getAccount();
+  if (account) {
+    const dashboardRole = ["admin", "teacher", "student", "parent"].find((r) =>
+      account.roles.includes(r),
+    );
+    if (dashboardRole && !account.roles.includes("owner")) {
+      redirect(`/${dashboardRole}`);
+    }
+  }
   if (!account) redirect("/login");
   const admin = account?.roles.includes("owner") ? ownerClient() : null;
   const pageNumber = Math.max(1, Math.min(1000, Number.parseInt(page ?? "1", 10) || 1));

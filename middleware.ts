@@ -31,7 +31,7 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // مسارات متاحة للزوار وغير المسجلين فقط
-  const authRoutes = ["/login", "/register", "/account"];
+  const authRoutes = ["/login", "/register"];
   const isAuthRoute = authRoutes.some((route) =>
     request.nextUrl.pathname.startsWith(route)
   );
