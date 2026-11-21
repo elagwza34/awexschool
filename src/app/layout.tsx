@@ -7,6 +7,8 @@ import { StaffPreviewProvider } from "@/features/dashboards/staff-context";
 import "@fontsource-variable/cairo";
 import "./globals.css";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: { default: "liveschool | كل فهم.. بداية جديدة", template: "%s | liveschool" },
   description:
