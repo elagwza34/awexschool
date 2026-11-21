@@ -417,3 +417,7 @@ enabled = true
 [auth.email.template.recovery]
 subject = "كود استعادة كلمة المرور | LiveSchool"
 content_path = "./supabase/templates/recovery.html"
+
+[auth.email.template.confirmation]
+subject = "كود تفعيل حساب LiveSchool"
+content_path = "./supabase/templates/confirmation.html"

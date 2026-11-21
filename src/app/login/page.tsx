@@ -21,5 +21,6 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     <p className="mt-4 flex flex-wrap items-center justify-center gap-2 border-t pt-3 text-sm">
       ليس لدي حساب <Link href="/register" className={authLink}>تسجيل جديد</Link>
     </p>
+    <p className="text-center text-sm"><Link href="/register?message=code" className={authLink}>تفعيل البريد أو إعادة إرسال الكود</Link></p>
   </AuthCard>;
 }

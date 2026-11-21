@@ -18,6 +18,7 @@ export async function signIn(form: FormData) {
   const result = await client.auth.signInWithPassword({
     email: text(form, "email").toLowerCase(), password: String(form.get("password") ?? ""),
   });
+  if (result.error?.code === "email_not_confirmed") redirect("/register?message=code");
   redirect(result.error ? `/login?message=login&next=${encodeURIComponent(next)}` : next);
 }
 
@@ -38,7 +39,36 @@ export async function signUp(form: FormData) {
     email, password,
     options: { emailRedirectTo: new URL("/account/callback", origin).toString(), data: { display_name: displayName, account_kind: kind, ...(phone && { contact_phone: phone }) } },
   });
-  redirect(error ? "/register?message=signup" : "/register?message=confirm");
+  if (error) {
+    console.warn("Signup request failed", { code: error.code, status: error.status });
+    redirect(error.status === 429 ? "/register?message=wait" : "/register?message=signup");
+  }
+  redirect("/register?message=confirm");
+}
+
+export async function resendSignupCode(form: FormData) {
+  const client = await sessionClient(true);
+  const origin = process.env.LIVESCHOOL_WEB_ORIGIN;
+  const email = text(form, "email").toLowerCase();
+  if (!client || !origin || !validEmail(email)) redirect("/register?message=code-invalid");
+  const { error } = await client.auth.resend({
+    type: "signup", email,
+    options: { emailRedirectTo: new URL("/account/callback", origin).toString() },
+  });
+  if (error) {
+    console.warn("Signup resend failed", { code: error.code, status: error.status });
+    redirect(error.status === 429 ? "/register?message=code-wait" : "/register?message=code-failed");
+  }
+  redirect("/register?message=resent");
+}
+
+export async function verifySignupCode(form: FormData) {
+  const client = await sessionClient(true);
+  const email = text(form, "email").toLowerCase();
+  const token = text(form, "code");
+  if (!client || !validEmail(email) || !/^\d{6,10}$/.test(token)) redirect("/register?message=code-invalid");
+  const { error } = await client.auth.verifyOtp({ email, token, type: "email" });
+  redirect(error ? "/register?message=code-invalid" : "/account");
 }
 
 function recoveryClient() {

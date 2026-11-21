@@ -29,6 +29,14 @@ test("password recovery accepts a pasted email code and a new password", async (
   await expect(page.getByRole("button", { name: "حفظ كلمة المرور الجديدة" })).toBeVisible();
 });
 
+test("signup activation offers email code entry and a separate resend form", async ({ page }) => {
+  await page.goto("/register?message=confirm");
+  await expect(page.getByLabel("كود التفعيل")).toHaveAttribute("autocomplete", "one-time-code");
+  await expect(page.getByRole("button", { name: "تفعيل الحساب" })).toBeVisible();
+  await page.getByText("الرسالة موصلتش؟ أعد الإرسال").click();
+  await expect(page.getByRole("button", { name: "إعادة إرسال الكود" })).toBeVisible();
+});
+
 test("guest users cannot open legacy portal previews or fictional courses", async ({ page }) => {
   await page.goto("/student/attendance");
   await expect(page).toHaveURL("/login");
