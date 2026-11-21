@@ -36,7 +36,7 @@ export function SiteHeader({ socialLinks, dashboardHref }: { socialLinks: Social
   return (
     <header
       data-home-header=""
-      className="fixed inset-x-3 top-3 z-30 mx-auto max-w-[84rem] rounded-[2rem] border border-emerald-950/10 bg-white shadow-md sm:inset-x-7"
+      className="site-header-width fixed inset-x-0 top-3 z-30 rounded-[2rem] border border-emerald-950/10 bg-white shadow-md"
     >
       <div className="container-shell flex min-h-17 items-center justify-between gap-4">
         <Brand />

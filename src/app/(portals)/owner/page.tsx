@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAccount, getSocialLinks, ownerClient } from "@/features/auth/supabase-server";
 import { PortalMetrics } from "@/components/layout/portal-metrics";
 import { saveSocialLinks } from "@/features/auth/account-actions";
 import { socialChannels } from "@/features/auth/social-links";
 import { Button } from "@/components/ui/button";
+import { OwnerPermissions } from "@/features/dashboards/owner-permissions";
 
 export const metadata: Metadata = { title: "لوحة المالك | إدارة الصلاحيات" };
 
@@ -25,19 +25,12 @@ export default async function OwnerPage({
     client?.from("profiles").select("user_id", { head: true, count: "exact" }).eq("status", "active"),
   ]);
   return (
-    <main id="main-content" className="dashboard-width space-y-5 pt-5 pb-10">
-      <h1 className="text-2xl font-bold">إدارة المنصة</h1>
+    <OwnerPermissions>
       <PortalMetrics items={[
         { label: "المقررات المنشورة", value: courses?.count ?? null },
         { label: "ملفات المدرسين", value: teachers?.count ?? null },
         { label: "الحسابات النشطة", value: users?.count ?? null },
       ]} />
-      <div className="flex flex-wrap gap-2">
-        <Button asChild variant="outline"><Link href="/account">إدارة الحسابات</Link></Button>
-        <Button asChild variant="outline"><Link href="/admin/catalog">إدارة المقررات</Link></Button>
-        <Button asChild variant="outline"><Link href="/admin/teacher-applications">طلبات المدرسين</Link></Button>
-        <Button asChild variant="outline"><Link href="/admin/site-locks">أقفال الموقع</Link></Button>
-      </div>
       <section id="social-links" className="scroll-mt-24" aria-labelledby="social-title">
         <form action={saveSocialLinks} className="soft-card grid gap-4 p-5 sm:p-6">
           <h2 id="social-title" className="text-xl font-bold">روابط التواصل الاجتماعي</h2>
@@ -55,6 +48,6 @@ export default async function OwnerPage({
           <Button className="justify-self-start">حفظ الروابط</Button>
         </form>
       </section>
-    </main>
+    </OwnerPermissions>
   );
 }
