@@ -1,6 +1,9 @@
 "use client";
+import { useEnrollmentPreview } from "@/features/enrollments/context";
+import { useStaffPreview } from "./staff-context";
 import { CalendarDays } from "lucide-react";
 import { Badge } from "@/components/shared";
+import { MetricCards } from "./dashboard-panels";
 import { ParentWorkspace } from "./interactive-workspaces";
 import { AdminOverviewLinks } from "./admin-overview-links";
 
@@ -18,6 +21,21 @@ export function DashboardView({
   childId?: string;
 }) {
   const profile = getDashboardProfile(role);
+  const { accounts } = useEnrollmentPreview();
+  const { members } = useStaffPreview();
+  const metrics =
+    role === "admin"
+      ? profile.metrics.map((metric, index) =>
+          index === 0
+            ? {
+                ...metric,
+                value: new Intl.NumberFormat("ar-EG").format(
+                  accounts.length + members.length,
+                ),
+              }
+            : metric,
+        )
+      : profile.metrics;
   return (
     <div className="space-y-4">
       <div id="overview" className="scroll-mt-6">
@@ -55,6 +73,7 @@ export function DashboardView({
         )
       ) : (
         <>
+          <MetricCards metrics={metrics} />
           {role === "admin" && (
             <>
               <AdminOverviewLinks />
