@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { PortalShell } from "@/features/dashboards/portal-shell";
 
 import type { DashboardRole } from "@/features/dashboards/types";
 import { redirect } from "next/navigation";
@@ -15,5 +14,5 @@ export async function PortalBoundary({
 }) {
   const account = await getAccount();
   if (!account || (!account.roles.includes(role) && !account.roles.includes("owner"))) redirect("/account");
-  return <PortalShell role={role}>{children}</PortalShell>;
+  return children;
 }

@@ -20,9 +20,7 @@ const footerNavigation = [
     links: [
       ["الأسئلة الشائعة", "/faq"],
       ["تواصل معنا", "/contact"],
-      ["متابعة طلب", "/track-request"],
       ["انضم إلينا كمدرس", "/teachers/apply"],
-      ["الباقات", "/pricing"],
     ],
   },
 ] as const;

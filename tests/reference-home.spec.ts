@@ -116,7 +116,7 @@ test("the landing page keeps its scroll scenes and Home 2 keeps the original cat
   await expect(page.locator("footer").getByRole("link", { name: "واتساب" })).toHaveAttribute("href", "https://wa.me/201033150405");
   await page.goto("/home-2");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("فاهمها");
-  await expect(page.locator("#school-platform section")).toHaveCount(9);
+  await expect(page.locator("#school-platform section")).toHaveCount(6);
   await expect(page.locator("#find-grade select")).toHaveCount(2);
   await page.setViewportSize({ width: 375, height: 812 });
   await page.getByRole("button", { name: "فتح القائمة" }).click();

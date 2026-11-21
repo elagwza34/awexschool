@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { OwnerPermissions } from "@/features/dashboards/owner-permissions";
+import Link from "next/link";
 import { getAccount, getSocialLinks } from "@/features/auth/supabase-server";
 import { saveSocialLinks } from "@/features/auth/account-actions";
 import { socialChannels } from "@/features/auth/social-links";
@@ -13,9 +13,15 @@ export default async function OwnerPage({ searchParams }: { searchParams: Promis
   if (!account?.roles.includes("owner")) redirect("/account");
   const [links, { social }] = await Promise.all([getSocialLinks(), searchParams]);
   return (
-    <>
-      <OwnerPermissions />
-      <section id="social-links" className="container-shell scroll-mt-24 pb-10" aria-labelledby="social-title">
+    <main id="main-content" className="container-shell space-y-5 pt-28 pb-10">
+      <h1 className="text-2xl font-bold">لوحة المالك</h1>
+      <div className="flex flex-wrap gap-2">
+        <Button asChild variant="outline"><Link href="/account">إدارة الحسابات</Link></Button>
+        <Button asChild variant="outline"><Link href="/admin/catalog">إدارة المقررات</Link></Button>
+        <Button asChild variant="outline"><Link href="/admin/teacher-applications">طلبات المدرسين</Link></Button>
+        <Button asChild variant="outline"><Link href="/admin/site-locks">أقفال الموقع</Link></Button>
+      </div>
+      <section id="social-links" className="scroll-mt-24" aria-labelledby="social-title">
         <form action={saveSocialLinks} className="soft-card grid gap-4 p-5 sm:p-6">
           <h2 id="social-title" className="text-xl font-bold">روابط التواصل الاجتماعي</h2>
           {social && <p role="status" className="text-sm">
@@ -32,6 +38,6 @@ export default async function OwnerPage({ searchParams }: { searchParams: Promis
           <Button className="justify-self-start">حفظ الروابط</Button>
         </form>
       </section>
-    </>
+    </main>
   );
 }

@@ -13,7 +13,7 @@ import type { SocialLinksConfig } from "@/features/auth/social-links";
 const navigation = [
   { href: "/stages", title: "المراحل الدراسية" },
   { href: "/subjects", title: "المواد التعليمية" },
-  { href: "/groups", title: "المجموعات الدراسية" },
+  { href: "/courses", title: "المقررات" },
   { href: "/teachers", title: "مدرسونا" },
   { href: "/faq", title: "الأسئلة الشائعة" },
 ];

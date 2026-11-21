@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: { default: "liveschool | كل فهم.. بداية جديدة", template: "%s | liveschool" },
   description:
-    "اكتشف واجهة liveschool التعليمية: مقررات ودروس للابتدائي والإعدادي والثانوي. نسخة عرض ببيانات افتراضية.",
+    "تصفّح مقررات LiveSchool الدراسية وسجّل طلب التحاقك.",
   robots: { index: false, follow: false },
 };
 

@@ -1,28 +1,20 @@
-import type { Metadata } from "next";
-import { Breadcrumbs, DemoNotice, PageIntro } from "@/components/shared";
-import { TeacherCard } from "@/components/catalog-cards";
-import { teachers } from "@/features/catalog/mock-data";
+import Link from "next/link";
+import { ownerClient } from "@/features/auth/supabase-server";
+import { PageIntro } from "@/components/shared";
 
-export const metadata: Metadata = { title: "مدرسونا" };
-export default function TeachersPage() {
-  return (
-    <div className="container-shell py-6 md:py-8">
-      <Breadcrumbs items={[{ label: "مدرسونا" }]} />
-      <PageIntro
-        eyebrow="الفهم يبدأ بمدرس قريب منك"
-        title="ناس بتحب تشرح.. وتسمع سؤالك"
-        description="تعرّف على نماذج ملفات المدرسين ومقرراتهم. صور البروفايل افتراضية."
-      />
-      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {teachers.map((teacher) => (
-          <TeacherCard
-            teacher={teacher}
-            key={teacher.id}
-            variant="directory"
-          />
-        ))}
-      </div>
-      <DemoNotice />
-    </div>
-  );
+export const metadata = { title: "???????" };
+
+export default async function TeachersPage() {
+  const response = await ownerClient()?.from("teacher_profiles").select("user_id,full_name,qualification,bio").order("full_name");
+  return <div className="container-shell py-8">
+    <PageIntro title="???????" />
+    <Link href="/teachers/apply" className="mb-4 inline-flex min-h-11 items-center font-bold text-primary underline">???? ?????</Link>
+    {response?.data?.length ? <div className="grid gap-4 md:grid-cols-3">
+      {response.data.map((teacher) => <article key={teacher.user_id} className="soft-card p-5">
+        <h2 className="font-bold"><Link href={`/teachers/${teacher.user_id}`} className="underline underline-offset-4">{teacher.full_name}</Link></h2>
+        <p className="mt-2 text-sm text-muted-foreground">{teacher.qualification}</p>
+        <p className="mt-2 whitespace-pre-line text-sm leading-7">{teacher.bio}</p>
+      </article>)}
+    </div> : <p className="soft-card p-5">????? ???????? ??? ????? ??????.</p>}
+  </div>;
 }

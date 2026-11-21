@@ -1,7 +1,5 @@
-import { TrackRequest } from "@/features/dashboards/track-request";
-
-export const metadata = { title: "متابعة طلب الدعم" };
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <TrackRequest kind="support" />;
+  redirect("/contact");
 }

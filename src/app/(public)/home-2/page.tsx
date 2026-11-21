@@ -9,24 +9,18 @@ import {
   Compass,
   HeartHandshake,
   Play,
-  Star,
-  Trophy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SectionHeading } from "@/components/shared";
 import {
-  CourseCard,
   StageCard,
   SubjectCard,
 } from "@/components/catalog-cards";
 import {
-  courses,
   stages,
   subjects,
-  teachers,
 } from "@/features/catalog/mock-data";
 import { GradeFinder } from "@/features/home/grade-finder";
-import { TeachersCarousel } from "@/features/home/teachers-carousel";
 
 export const metadata = { title: "????? ?????????" };
 
@@ -68,9 +62,9 @@ export default function HomeTwoPage() {
                 className={styles.previewButton}
                 asChild
               >
-                <Link href="/lessons/math-prep-1-u1-l1">
+                <Link href="/#trial">
                   <Play aria-hidden="true" className="fill-current" />
-                  جرّب درس مجاني
+                  احجز حصة مجانية
                 </Link>
               </Button>
             </div>
@@ -129,15 +123,10 @@ export default function HomeTwoPage() {
         <SectionHeading
           eyebrow="خطوتك الجاية"
           title="مقررات تفتح لك باب الفهم"
-          description="نماذج من محتوى liveschool. ابدأ بالمعاينة واختر ما يناسبك."
+          description="تصفّح المقررات المنشورة وسجّل طلب الالتحاق."
           href="/courses"
           linkLabel="كل المقررات"
         />
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {courses.slice(0, 3).map((course) => (
-            <CourseCard course={course} key={course.id} />
-          ))}
-        </div>
       </section>
       <section className={`container-shell ${styles.section}`}>
         <div className="grid gap-6 rounded-3xl bg-[#dff2eb] p-5 md:grid-cols-[1fr_1.3fr] md:p-8">
@@ -185,84 +174,6 @@ export default function HomeTwoPage() {
         </div>
       </section>
       <section className={`container-shell ${styles.section}`}>
-        <SectionHeading
-          eyebrow="الناس اللي هتفهم معاهم"
-          title="شرح له روح.. ومدرسون لهم شغف"
-          description="تعرّف على المدرسين وطريقة شرحهم وخبراتهم في المواد المختلفة."
-          href="/teachers"
-          linkLabel="تعرّف على مدرسينا"
-        />
-        <TeachersCarousel teachers={teachers} />
-      </section>
-
-      <section className={`container-shell ${styles.section}`}>
-        <SectionHeading
-          eyebrow="آراء أولياء الأمور"
-          title="ثقة وراحة في متابعة أبنائنا"
-          description="تجارب تعكس رضا أولياء الأمور عن وضوح الشرح ومتابعة التقدم."
-        />
-        <div className="grid gap-4 md:grid-cols-3">
-          {[
-            {
-              name: "أم محمد",
-              role: "ولي أمر - الصف الأول الإعدادي",
-              text: "الشرح مبسط ومنظم، وبقى ابني يفهم الدروس بدل ما يحفظها. المتابعة كمان واضحة ومريحة.",
-            },
-            {
-              name: "أبو سارة",
-              role: "ولي أمر - الصف الرابع الابتدائي",
-              text: "المنصة ساعدت بنتي تراجع دروسها بسهولة وفي أي وقت، ومستواها اتحسن بشكل ملحوظ.",
-            },
-            {
-              name: "أم يوسف",
-              role: "ولي أمر - الصف الثاني الثانوي",
-              text: "حبيت تنوع المدرسين وطريقة العرض. ولدي بقى أكثر ثقة في حل الأسئلة وفهم الأفكار.",
-            },
-          ].map((item) => (
-            <article key={item.name} className="soft-card flex h-full flex-col p-5">
-              <div role="img" className="mb-3 flex items-center gap-1 text-[#d97706]" aria-label="تقييم 5 من 5">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star key={i} className="size-4 fill-current" aria-hidden="true" />
-                ))}
-              </div>
-              <p className="text-sm leading-7 text-muted-foreground">“{item.text}”</p>
-              <div className="mt-4 border-t pt-4">
-                <p className="font-semibold">{item.name}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{item.role}</p>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className={`container-shell ${styles.section}`}>
-        <SectionHeading
-          eyebrow="طلابنا المتفوقون"
-          title="قصص نجاح تلهم غيرهم"
-          description="نماذج لطلاب حققوا تقدماً وتميزاً بفضل الفهم والمثابرة."
-        />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            { name: "مريم أحمد", grade: "الصف الثاني الإعدادي", achievement: "الأولى في الرياضيات", initials: "م أ", tone: "bg-[#f0f4f1] text-[#215d46]" },
-            { name: "يوسف خالد", grade: "الصف الثالث الابتدائي", achievement: "تميز في العلوم", initials: "ي خ", tone: "bg-[#f0f3f6] text-[#325e89]" },
-            { name: "سارة محمود", grade: "الصف الأول الثانوي", achievement: "تفوق في اللغة الإنجليزية", initials: "س م", tone: "bg-[#f3f1f6] text-[#67528b]" },
-            { name: "عمر حسن", grade: "الصف السادس الابتدائي", achievement: "الأول على الصف", initials: "ع ح", tone: "bg-[#f7f3ee] text-[#8b4c28]" },
-          ].map((student) => (
-            <article key={student.name} className="soft-card flex h-full flex-col items-center p-5 text-center">
-              <span className={`mb-3 flex size-16 items-center justify-center rounded-full border-4 border-white text-xl font-bold ring-1 ring-border ${student.tone}`}>
-                {student.initials}
-              </span>
-              <h3 className="text-base font-semibold">{student.name}</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{student.grade}</p>
-              <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#fef3c7] px-3 py-1 text-xs font-bold text-[#92400e]">
-                <Trophy className="size-3.5" aria-hidden="true" />
-                {student.achievement}
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-      <section className={`container-shell ${styles.section}`}>
         <div className={styles.closing}>
           <div>
             <p className="text-xs font-bold text-[#ffcf74]">
@@ -272,7 +183,7 @@ export default function HomeTwoPage() {
               جاهز تكتشف طريقة أحلى للتعلّم؟
             </h2>
             <p className="mt-2 text-sm text-[#e0f2eb]">
-              ابدأ بدرس مجاني. الفكرة تستاهل المحاولة.
+              اختار مقرر يناسب صفّك وهدفك.
             </p>
           </div>
           <Button size="lg" className={styles.goldButton} asChild>

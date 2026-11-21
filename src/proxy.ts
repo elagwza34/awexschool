@@ -29,6 +29,10 @@ const headers = {
 };
 
 const portalPath = /^\/(?:owner|admin|manager|support|teacher|student|parent|workspace)(?:\/|$)/;
+const livePortals = new Set([
+  "/owner", "/admin", "/admin/catalog", "/admin/teacher-applications",
+  "/student", "/student/courses", "/parent", "/parent/courses",
+]);
 
 function gate(status: number, message: string, owner = false) {
   return screen(status, owner ? "إدارة أقفال الموقع" : "دخول Awex School", message, status === 503 ? "" : `
@@ -166,12 +170,14 @@ async function settings(request: NextRequest) {
     <a href="/admin">العودة للوحة الإدارة</a>`);
 }
 
-async function continueRequest(request: NextRequest) {
+async function continueRequest(request: NextRequest, verifySession = false) {
   const responseHeaders = { "Cache-Control": "private, no-store", "CDN-Cache-Control": "no-store" };
   let response = NextResponse.next({ request, headers: responseHeaders });
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (request.nextUrl.pathname !== "/account" || !url || !key) return response;
+  if ((!verifySession && request.nextUrl.pathname !== "/account") || !url || !key) {
+    return { response, authenticated: false };
+  }
 
   const client = createServerClient(url, key, {
     cookies: {
@@ -183,8 +189,8 @@ async function continueRequest(request: NextRequest) {
       },
     },
   });
-  await client.auth.getClaims();
-  return response;
+  const { data } = await client.auth.getClaims();
+  return { response, authenticated: typeof data?.claims.sub === "string" };
 }
 
 export async function proxy(request: NextRequest) {
@@ -197,14 +203,23 @@ export async function proxy(request: NextRequest) {
 
   try {
     if (pathname === lockSettingsPath) return await settings(request);
-    if (["/account", "/account/callback", "/login", "/register", "/dashboards"].includes(pathname)) {
-      return continueRequest(request);
+    if (portalPath.test(pathname) && !livePortals.has(pathname)) {
+      return NextResponse.redirect(new URL("/account", request.url));
+    }
+    if (["/account", "/account/callback", "/login", "/register", "/reset-password", "/teachers/apply", "/teachers/track", "/dashboards"].includes(pathname)) {
+      return (await continueRequest(request)).response;
     }
 
     // Portal routes enforce their own account and role checks.
     const lock = await getRequestLock(pathname, !portalPath.test(pathname));
     if (!lock || hasSiteSession(request.cookies.get(lockCookie(lock.scope))?.value, lock.key)) {
-      return continueRequest(request);
+      return (await continueRequest(request)).response;
+    }
+
+    // Account holders can use the published catalog while the landing page is locked.
+    if (lock.scope === "*" && /^\/courses(?:\/|$)/.test(pathname) && !await getRequestLock(pathname, false)) {
+      const account = await continueRequest(request, true);
+      if (account.authenticated) return account.response;
     }
 
     if (request.method !== "POST") return gate(401, "أدخل الكود اللي وصلك عشان تفتح الصفحة.");

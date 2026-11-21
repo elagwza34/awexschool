@@ -1,7 +1,5 @@
-import type { Metadata } from "next";
-import { DashboardView } from "@/features/dashboards/dashboard-view";
+﻿import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "لوحة الإدارة — معاينة" };
 export default function AdminPage() {
-  return <DashboardView role="admin" />;
+  redirect("/admin/catalog");
 }

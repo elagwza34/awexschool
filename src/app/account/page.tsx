@@ -1,13 +1,14 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { authConfig, getAccount, isDemoEnabled, ownerClient } from "@/features/auth/supabase-server";
-import { addUser, changeDemoVisibility, removeUser, signIn, signOut, signUp } from "@/features/auth/account-actions";
+import { getAccount, ownerClient } from "@/features/auth/supabase-server";
+import { addUser, removeUser, signOut } from "@/features/auth/account-actions";
 
 const labels: Record<string, string> = {
   owner: "المالك", admin: "الإدارة", manager: "مدير", support: "الدعم الفني",
   teacher: "مدرس", student: "طالب", parent: "ولي أمر",
 };
-const portalRoles = Object.keys(labels);
+const portalRoles = ["owner", "admin", "student", "parent"];
 const messages: Record<string, string> = {
   unavailable: "ربط الحسابات غير متاح في النسخة الحالية.",
   login: "تعذّر تسجيل الدخول. راجع البريد وكلمة المرور وتأكيد البريد.",
@@ -43,7 +44,7 @@ function Credentials({ newUser = false }: { newUser?: boolean }) {
 export default async function AccountPage({ searchParams }: { searchParams: Promise<{ message?: string; page?: string }> }) {
   const { message, page } = await searchParams;
   const account = await getAccount();
-  const demo = await isDemoEnabled();
+  if (!account) redirect("/login");
   const admin = account?.roles.includes("owner") ? ownerClient() : null;
   const pageNumber = Math.max(1, Math.min(1000, Number.parseInt(page ?? "1", 10) || 1));
   const directory = admin ? await admin.auth.admin.listUsers({ page: pageNumber, perPage: 25 }) : null;
@@ -51,8 +52,6 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
     <main id="main-content" tabIndex={-1} className="container-shell space-y-5 pt-28 pb-8">
       <h1 className="text-2xl font-bold sm:text-3xl">{account ? `حساب ${account.name}` : "حساب LiveSchool"}</h1>
       {message && Object.hasOwn(messages, message) && <p role="status" className="soft-card p-4 text-sm">{messages[message]}</p>}
-      {!authConfig() ? <p>الحسابات الفعلية غير مربوطة في النسخة دي.</p> : account ? (
-        <>
           <p className="text-sm">الأدوار: {account.roles.map((role) => labels[role] ?? role).join("، ") || "لم يُحدد دور"}</p>
           <div className="flex flex-wrap gap-2">
             {portalRoles.filter((role) => account.roles.includes("owner") || account.roles.includes(role)).map((role) => (
@@ -69,13 +68,6 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
                   <select className="field" name="role">{Object.entries(labels).filter(([role]) => role !== "owner").map(([role, label]) => <option key={role} value={role}>{label}</option>)}</select>
                 </label>
                 <Button className="justify-self-start">إنشاء الحساب</Button>
-              </form>
-              <form action={changeDemoVisibility} className="soft-card grid gap-3 p-5">
-                <h2 className="text-lg font-bold">المحتوى التجريبي</h2>
-                <p className="text-sm leading-7 text-muted-foreground">{demo ? "المعاينة ظاهرة حاليًا." : "المعاينة مخفية حاليًا."} تقدر ترجعها في أي وقت.</p>
-                <input type="hidden" name="enabled" value={String(!demo)} />
-                {!demo || <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="confirmed" required /> أؤكد إخفاء صفحات المعاينة من الموقع</label>}
-                <Button variant="outline" className="justify-self-start">{demo ? "إخفاء المعاينة" : "إظهار المعاينة"}</Button>
               </form>
             </div>
           )}
@@ -107,25 +99,6 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
             </section>
           )}
           <form action={signOut}><Button variant="outline">تسجيل الخروج</Button></form>
-        </>
-      ) : (
-        <div className="grid items-start gap-4 md:grid-cols-2">
-          <form id="login" action={signIn} className="soft-card grid scroll-mt-28 gap-3 p-5">
-            <h2 className="text-lg font-bold">تسجيل الدخول</h2>
-            <Credentials />
-            <Button className="justify-self-start">دخول</Button>
-          </form>
-          <form id="signup" action={signUp} className="soft-card grid scroll-mt-28 gap-3 p-5">
-            <h2 className="text-lg font-bold">إنشاء حساب</h2>
-            <label className="grid gap-2 text-sm font-semibold">الاسم<input className="field" name="name" required minLength={2} maxLength={100} /></label>
-            <Credentials newUser />
-            <label className="grid gap-2 text-sm font-semibold">نوع الحساب
-              <select className="field" name="kind"><option value="student">طالب</option><option value="parent">ولي أمر</option></select>
-            </label>
-            <Button className="justify-self-start">إنشاء الحساب</Button>
-          </form>
-        </div>
-      )}
     </main>
   );
 }

@@ -1,123 +1,52 @@
-import { TeacherAvatar } from "@/components/teacher-avatar";
+﻿import Link from "next/link";
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, BookOpen, Check, Play } from "lucide-react";
-import {
-  courses,
-  getCourse,
-  getGrade,
-  getSubject,
-  getTeacher,
-} from "@/features/catalog/mock-data";
-import { Badge, Breadcrumbs, DemoNotice, tones } from "@/components/shared";
+import { Breadcrumbs } from "@/components/shared";
 import { Button } from "@/components/ui/button";
-import {
-  CourseContent,
-  CourseEnrollPreview,
-} from "@/features/catalog/course-content";
-import { cn } from "@/lib/utils";
+import { getAccount } from "@/features/auth/supabase-server";
+import { AuthSubmit } from "@/features/auth/form-controls";
+import { enrollInCourse, getCourseEnrollments } from "@/features/catalog/enrollment-actions";
+import { readPublishedCourse } from "@/features/catalog/live-catalog";
 
-export const dynamicParams = false;
-export function generateStaticParams() {
-  return courses.map((c) => ({ courseId: c.id }));
+export async function generateMetadata({ params }: { params: Promise<{ courseId: string }> }) {
+  const course = await readPublishedCourse((await params).courseId);
+  return { title: course?.title ?? "مقرر غير موجود" };
 }
-export async function generateMetadata({
-  params,
-}: {
+
+export default async function CoursePage({ params, searchParams }: {
   params: Promise<{ courseId: string }>;
+  searchParams: Promise<{ enrollment?: string }>;
 }) {
-  return {
-    title: getCourse((await params).courseId)?.title ?? "مقرر غير موجود",
-  };
-}
-export default async function CoursePage({
-  params,
-}: {
-  params: Promise<{ courseId: string }>;
-}) {
-  const course = getCourse((await params).courseId);
+  const [{ courseId }, { enrollment }, account] = await Promise.all([params, searchParams, getAccount()]);
+  const course = await readPublishedCourse(courseId);
   if (!course) notFound();
-  const subject = getSubject(course.subjectId)!;
-  const teacher = getTeacher(course.teacherId)!;
-  const grade = getGrade(course.gradeId)!;
-  const preview = course.units[0].lessons[0];
-  return (
-    <div className="container-shell py-6 md:py-8">
-      <Breadcrumbs
-        items={[
-          { label: "المقررات", href: "/courses" },
-          { label: subject.name, href: `/subjects/${subject.id}` },
-          { label: course.title },
-        ]}
-      />
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div>
-          <div className="mb-4 flex flex-wrap gap-2">
-            <Badge>{subject.name}</Badge>
-            <Badge className="bg-muted text-muted-foreground">
-              {grade.name}
-            </Badge>
-            <Badge className="bg-muted text-muted-foreground">
-              {course.term}
-            </Badge>
-          </div>
-          <h1 className="text-3xl font-bold md:text-4xl">{course.title}</h1>
-          <p className="mt-4 leading-7 text-muted-foreground">
-            {course.description}
-          </p>
-          <Link
-            className="mb-6 mt-4 flex min-h-11 items-center gap-3 text-sm font-bold"
-            href={`/teachers/${teacher.id}`}
-          >
-            <TeacherAvatar teacherId={teacher.id} fallback={teacher.initials} />
-            مع أ. {teacher.name}
-            <ArrowLeft aria-hidden="true" className="size-4" />
-          </Link>
-          <CourseContent course={course} />
-        </div>
-        <aside className="soft-card overflow-hidden lg:sticky lg:top-(--site-sticky-top)">
-          <div
-            className={cn(
-              "relative flex h-48 items-center justify-center",
-              tones[subject.tone],
-            )}
-          >
-            <span dir="ltr" className="font-serif text-7xl">
-              {subject.id === "math" ? "x² + y²" : subject.symbol}
-            </span>
-            <Badge className="absolute bottom-4 start-4 bg-white/90">
-              معاينة من المقرر
-            </Badge>
-          </div>
-          <div className="p-4">
-            <Button asChild variant="outline" className="mb-4 w-full">
-              <Link href={`/lessons/${preview.id}`}>
-                <Play aria-hidden="true" />
-                شاهد معاينة مجانية
-              </Link>
-            </Button>
-            <CourseEnrollPreview price={course.price} />
-            <ul className="my-4 space-y-3 border-t pt-4 text-sm text-muted-foreground">
-              <li className="flex gap-2">
-                <BookOpen aria-hidden="true" className="size-4" />
-                {course.units.length} وحدات ·{" "}
-                {course.units.flatMap((u) => u.lessons).length} دروس
-              </li>
-              <li className="flex gap-2">
-                <Check aria-hidden="true" className="size-4" />
-                تعلم بالسرعة التي تناسبك
-              </li>
-            </ul>
-            <Link
-              className="inline-flex min-h-11 items-center text-sm font-bold text-primary underline underline-offset-4"
-              href={`/courses/${course.id}/lessons`}
-            >
-              استعرض كل الوحدات والدروس
-            </Link>
-          </div>
-        </aside>
+  const existing = account && (await getCourseEnrollments()).find((row) => row.course_id === course.id);
+  const allowed = account?.roles.some((role) => role === "parent" || role === "student");
+
+  return <div className="container-shell py-8">
+    <Breadcrumbs items={[{ label: "المقررات", href: "/courses" }, { label: course.title }]} />
+    <div className="grid items-start gap-6 lg:grid-cols-[1fr_21rem]">
+      <div className="soft-card p-6 sm:p-8">
+        <h1 className="text-3xl font-bold">{course.title}</h1>
+        {course.description && <p className="mt-4 whitespace-pre-line leading-8 text-muted-foreground">{course.description}</p>}
       </div>
-      <DemoNotice className="mt-6" />
+      <aside className="soft-card space-y-4 p-6">
+        <h2 className="text-lg font-bold">الالتحاق بالمقرر</h2>
+        {enrollment === "failed" && <p role="alert" className="text-sm text-destructive">تعذّر حفظ الطلب. جرّب مرة تانية.</p>}
+        {enrollment === "invalid" && <p role="alert" className="text-sm text-destructive">راجع اسم الطالب وأعد الإرسال.</p>}
+        {existing ? <>
+          <p role="status" className="rounded-lg bg-accent p-3 text-sm">
+            {existing.status === "active" ? "التحاقك بالمقرر مؤكد." : existing.status === "declined" ? "لم يُقبل طلب الالتحاق." : "طلب الالتحاق قيد المراجعة."}
+          </p>
+          {existing.status === "active" && <Button asChild className="w-full"><Link href={`/courses/${courseId}/lessons`}>افتح الدروس</Link></Button>}
+        </> : !account ? <Button asChild className="w-full">
+          <Link href={`/login?next=${encodeURIComponent(`/courses/${courseId}`)}`}>سجّل دخولك للالتحاق</Link>
+        </Button> : allowed ? <form action={enrollInCourse.bind(null, courseId)} className="grid gap-4">
+          {account.roles.includes("parent") && <label className="grid gap-2 text-sm font-semibold">اسم الطالب
+            <input name="learner" className="field" autoComplete="off" minLength={2} maxLength={100} required />
+          </label>}
+          <AuthSubmit>إرسال طلب الالتحاق</AuthSubmit>
+        </form> : <p className="text-sm text-muted-foreground">الالتحاق متاح لحسابات الطلاب وأولياء الأمور.</p>}
+      </aside>
     </div>
-  );
+  </div>;
 }
