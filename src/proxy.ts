@@ -235,4 +235,5 @@ export async function proxy(request: NextRequest) {
   }
 }
 
-export const config = { matcher: "/:path*" };
+// Public framework bundles are also needed by login and authenticated portals under a global lock.
+export const config = { matcher: "/((?!_next/static/).*)" };

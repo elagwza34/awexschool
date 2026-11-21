@@ -26,6 +26,28 @@ test("private sessions expire and rotating the key invalidates them", () => {
   expect(hasSiteSession(token, ownerCode, issued + 8 * 60 * 60 * 1000)).toBe(false);
 });
 
+test("a global lock preserves framework assets for the public login page", async ({ page, request }) => {
+  await page.goto(settingsPath);
+  await enterCode(page, ownerCode);
+  try {
+    await save(page, "*", globalCode);
+    expect((await request.get("/")).status()).toBe(401);
+
+    const login = await request.get("/login");
+    expect(login.ok()).toBe(true);
+    const html = await login.text();
+    for (const [extension, contentType] of [["css", "text/css"], ["js", "javascript"]] as const) {
+      const asset = html.match(new RegExp(`"(/_next/static/[^"]+\\.${extension})"`))?.[1];
+      expect(asset).toBeDefined();
+      const response = await request.get(asset!);
+      expect(response.ok(), asset).toBe(true);
+      expect(response.headers()["content-type"]).toContain(contentType);
+    }
+  } finally {
+    await page.request.post(settingsPath, { form: { action: "remove", scope: "*" } });
+  }
+});
+
 test("the admin can lock a direct page, lock the entire site, and reopen both", async ({ page, browser, baseURL }) => {
   const guest = await browser.newContext({ baseURL });
   const visitor = await guest.newPage();
