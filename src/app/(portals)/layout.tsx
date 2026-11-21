@@ -4,6 +4,8 @@ import { ContentProvider } from "@/features/content/context";
 import { redirect } from "next/navigation";
 import { isDemoEnabled } from "@/features/auth/supabase-server";
 
+export const dynamic = "force-dynamic";
+
 export default async function PortalsLayout({
   children,
 }: {

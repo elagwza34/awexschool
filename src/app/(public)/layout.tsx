@@ -2,6 +2,8 @@ import { SiteFooter } from "@/components/layout/site-footer";
 import { redirect } from "next/navigation";
 import { isDemoEnabled } from "@/features/auth/supabase-server";
 
+export const dynamic = "force-dynamic";
+
 export default async function PublicLayout({
   children,
 }: {
