@@ -1,4 +1,9 @@
-﻿export const dashboardRoles = [
+import { adminSections } from "@/features/dashboards/admin-navigation";
+import { parentSections } from "@/features/dashboards/parent-navigation";
+import { studentSections } from "@/features/dashboards/student-navigation";
+import { teacherSections } from "@/features/dashboards/teacher-navigation";
+
+export const dashboardRoles = [
   { role: "owner", label: "لوحة المالك" },
   { role: "admin", label: "لوحة الإدارة" },
   { role: "manager", label: "لوحة المدير" },
@@ -19,17 +24,11 @@ const sections: Partial<Record<DashboardRole, readonly DashboardLink[]>> = {
   ],
   admin: [
     { href: "/admin/catalog", label: "المقررات والالتحاق" },
-    { href: "/admin/teacher-applications", label: "طلبات المدرسين" },
+    ...adminSections.filter(({ id }) => ["teacher-applications", "group-requests", "chat", "schedule", "finance", "assignments"].includes(id)),
   ],
-  teacher: [
-    { href: "/teacher/courses", label: "مقرراتي" },
-    { href: "/teacher/profile", label: "الملف الشخصي" },
-  ],
-  parent: [{ href: "/parent/courses", label: "مقررات الأبناء" }],
-  student: [
-    { href: "/student/courses", label: "مقرراتي" },
-    { href: "/student/profile", label: "الملف الشخصي" },
-  ],
+  teacher: teacherSections.filter(({ id }) => ["profile", "courses", "groups", "sessions", "finance", "schedule", "attendance", "assignments", "reviews", "chat", "admin-chat"].includes(id)),
+  parent: parentSections.filter(({ id }) => ["courses", "schedule", "attendance", "assignments", "admin-chat"].includes(id)),
+  student: studentSections.filter(({ id }) => ["courses", "schedule", "attendance", "assignments", "profile", "chat", "admin-chat"].includes(id)),
 };
 
 export function dashboardLinks(role: DashboardRole) {

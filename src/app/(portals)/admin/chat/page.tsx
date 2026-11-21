@@ -1,13 +1,5 @@
-import { PortalShell } from "@/features/dashboards/portal-shell";
-import { ChatWorkspace } from "@/features/dashboards/chat-workspace";
+﻿import { LiveChat } from "@/features/dashboards/live-chat";
 
-export default function AdministrationChatPage() {
-  return (
-    <PortalShell role="admin">
-      <div className="space-y-4">
-        <h1 className="text-2xl font-bold">محادثات الإدارة</h1>
-        <ChatWorkspace role="admin" administration />
-      </div>
-    </PortalShell>
-  );
+export default function Page({ searchParams }: { searchParams: Promise<{ thread?: string; message?: string }> }) {
+  return <LiveChat role="admin" section="chat" searchParams={searchParams} />;
 }

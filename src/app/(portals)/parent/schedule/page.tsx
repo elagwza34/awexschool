@@ -1,10 +1,5 @@
-import { PortalShell } from "@/features/dashboards/portal-shell";
-import { DashboardView } from "@/features/dashboards/dashboard-view";
+﻿import { LiveOperationsSection } from "@/features/dashboards/live-operations-section";
 
-export default function ParentSectionPage() {
-  return (
-    <PortalShell role="parent">
-      <DashboardView role="parent" section="schedule" />
-    </PortalShell>
-  );
+export default function Page() {
+  return <LiveOperationsSection role="parent" section="schedule" />;
 }

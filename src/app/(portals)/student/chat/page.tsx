@@ -1,19 +1,5 @@
-import type { Metadata } from "next";
-import { PortalShell } from "@/features/dashboards/portal-shell";
-import { StudentHeading } from "@/features/dashboards/student-heading";
-import { ChatWorkspace } from "@/features/dashboards/chat-workspace";
+﻿import { LiveChat } from "@/features/dashboards/live-chat";
 
-export const metadata: Metadata = { title: "الشات — لوحة الطالب" };
-export default function StudentChatPage() {
-  return (
-    <PortalShell role="student">
-      <div className="space-y-4">
-        <StudentHeading
-          title="الشات"
-          description="اسأل مدرسك عن الدرس من محادثة مرتبطة بمقرراتك. الرسائل هنا للمعاينة فقط، وليست تواصلًا حقيقيًا."
-        />
-        <ChatWorkspace role="student" />
-      </div>
-    </PortalShell>
-  );
+export default function Page({ searchParams }: { searchParams: Promise<{ thread?: string; message?: string }> }) {
+  return <LiveChat role="student" section="chat" searchParams={searchParams} />;
 }

@@ -1,13 +1,5 @@
-import type { Metadata } from "next";
-import { PortalShell } from "@/features/dashboards/portal-shell";
-import { GroupRequestsWorkspace } from "@/features/enrollments/join-requests";
-
-export const metadata: Metadata = { title: "طلبات انضمام المجموعات" };
+﻿import { LiveOperationsSection } from "@/features/dashboards/live-operations-section";
 
 export default function Page() {
-  return (
-    <PortalShell role="admin">
-      <GroupRequestsWorkspace role="admin" />
-    </PortalShell>
-  );
+  return <LiveOperationsSection role="admin" section="group-requests" />;
 }

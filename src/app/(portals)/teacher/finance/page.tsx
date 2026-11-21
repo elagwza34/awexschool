@@ -1,13 +1,5 @@
-import type { Metadata } from "next";
-import { PortalShell } from "@/features/dashboards/portal-shell";
-import { TeacherFinance } from "@/features/finance/workspace";
+﻿import { LiveOperationsSection } from "@/features/dashboards/live-operations-section";
 
-export const metadata: Metadata = { title: "مستحقاتي" };
-
-export default function TeacherFinancePage() {
-  return (
-    <PortalShell role="teacher">
-      <TeacherFinance role="teacher" />
-    </PortalShell>
-  );
+export default function Page() {
+  return <LiveOperationsSection role="teacher" section="finance" />;
 }

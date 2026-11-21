@@ -1,12 +1,5 @@
-import type { Metadata } from "next";
-import { PortalShell } from "@/features/dashboards/portal-shell";
-import { AssignmentsWorkspace } from "@/features/assignments/workspace";
+﻿import { LiveAssignments } from "@/features/dashboards/live-assignments";
 
-export const metadata: Metadata = { title: "الواجبات والتكليفات — لوحة المدرس" };
-export default function Page() {
-  return (
-    <PortalShell role="teacher">
-      <AssignmentsWorkspace role="teacher" />
-    </PortalShell>
-  );
+export default function Page({ searchParams }: { searchParams: Promise<{ message?: string }> }) {
+  return <LiveAssignments role="teacher" searchParams={searchParams} />;
 }

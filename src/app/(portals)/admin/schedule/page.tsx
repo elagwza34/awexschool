@@ -1,10 +1,5 @@
-import { PortalShell } from "@/features/dashboards/portal-shell";
-import { AdminSectionView } from "@/features/dashboards/admin-section-view";
+﻿import { LiveOperationsSection } from "@/features/dashboards/live-operations-section";
 
-export default function AdminPage() {
-  return (
-    <PortalShell role="admin">
-      <AdminSectionView section="schedule" />
-    </PortalShell>
-  );
+export default function Page() {
+  return <LiveOperationsSection role="admin" section="schedule" />;
 }

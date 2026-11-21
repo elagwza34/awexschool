@@ -2,11 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { dashboardLinks, dashboardRoles, type DashboardRole } from "@/features/auth/dashboard-roles";
 import { cn } from "@/lib/utils";
 
 export function LivePortalNavigation({ name, roles, accountRole }: { name: string; roles: readonly string[]; accountRole?: DashboardRole }) {
   const pathname = usePathname();
+  const tabStrip = useRef<HTMLElement>(null);
+  useEffect(() => {
+    tabStrip.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [pathname]);
   const ownerSection = roles.includes("owner") && dashboardLinks("owner").some(({ href }) => href === pathname && href !== "/owner");
   const activeRole = accountRole ?? (ownerSection ? "owner" : pathname.split("/")[1]);
   const current = dashboardRoles.find(({ role }) => role === activeRole &&
@@ -17,17 +22,27 @@ export function LivePortalNavigation({ name, roles, accountRole }: { name: strin
     ...dashboardLinks(current.role),
     { href: `/account?portal=${current.role}`, label: "حسابي" },
   ];
-  return <div className="container-shell pt-24 sm:pt-28">
-    <div className="soft-card min-w-0 px-4 pt-4 sm:px-5">
-      <p className="break-words text-lg font-bold">{current.label}</p>
-      <p className="mt-1 break-words text-sm text-muted-foreground">{name}</p>
-      <nav aria-label="أقسام لوحة التحكم" className="mt-2 flex flex-wrap gap-x-2 gap-y-1">
+  const initials = name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join(" ");
+  return <div className="min-w-0 pt-24">
+    <div className="border-b bg-white">
+      <div className="mx-auto flex min-h-16 max-w-[1480px] flex-wrap items-center justify-between gap-3 px-4 py-2 sm:px-5 lg:px-6">
+        <p className="min-w-0 break-words text-base font-bold">{current.label}</p>
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-accent text-xs font-bold text-primary" aria-hidden="true">{initials}</span>
+          <p className="break-words text-sm font-semibold">{name}</p>
+        </div>
+      </div>
+    </div>
+    <div className="border-b bg-white">
+      <nav ref={tabStrip} aria-label="أقسام لوحة التحكم" className="mx-auto max-w-[1480px] overflow-x-auto px-4 sm:px-5 lg:px-6">
+        <div className="flex w-max min-w-full gap-2">
         {links.map(({ href, label }) => {
           const active = pathname === href.split("?")[0];
           return <Link key={href} href={href} aria-current={active ? "page" : undefined}
-          className={cn("inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-[-2px]",
-            active && "bg-accent text-primary underline underline-offset-4")}>{label}</Link>;
+          className={cn("inline-flex min-h-11 shrink-0 items-center whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-[-2px]",
+            active ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:bg-secondary hover:text-primary")}>{label}</Link>;
         })}
+        </div>
       </nav>
     </div>
   </div>;
