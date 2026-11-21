@@ -28,6 +28,8 @@ const headers = {
   "X-Robots-Tag": "noindex, nofollow",
 };
 
+const portalPath = /^\/(?:owner|admin|manager|support|teacher|student|parent|workspace)(?:\/|$)/;
+
 function gate(status: number, message: string, owner = false) {
   return screen(status, owner ? "إدارة أقفال الموقع" : "دخول Awex School", message, status === 503 ? "" : `
     <form method="post" enctype="application/x-www-form-urlencoded">
@@ -199,7 +201,8 @@ export async function proxy(request: NextRequest) {
       return continueRequest(request);
     }
 
-    const lock = await getRequestLock(pathname);
+    // Portal routes enforce their own account and role checks.
+    const lock = await getRequestLock(pathname, !portalPath.test(pathname));
     if (!lock || hasSiteSession(request.cookies.get(lockCookie(lock.scope))?.value, lock.key)) {
       return continueRequest(request);
     }

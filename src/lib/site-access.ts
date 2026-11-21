@@ -106,8 +106,8 @@ async function readLock(scope: string) {
   }
 }
 
-export async function getRequestLock(path: string) {
-  const globalLock = await readLock("*");
+export async function getRequestLock(path: string, includeGlobal = true) {
+  const globalLock = includeGlobal ? await readLock("*") : undefined;
   if (globalLock) return globalLock;
   return readLock(path);
 }
