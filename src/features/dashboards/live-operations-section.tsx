@@ -65,7 +65,7 @@ export async function LiveOperationsSection({ role, section }: { role: Role; sec
     rows = result.data?.map((r) => ({ id: r.id, title: r.title, details: `${time.format(new Date(r.starts_at))} · ${statuses[r.status] ?? r.status}` })) ?? [];
   }
 
-  return <main id="main-content" className="mx-auto max-w-[1480px] space-y-4 px-4 py-5 sm:px-5 lg:px-6 lg:py-6">
+  return <main id="main-content" className="dashboard-width space-y-4 py-5 lg:py-6">
     <h1 className="text-2xl font-bold">{labels[section]}</h1>
     {error ? <p role="alert" className="soft-card p-5">تعذّر تحميل البيانات حاليًا.</p> : rows.length ? (
       <ul className="grid gap-3 sm:grid-cols-2">{rows.map((row) => <li key={row.id} className="soft-card p-4">

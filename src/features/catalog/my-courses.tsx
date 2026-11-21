@@ -6,7 +6,7 @@ import { listPublishedCourses } from "./live-catalog";
 export async function MyCourses({ overview = false }: { overview?: boolean }) {
   const [requests, courses] = await Promise.all([getCourseEnrollments(), listPublishedCourses()]);
   const titles = new Map(courses.map(({ id, title }) => [id, title]));
-  return <main id="main-content" className="container-shell space-y-4 pt-5 pb-10">
+  return <main id="main-content" className="dashboard-width space-y-4 pt-5 pb-10">
     <h1 className="text-2xl font-bold">مقرراتي</h1>
     {overview && <PortalMetrics items={[
       { label: "التحاقات مؤكدة", value: requests.filter(({ status }) => status === "active").length },

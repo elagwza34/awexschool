@@ -43,3 +43,11 @@ test("guest users cannot open legacy portal previews or fictional courses", asyn
   const result = await page.goto("/courses/unpublished-verification-course");
   expect(result?.status()).toBe(404);
 });
+
+test("the old student profile link redirects to the merged account", async ({ request }) => {
+  const response = await request.get("/student/profile", { maxRedirects: 0 });
+  expect(response.status()).toBe(307);
+  const destination = new URL(response.headers().location, response.url());
+  expect(destination.pathname).toBe("/account");
+  expect(destination.searchParams.get("portal")).toBe("student");
+});

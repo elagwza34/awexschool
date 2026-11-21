@@ -28,7 +28,7 @@ const sections: Partial<Record<DashboardRole, readonly DashboardLink[]>> = {
   ],
   teacher: teacherSections.filter(({ id }) => ["profile", "courses", "groups", "sessions", "finance", "schedule", "attendance", "assignments", "reviews", "chat", "admin-chat"].includes(id)),
   parent: parentSections.filter(({ id }) => ["courses", "schedule", "attendance", "assignments", "admin-chat"].includes(id)),
-  student: studentSections.filter(({ id }) => ["courses", "schedule", "attendance", "assignments", "profile", "chat", "admin-chat"].includes(id)),
+  student: studentSections.filter(({ id }) => ["courses", "schedule", "attendance", "assignments", "chat", "admin-chat"].includes(id)),
 };
 
 export function dashboardLinks(role: DashboardRole) {

@@ -26,7 +26,7 @@ export async function OperationsOverview({ role }: { role: "admin" | "manager" |
       { label: "طلبات التحاق معلّقة", value: requests?.count ?? null },
     ]);
 
-  return <main id="main-content" className="container-shell space-y-5 pt-5 pb-10">
+  return <main id="main-content" className="dashboard-width space-y-5 pt-5 pb-10">
     <h1 className="text-xl font-bold sm:text-2xl">{support ? "حالة طلبات الدعم" : "نظرة عامة على المنصة"}</h1>
     <PortalMetrics items={items} />
     {items.some(({ value }) => value === null) && <p role="status" className="text-sm text-muted-foreground">بعض الأعداد غير متاحة حاليًا.</p>}

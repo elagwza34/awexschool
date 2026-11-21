@@ -12,7 +12,7 @@ export default async function TeacherApplications({ searchParams }: { searchPara
     searchParams,
   ]);
   return (
-      <main id="main-content" className="container-shell space-y-4 pt-5 pb-10">
+      <main id="main-content" className="dashboard-width space-y-4 pt-5 pb-10">
         <h1 className="text-2xl font-bold">طلبات تقديم المدرسين</h1>
         <Link href="/admin/catalog" className="inline-flex min-h-11 items-center text-primary underline">إدارة المقررات</Link>
         {(status === "failed" || error) && <p role="alert" className="text-destructive">تعذّر تحميل الطلبات أو حفظ المراجعة.</p>}

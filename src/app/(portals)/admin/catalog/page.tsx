@@ -18,13 +18,13 @@ export default async function CatalogAdmin({ searchParams }: { searchParams: Pro
     searchParams,
   ]);
   return (
-      <main className="container-shell space-y-7 pt-5 pb-10" id="main-content">
+      <main className="dashboard-width space-y-7 pt-5 pb-10" id="main-content">
         <h1 className="text-2xl font-bold">إدارة المقررات والالتحاق</h1>
         <Link href="/admin/teacher-applications" className="inline-flex min-h-11 items-center text-primary underline">طلبات تقديم المدرسين</Link>
         {notice && <p role="status" className="rounded-lg bg-accent p-3">
           {notice === "published" ? "تم نشر المقرر." : notice === "reviewed" ? "تمت مراجعة الطلب." : "تعذّر الحفظ. راجع البيانات وحاول مرة تانية."}
         </p>}
-        <form action={publishCourse} className="soft-card grid max-w-2xl gap-4 p-5">
+        <form action={publishCourse} className="soft-card grid gap-4 p-5">
           <h2 className="text-lg font-bold">نشر مقرر جديد</h2>
           <label className="grid gap-2 text-sm font-semibold">اسم المقرر<input name="title" className="field" minLength={3} maxLength={160} required /></label>
           <label className="grid gap-2 text-sm font-semibold">الوصف<textarea name="description" className="field min-h-24 py-2" maxLength={3000} /></label>

@@ -11,7 +11,7 @@ export default async function TeacherProfilePage() {
   const profile = result?.data;
   const name = profile?.full_name ?? account.name;
 
-  return <main id="main-content" className="container-shell space-y-4 pt-5 pb-10">
+  return <main id="main-content" className="dashboard-width space-y-4 pt-5 pb-10">
     <h1 className="text-2xl font-bold">الملف الشخصي</h1>
     <article className="soft-card space-y-4 p-5">
       <div className="flex items-center gap-4">

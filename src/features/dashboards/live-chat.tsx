@@ -22,7 +22,7 @@ export async function LiveChat({ role, section, searchParams }: {
     .eq("thread_id", selected.id).order("created_at", { ascending: false }).limit(50) : null;
   const date = new Intl.DateTimeFormat("ar-EG", { dateStyle: "short", timeStyle: "short", timeZone: "Africa/Cairo" });
 
-  return <main id="main-content" className="mx-auto max-w-[1480px] space-y-4 px-4 py-5 sm:px-5 lg:px-6">
+  return <main id="main-content" className="dashboard-width space-y-4 py-5">
     <h1 className="text-2xl font-bold">{section === "admin-chat" ? "شات الإدارة" : "المحادثات"}</h1>
     {error ? <p role="alert" className="soft-card p-5">تعذّر تحميل المحادثات.</p> : !selected ? (
       <p className="soft-card p-5 text-muted-foreground">لسه مفيش محادثات متاحة لحسابك.</p>

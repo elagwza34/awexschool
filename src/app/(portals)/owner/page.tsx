@@ -25,7 +25,7 @@ export default async function OwnerPage({
     client?.from("profiles").select("user_id", { head: true, count: "exact" }).eq("status", "active"),
   ]);
   return (
-    <main id="main-content" className="container-shell space-y-5 pt-5 pb-10">
+    <main id="main-content" className="dashboard-width space-y-5 pt-5 pb-10">
       <h1 className="text-2xl font-bold">إدارة المنصة</h1>
       <PortalMetrics items={[
         { label: "المقررات المنشورة", value: courses?.count ?? null },

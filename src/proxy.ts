@@ -200,6 +200,7 @@ export async function proxy(request: NextRequest) {
 
   try {
     if (pathname === lockSettingsPath) return await settings(request);
+    if (pathname === "/student/profile") return NextResponse.redirect(new URL("/account?portal=student", request.url));
     if (portalPath.test(pathname) && !liveDashboardPaths.has(pathname)) {
       const destination = new URL("/account", request.url);
       destination.searchParams.set("message", "section-unavailable");

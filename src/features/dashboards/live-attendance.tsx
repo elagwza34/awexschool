@@ -76,7 +76,7 @@ export async function LiveAttendance({ role, searchParams }: {
       </ul>
     ) : <p className="soft-card p-4">مفيش سجلات حضور متاحة حاليًا.</p>;
   }
-  return <main id="main-content" className="mx-auto max-w-[1480px] space-y-4 px-4 py-5 sm:px-5 lg:px-6">
+  return <main id="main-content" className="dashboard-width space-y-4 py-5">
     <h1 className="text-2xl font-bold">الحضور والغياب</h1>{body}
   </main>;
 }

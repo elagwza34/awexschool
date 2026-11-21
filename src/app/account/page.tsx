@@ -62,10 +62,14 @@ export default async function AccountPage({
   return (
     <>
     {accountRole && <LivePortalNavigation name={account.name} roles={account.roles} accountRole={accountRole} />}
-    <main id="main-content" tabIndex={-1} className={`container-shell space-y-5 pb-8 ${accountRole ? "pt-5" : "pt-28"}`}>
+    <main id="main-content" tabIndex={-1} className={`dashboard-width space-y-5 pb-8 ${accountRole ? "pt-5" : "pt-28"}`}>
       <h1 className="text-2xl font-bold sm:text-3xl">{account ? `حساب ${account.name}` : "حساب LiveSchool"}</h1>
       {message && Object.hasOwn(messages, message) && <p role="status" className="soft-card p-4 text-sm">{messages[message]}</p>}
-          <p className="text-sm">الأدوار: {account.roles.map((role) => labels[role] ?? role).join("، ") || "لم يُحدد دور"}</p>
+          <dl className="soft-card grid gap-4 p-5 sm:grid-cols-3">
+            <div className="min-w-0"><dt className="text-sm text-muted-foreground">الاسم</dt><dd className="mt-1 break-words font-semibold">{account.name}</dd></div>
+            <div className="min-w-0"><dt className="text-sm text-muted-foreground">البريد الإلكتروني</dt><dd className="mt-1 break-all font-semibold"><bdi>{account.user.email ?? "—"}</bdi></dd></div>
+            <div className="min-w-0"><dt className="text-sm text-muted-foreground">الأدوار</dt><dd className="mt-1 font-semibold">{account.roles.map((role) => labels[role] ?? role).join("، ") || "لم يُحدد دور"}</dd></div>
+          </dl>
           <div className="flex flex-wrap gap-2">
             {dashboardRoles.filter(({ role }) =>
               account.roles.includes(role) || (role === "admin" && account.roles.includes("owner")),
@@ -74,7 +78,7 @@ export default async function AccountPage({
             ))}
           </div>
           {account.roles.includes("owner") && (
-            <div className="grid items-start gap-4 md:grid-cols-2">
+            <div>
               <form action={addUser} className="soft-card grid gap-3 p-5">
                 <h2 className="text-lg font-bold">إضافة مستخدم</h2>
                 <label className="grid gap-2 text-sm font-semibold">اسم المستخدم<input className="field" name="name" required minLength={2} maxLength={100} /></label>

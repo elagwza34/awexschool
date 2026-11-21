@@ -25,7 +25,7 @@ export function LivePortalNavigation({ name, roles, accountRole }: { name: strin
   const initials = name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join(" ");
   return <div className="min-w-0 pt-24">
     <div className="border-b bg-white">
-      <div className="mx-auto flex min-h-16 max-w-[1480px] flex-wrap items-center justify-between gap-3 px-4 py-2 sm:px-5 lg:px-6">
+      <div className="dashboard-width flex min-h-16 flex-wrap items-center justify-between gap-3 py-2">
         <p className="min-w-0 break-words text-base font-bold">{current.label}</p>
         <div className="flex min-w-0 items-center gap-3">
           <span className="grid size-9 shrink-0 place-items-center rounded-full bg-accent text-xs font-bold text-primary" aria-hidden="true">{initials}</span>
@@ -34,12 +34,12 @@ export function LivePortalNavigation({ name, roles, accountRole }: { name: strin
       </div>
     </div>
     <div className="border-b bg-white">
-      <nav ref={tabStrip} aria-label="أقسام لوحة التحكم" className="mx-auto max-w-[1480px] overflow-x-auto px-4 sm:px-5 lg:px-6">
+      <nav ref={tabStrip} aria-label="أقسام لوحة التحكم" className="dashboard-width overflow-x-auto">
         <div className="flex w-max min-w-full gap-2">
         {links.map(({ href, label }) => {
           const active = pathname === href.split("?")[0];
           return <Link key={href} href={href} aria-current={active ? "page" : undefined}
-          className={cn("inline-flex min-h-11 shrink-0 items-center whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-[-2px]",
+          className={cn("inline-flex min-h-11 shrink-0 items-center whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold first:ps-0 focus-visible:outline-2 focus-visible:outline-offset-[-2px]",
             active ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:bg-secondary hover:text-primary")}>{label}</Link>;
         })}
         </div>

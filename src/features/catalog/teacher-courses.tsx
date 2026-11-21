@@ -24,7 +24,7 @@ export async function TeacherCourses({ overview = false }: { overview?: boolean 
     return result.count;
   })) : [0, 0];
 
-  return <main id="main-content" className="container-shell space-y-6 pt-5 pb-10">
+  return <main id="main-content" className="dashboard-width space-y-6 pt-5 pb-10">
     {overview && <div className="soft-card flex items-center gap-4 p-5">
       <LiveTeacherPhoto name={name} path={profile?.portrait_path ?? null} />
       <div>

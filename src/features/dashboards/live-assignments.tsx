@@ -30,11 +30,11 @@ export async function LiveAssignments({ role, reviews = false, searchParams }: {
   const submissions = submissionResult?.data ?? [];
   const failed = scope.error || assignmentResult?.error || courseResult?.error || submissionResult?.error;
 
-  return <main id="main-content" className="mx-auto max-w-[1480px] space-y-5 px-4 py-5 sm:px-5 lg:px-6">
+  return <main id="main-content" className="dashboard-width space-y-5 py-5">
     <h1 className="text-2xl font-bold">{reviews ? "أعمال للمراجعة" : "الواجبات والتكليفات"}</h1>
     {failed && <p role="alert" className="soft-card p-4">تعذّر تحميل الواجبات.</p>}
     {message && <p role="status" className="soft-card p-4">{message === "saved" ? "تم الحفظ." : "تعذّر الحفظ. راجع البيانات والصلاحية."}</p>}
-    {courseResult?.data?.length ? <form action={publishPortalAssignment} className="soft-card grid max-w-2xl gap-4 p-5">
+    {courseResult?.data?.length ? <form action={publishPortalAssignment} className="soft-card grid gap-4 p-5">
       <h2 className="text-lg font-bold">إضافة واجب</h2>
       <label className="grid gap-2 text-sm font-semibold">المقرر
         <select className="field" name="course" defaultValue="" required><option value="" disabled>اختر المقرر</option>
