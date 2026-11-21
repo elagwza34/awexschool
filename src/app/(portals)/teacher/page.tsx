@@ -1,11 +1,5 @@
-﻿"use client";
-import { PortalShell } from "@/features/dashboards/portal-shell";
-import { TeacherView } from "@/features/dashboards/teacher-view";
+import { TeacherCourses } from "@/features/catalog/teacher-courses";
 
-export default function TeacherDashboardPage() {
-  return (
-    <PortalShell role="teacher">
-      <TeacherView section="overview" />
-    </PortalShell>
-  );
+export default function Page() {
+  return <TeacherCourses overview />;
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { SiteHeader } from "@/components/layout/site-header";
-import { getSocialLinks } from "@/features/auth/supabase-server";
+import { getAccount, getSocialLinks } from "@/features/auth/supabase-server";
+import { dashboardFor } from "@/features/auth/dashboard-roles";
 import { TeacherApplicationsProvider } from "@/features/teachers/applications-context";
 import { PermissionPreviewProvider } from "@/features/dashboards/permissions-context";
 import { EnrollmentPreviewProvider } from "@/features/enrollments/context";
@@ -20,7 +21,7 @@ export const metadata: Metadata = {
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const socialLinks = await getSocialLinks();
+  const [socialLinks, account] = await Promise.all([getSocialLinks(), getAccount()]);
   return (
     <html lang="ar" dir="rtl">
       <body>
@@ -30,7 +31,7 @@ export default async function RootLayout({
         >
           انتقل إلى المحتوى
         </a>
-        <SiteHeader socialLinks={socialLinks} />
+        <SiteHeader socialLinks={socialLinks} dashboardHref={account ? dashboardFor(account.roles) : undefined} />
         <PermissionPreviewProvider>
           <EnrollmentPreviewProvider>
             <StaffPreviewProvider>

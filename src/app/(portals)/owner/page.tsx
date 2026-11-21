@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getSocialLinks } from "@/features/auth/supabase-server";
+import { redirect } from "next/navigation";
+import { getAccount, getSocialLinks, ownerClient } from "@/features/auth/supabase-server";
+import { PortalMetrics } from "@/components/layout/portal-metrics";
 import { saveSocialLinks } from "@/features/auth/account-actions";
 import { socialChannels } from "@/features/auth/social-links";
 import { Button } from "@/components/ui/button";
@@ -12,11 +14,24 @@ export default async function OwnerPage({
 }: {
   searchParams: Promise<{ social?: string }>;
 }) {
-  "use server";
-  const links = await getSocialLinks();
-  const { social } = await searchParams;
+  const account = await getAccount();
+  if (!account?.roles.includes("owner")) redirect("/account");
+  const client = ownerClient();
+  const [links, { social }, courses, teachers, users] = await Promise.all([
+    getSocialLinks(),
+    searchParams,
+    client?.from("courses").select("id", { head: true, count: "exact" }).eq("status", "published"),
+    client?.from("teacher_profiles").select("user_id", { head: true, count: "exact" }),
+    client?.from("profiles").select("user_id", { head: true, count: "exact" }).eq("status", "active"),
+  ]);
   return (
-    <main id="main-content" className="container-shell space-y-5 pt-28 pb-10">
+    <main id="main-content" className="container-shell space-y-5 pt-5 pb-10">
+      <h1 className="text-2xl font-bold">إدارة المنصة</h1>
+      <PortalMetrics items={[
+        { label: "المقررات المنشورة", value: courses?.count ?? null },
+        { label: "ملفات المدرسين", value: teachers?.count ?? null },
+        { label: "الحسابات النشطة", value: users?.count ?? null },
+      ]} />
       <div className="flex flex-wrap gap-2">
         <Button asChild variant="outline"><Link href="/account">إدارة الحسابات</Link></Button>
         <Button asChild variant="outline"><Link href="/admin/catalog">إدارة المقررات</Link></Button>

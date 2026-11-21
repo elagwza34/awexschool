@@ -3,12 +3,12 @@ import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { getAccount, ownerClient } from "@/features/auth/supabase-server";
 import { addUser, removeUser, signOut } from "@/features/auth/account-actions";
+import { dashboardFor, dashboardRoles } from "@/features/auth/dashboard-roles";
 
 const labels: Record<string, string> = {
   owner: "المالك", admin: "الإدارة", manager: "مدير", support: "الدعم الفني",
   teacher: "مدرس", student: "طالب", parent: "ولي أمر",
 };
-const portalRoles = ["owner", "admin", "teacher", "student", "parent"];
 const messages: Record<string, string> = {
   unavailable: "ربط الحسابات غير متاح في النسخة الحالية.",
   login: "تعذّر تسجيل الدخول. راجع البريد وكلمة المرور وتأكيد البريد.",
@@ -46,16 +46,11 @@ export default async function AccountPage({
 }: {
   searchParams: Promise<{ message?: string; page?: string; from?: string }>;
 }) {
-  const { message, page } = await searchParams;
+  const { message, page, from } = await searchParams;
   const account = await getAccount();
   if (!account) redirect("/login");
-  // أي مستخدم مسجل دخول لديه دور بوابة (وليس المالك) يُحول تلقائيًا للوحة دوره
-  const dashboardRole = ["admin", "teacher", "student", "parent"].find((r) =>
-    account.roles.includes(r),
-  );
-  if (dashboardRole && !account.roles.includes("owner")) {
-    redirect(`/${dashboardRole}`);
-  }
+  const dashboard = dashboardFor(account.roles);
+  if (from === "login" && dashboard !== "/account") redirect(dashboard);
   const admin = account?.roles.includes("owner") ? ownerClient() : null;
   const pageNumber = Math.max(1, Math.min(1000, Number.parseInt(page ?? "1", 10) || 1));
   const directory = admin ? await admin.auth.admin.listUsers({ page: pageNumber, perPage: 25 }) : null;
@@ -65,8 +60,10 @@ export default async function AccountPage({
       {message && Object.hasOwn(messages, message) && <p role="status" className="soft-card p-4 text-sm">{messages[message]}</p>}
           <p className="text-sm">الأدوار: {account.roles.map((role) => labels[role] ?? role).join("، ") || "لم يُحدد دور"}</p>
           <div className="flex flex-wrap gap-2">
-            {portalRoles.filter((role) => account.roles.includes(role) || (role !== "teacher" && account.roles.includes("owner"))).map((role) => (
-              <Button asChild key={role} variant="outline"><Link href={`/${role}`}>لوحة {labels[role]}</Link></Button>
+            {dashboardRoles.filter(({ role }) =>
+              account.roles.includes(role) || (role === "admin" && account.roles.includes("owner")),
+            ).map(({ role, label }) => (
+              <Button asChild key={role} variant="outline"><Link href={`/${role}`}>{label}</Link></Button>
             ))}
           </div>
           {account.roles.includes("owner") && (

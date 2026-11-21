@@ -34,7 +34,7 @@ export function ownerClient() {
   }) : null;
 }
 
-export async function getAccount() {
+export const getAccount = cache(async function () {
   const client = await sessionClient();
   if (!client) return null;
   const { data: { user } } = await client.auth.getUser();
@@ -45,7 +45,7 @@ export async function getAccount() {
   ]);
   if (profile.error || roles.error || profile.data?.status !== "active") return null;
   return { user, name: profile.data.display_name as string, roles: roles.data.map(({ role_code }) => role_code as string) };
-}
+});
 
 export const isDemoEnabled = cache(async function () {
   const config = authConfig();

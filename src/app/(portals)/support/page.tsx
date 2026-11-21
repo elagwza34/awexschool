@@ -1,2 +1,5 @@
-import {StaffWorkspace} from "@/features/dashboards/staff-workspace";
-export default function StaffPage(){return <StaffWorkspace role="support" section="overview"/>;}
+﻿import { OperationsOverview } from "@/features/dashboards/operations-overview";
+
+export default function PortalPage() {
+  return <OperationsOverview role="support" />;
+}

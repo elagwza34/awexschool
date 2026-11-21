@@ -14,7 +14,7 @@ export async function signIn(form: FormData) {
   const client = await sessionClient(true);
   if (!client) redirect("/login?message=unavailable");
   const requested = text(form, "next");
-  const next = /^\/courses\/[a-f0-9-]{36}$/.test(requested) ? requested : "/account";
+  const next = /^\/courses\/[a-f0-9-]{36}$/.test(requested) ? requested : "/account?from=login";
   const result = await client.auth.signInWithPassword({
     email: text(form, "email").toLowerCase(), password: String(form.get("password") ?? ""),
   });

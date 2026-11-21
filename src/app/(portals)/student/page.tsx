@@ -1,11 +1,5 @@
-﻿"use client";
-import { PortalShell } from "@/features/dashboards/portal-shell";
-import { StudentView } from "@/features/dashboards/student-view";
+import { MyCourses } from "@/features/catalog/my-courses";
 
-export default function StudentDashboardPage() {
-  return (
-    <PortalShell role="student">
-      <StudentView section="overview" />
-    </PortalShell>
-  );
+export default function Page() {
+  return <MyCourses overview />;
 }

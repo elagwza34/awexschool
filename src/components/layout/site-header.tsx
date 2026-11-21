@@ -7,7 +7,6 @@ import { useEffect, useState } from "react";
 import { Brand } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase";
 import { signOut } from "@/features/auth/account-actions";
 import { SocialLinks } from "./social-links";
 import type { SocialLinksConfig } from "@/features/auth/social-links";
@@ -20,33 +19,10 @@ const navigation = [
   { href: "/faq", title: "الأسئلة الشائعة" },
 ];
 
-export function SiteHeader({ socialLinks }: { socialLinks: SocialLinksConfig }) {
+export function SiteHeader({ socialLinks, dashboardHref }: { socialLinks: SocialLinksConfig; dashboardHref?: string }) {
   const [open, setOpen] = useState(false);
   const path = usePathname();
   const isHome = path === "/";
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [checking, setChecking] = useState(true);
-  useEffect(() => {
-    const supabase = createClient();
-    let mounted = true;
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (mounted) {
-        setIsLoggedIn(!!session);
-        setChecking(false);
-      }
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (mounted) {
-        setIsLoggedIn(!!session);
-        setChecking(false);
-      }
-    });
-    return () => {
-      mounted = false;
-      sub?.subscription.unsubscribe();
-    };
-  }, []);
-
   useEffect(() => {
     const escape = (event: KeyboardEvent) => {
       if (event.key === "Escape" && open) {
@@ -90,10 +66,10 @@ export function SiteHeader({ socialLinks }: { socialLinks: SocialLinksConfig }) 
               <Search />
             </Link>
           </Button>
-          {checking ? null : isLoggedIn ? (
+          {dashboardHref ? (
             <>
               <Button asChild variant="ghost" className="hidden rounded-full sm:inline-flex">
-                <Link href="/account" onClick={() => setOpen(false)}>لوحة التحكم</Link>
+                <Link href={dashboardHref} onClick={() => setOpen(false)}>لوحة التحكم</Link>
               </Button>
               <form action={signOut} className="inline">
                 <Button variant="ghost" className="hidden rounded-full sm:inline-flex">تسجيل الخروج</Button>
@@ -131,11 +107,9 @@ export function SiteHeader({ socialLinks }: { socialLinks: SocialLinksConfig }) 
           {[
             ...navigation,
             { href: isHome ? "#trial" : "/#trial", title: "احجز حصة مجانية" },
-            ...(checking
-              ? []
-              : isLoggedIn
+            ...(dashboardHref
                 ? [
-                    { href: "/account", title: "لوحة التحكم" },
+                    { href: dashboardHref, title: "لوحة التحكم" },
                     { href: "/account", title: "تسجيل الخروج", logout: true },
                   ]
                 : [
@@ -146,7 +120,7 @@ export function SiteHeader({ socialLinks }: { socialLinks: SocialLinksConfig }) 
             const { href, title } = item;
             const logout = "logout" in item && item.logout;
             return logout ? (
-              <form key={href} action={signOut} className="w-full">
+              <form key="logout" action={signOut} className="w-full">
                 <Button variant="outline" className="w-full">
                   {title}
                 </Button>

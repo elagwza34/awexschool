@@ -1,6 +1,5 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { PortalShell } from "@/features/dashboards/portal-shell";
 import { getAccount, ownerClient } from "@/features/auth/supabase-server";
 import { reviewTeacherApplication } from "@/features/teachers/application-actions";
 
@@ -13,8 +12,7 @@ export default async function TeacherApplications({ searchParams }: { searchPara
     searchParams,
   ]);
   return (
-    <PortalShell role="admin">
-      <main id="main-content" className="container-shell space-y-4 pt-28 pb-10">
+      <main id="main-content" className="container-shell space-y-4 pt-5 pb-10">
         <h1 className="text-2xl font-bold">طلبات تقديم المدرسين</h1>
         <Link href="/admin/catalog" className="inline-flex min-h-11 items-center text-primary underline">إدارة المقررات</Link>
         {(status === "failed" || error) && <p role="alert" className="text-destructive">تعذّر تحميل الطلبات أو حفظ المراجعة.</p>}
@@ -32,6 +30,5 @@ export default async function TeacherApplications({ searchParams }: { searchPara
           </form> : <p role="status">{application.status === "accepted" ? "تم قبول الطلب" : "لم يُقبل الطلب"}</p>}
         </article>) : !error && <p className="text-muted-foreground">مفيش طلبات تقديم حتى الآن.</p>}
       </main>
-    </PortalShell>
   );
 }

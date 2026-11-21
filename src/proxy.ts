@@ -33,6 +33,7 @@ const livePortals = new Set([
   "/owner", "/admin", "/admin/catalog", "/admin/teacher-applications",
   "/student", "/student/courses", "/parent", "/parent/courses",
   "/teacher", "/teacher/courses",
+  "/manager", "/support",
 ]);
 
 function gate(status: number, message: string, owner = false) {

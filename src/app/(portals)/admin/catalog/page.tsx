@@ -1,6 +1,5 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { PortalShell } from "@/features/dashboards/portal-shell";
 import { getAccount, ownerClient } from "@/features/auth/supabase-server";
 import { AuthSubmit } from "@/features/auth/form-controls";
 import { publishCourse, reviewEnrollment } from "@/features/catalog/catalog-admin-actions";
@@ -19,8 +18,7 @@ export default async function CatalogAdmin({ searchParams }: { searchParams: Pro
     searchParams,
   ]);
   return (
-    <PortalShell role="admin">
-      <main className="container-shell space-y-7 pt-28 pb-10" id="main-content">
+      <main className="container-shell space-y-7 pt-5 pb-10" id="main-content">
         <h1 className="text-2xl font-bold">إدارة المقررات والالتحاق</h1>
         <Link href="/admin/teacher-applications" className="inline-flex min-h-11 items-center text-primary underline">طلبات تقديم المدرسين</Link>
         {notice && <p role="status" className="rounded-lg bg-accent p-3">
@@ -68,6 +66,5 @@ export default async function CatalogAdmin({ searchParams }: { searchParams: Pro
           </article>) : <p className="text-muted-foreground">مفيش طلبات قيد المراجعة.</p>}
         </section>
       </main>
-    </PortalShell>
   );
 }
