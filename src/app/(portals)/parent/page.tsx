@@ -1,1 +1,11 @@
-﻿export { MyCourses as default } from "@/features/catalog/my-courses";
+﻿"use client";
+import { PortalShell } from "@/features/dashboards/portal-shell";
+import { DashboardView } from "@/features/dashboards/dashboard-view";
+
+export default function ParentDashboardPage() {
+  return (
+    <PortalShell role="parent">
+      <DashboardView role="parent" section="overview" />
+    </PortalShell>
+  );
+}
