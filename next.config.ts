@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
   experimental: {
     workerThreads: false,
   },
+  // تعطيل تحسين الصور غير الضرورية للبناء الثابت
+  images: {
+    unoptimized: true,
+  },
 };
 
 export default nextConfig;
