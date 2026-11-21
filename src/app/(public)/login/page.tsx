@@ -1,7 +1,5 @@
-import type { Metadata } from "next";
-import { AuthScreen } from "@/features/auth/auth-screen";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "تسجيل الدخول التجريبي" };
-export default function LoginPage() {
-  return <AuthScreen mode="login" />;
+export default function Page() {
+  redirect("/account#login");
 }

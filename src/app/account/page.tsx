@@ -7,6 +7,7 @@ const labels: Record<string, string> = {
   owner: "المالك", admin: "الإدارة", manager: "مدير", support: "الدعم الفني",
   teacher: "مدرس", student: "طالب", parent: "ولي أمر",
 };
+const portalRoles = Object.keys(labels);
 const messages: Record<string, string> = {
   unavailable: "ربط الحسابات غير متاح في النسخة الحالية.",
   login: "تعذّر تسجيل الدخول. راجع البريد وكلمة المرور وتأكيد البريد.",
@@ -53,6 +54,11 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
       {!authConfig() ? <p>الحسابات الفعلية غير مربوطة في النسخة دي.</p> : account ? (
         <>
           <p className="text-sm">الأدوار: {account.roles.map((role) => labels[role] ?? role).join("، ") || "لم يُحدد دور"}</p>
+          <div className="flex flex-wrap gap-2">
+            {portalRoles.filter((role) => account.roles.includes("owner") || account.roles.includes(role)).map((role) => (
+              <Button asChild key={role} variant="outline"><Link href={`/${role}`}>لوحة {labels[role]}</Link></Button>
+            ))}
+          </div>
           {account.roles.includes("owner") && (
             <div className="grid items-start gap-4 md:grid-cols-2">
               <form action={addUser} className="soft-card grid gap-3 p-5">
@@ -104,12 +110,12 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         </>
       ) : (
         <div className="grid items-start gap-4 md:grid-cols-2">
-          <form action={signIn} className="soft-card grid gap-3 p-5">
+          <form id="login" action={signIn} className="soft-card grid scroll-mt-28 gap-3 p-5">
             <h2 className="text-lg font-bold">تسجيل الدخول</h2>
             <Credentials />
             <Button className="justify-self-start">دخول</Button>
           </form>
-          <form action={signUp} className="soft-card grid gap-3 p-5">
+          <form id="signup" action={signUp} className="soft-card grid scroll-mt-28 gap-3 p-5">
             <h2 className="text-lg font-bold">إنشاء حساب</h2>
             <label className="grid gap-2 text-sm font-semibold">الاسم<input className="field" name="name" required minLength={2} maxLength={100} /></label>
             <Credentials newUser />
@@ -120,7 +126,6 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           </form>
         </div>
       )}
-      {demo && <Link href="/dashboards" className="inline-flex min-h-11 items-center text-sm font-semibold underline">افتح اللوحات التجريبية</Link>}
     </main>
   );
 }

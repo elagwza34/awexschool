@@ -27,7 +27,6 @@ export function SiteFooter() {
                 ["قدّم شكوى أو طلب", "/contact"],
                 ["متابعة طلب", "/track-request"],
                 ["الباقات التوضيحية", "/pricing"],
-                ["لوحات التحكم", "/dashboards"],
               ].map(([label, href]) => (
                 <Link
                   className="flex min-h-11 items-center hover:text-white"

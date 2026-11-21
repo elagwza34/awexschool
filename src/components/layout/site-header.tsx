@@ -14,7 +14,6 @@ const navigation = [
   { href: "/groups", title: "المجموعات الدراسية" },
   { href: "/teachers", title: "مدرسونا" },
   { href: "/faq", title: "الأسئلة الشائعة" },
-  { href: "/dashboards", title: "لوحات التحكم" },
 ];
 
 export function SiteHeader() {

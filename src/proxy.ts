@@ -195,6 +195,9 @@ export async function proxy(request: NextRequest) {
 
   try {
     if (pathname === lockSettingsPath) return await settings(request);
+    if (["/account", "/account/callback", "/login", "/register", "/dashboards"].includes(pathname)) {
+      return continueRequest(request);
+    }
 
     const lock = await getRequestLock(pathname);
     if (!lock || hasSiteSession(request.cookies.get(lockCookie(lock.scope))?.value, lock.key)) {
