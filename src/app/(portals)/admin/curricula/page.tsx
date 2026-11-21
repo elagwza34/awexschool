@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
+import { PortalShell } from "@/features/dashboards/portal-shell";
 import { ContentWorkspace } from "@/features/content/workspace";
 
 export const metadata: Metadata = { title: "إدارة المناهج" };
 
 export default function CurriculaPage() {
-  return <ContentWorkspace role="admin" curriculum />;
+  return (
+    <PortalShell role="admin">
+      <ContentWorkspace role="admin" curriculum />
+    </PortalShell>
+  );
 }

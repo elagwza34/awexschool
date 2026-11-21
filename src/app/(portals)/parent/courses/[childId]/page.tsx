@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { PortalShell } from "@/features/dashboards/portal-shell";
 import { DashboardView } from "@/features/dashboards/dashboard-view";
 import { studentFixtures as children } from "@/features/enrollments/data";
 
@@ -14,5 +15,9 @@ export default async function ParentChildCoursesPage({
 }) {
   const { childId } = await params;
   if (!children.some((child) => child.id === childId)) notFound();
-  return <DashboardView role="parent" section="courses" childId={childId} />;
+  return (
+    <PortalShell role="parent">
+      <DashboardView role="parent" section="courses" childId={childId} />
+    </PortalShell>
+  );
 }
