@@ -11,6 +11,13 @@ export const roleSections = {
   teacher: teacherSections,
   student: studentSections,
   parent: parentSections,
+  owner: [
+    { id: "overview", href: "/owner", label: "نظرة عامة" },
+    { id: "users", href: "/account", label: "المستخدمون والأدوار" },
+    { id: "content", href: "/admin/catalog", label: "إدارة المحتوى" },
+    { id: "teacher-applications", href: "/admin/teacher-applications", label: "طلبات المدرسين" },
+    { id: "integrations", href: "/admin/integrations", label: "ربط Meet وZoom" },
+  ],
   manager: staffSections("manager"),
   support: staffSections("support"),
 } satisfies Record<DashboardRole, readonly { id: string; href: string; label: string }[]>;

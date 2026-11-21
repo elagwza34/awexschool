@@ -6,6 +6,7 @@ export type DashboardRole =
   | "teacher"
   | "parent"
   | "admin"
+  | "owner"
   | StaffRole;
 export type MetricIcon =
   | "courses"

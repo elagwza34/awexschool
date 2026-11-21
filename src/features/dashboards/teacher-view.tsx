@@ -1,5 +1,4 @@
 "use client";
-import { useEnrollmentPreview } from "@/features/enrollments/context";
 import { usePortalPreview } from "./preview-context";
 import { getSubject } from "@/features/catalog/mock-data";
 import Link from "next/link";
@@ -7,7 +6,6 @@ import { ArrowLeft, CalendarDays } from "lucide-react";
 import { Badge } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import {
-  MetricCards,
   Panel,
   ReviewTable,
   TeacherCourses,
@@ -32,41 +30,8 @@ export function TeacherView({
 }: {
   section?: TeacherOverviewSection;
 }) {
-  const { getTeacherCourses, groups, assignments } = useEnrollmentPreview();
   const { teacherProfile } = usePortalPreview();
-  const assigned = getTeacherCourses("ahmed-hassan");
-  const studentCount = new Set(
-    groups
-      .filter(
-        (group) =>
-          group.active && assignments[group.courseId] === "ahmed-hassan",
-      )
-      .flatMap((group) => group.studentIds),
-  ).size;
   const profile = getDashboardProfile("teacher");
-  const metrics = profile.metrics.map((metric, index) =>
-    index === 0
-      ? { ...metric, value: String(assigned.length), note: "حسب إسناد الإدارة" }
-      : index === 1
-        ? { ...metric, value: String(studentCount) }
-        : index === 3
-          ? {
-              ...metric,
-              value: String(
-                assigned.reduce(
-                  (sum, course) =>
-                    sum +
-                    course.units.reduce(
-                      (count, unit) => count + unit.lessons.length,
-                      0,
-                    ),
-                  0,
-                ),
-              ),
-              note: `${assigned.reduce((sum, course) => sum + course.units.length, 0)} وحدات تعليمية`,
-            }
-          : metric,
-  );
   const active = teacherSections.find((item) => item.id === section)!;
   const descriptions: Record<TeacherOverviewSection, string> = {
     overview: profile.description,
@@ -101,7 +66,6 @@ export function TeacherView({
       </div>
       {section === "overview" && (
         <>
-          <MetricCards metrics={metrics} />
           <TeacherProfileSummary />
           <Panel
             title="مساحاتك كمدرس"

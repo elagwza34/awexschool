@@ -148,6 +148,18 @@ export const dashboardProfiles: DashboardProfile[] = [
       },
     ],
   },
+  {
+    role: "owner",
+    label: "لوحة المالك",
+    name: "المالك",
+    initials: "م",
+    subtitle: "المالك العام للمنصة",
+    greeting: "مرحبًا بك في لوحة المالك",
+    description:
+      "إدارة الحسابات والمحتوى والطلبات والإعدادات العامة للمنصة من مساحة واحدة.",
+    tone: "mint",
+    metrics: [],
+  },
 ];
 export const getDashboardProfile = (role: string) =>
   dashboardProfiles.find((p) => p.role === role)!;

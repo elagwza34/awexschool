@@ -2,7 +2,7 @@
 import { TeacherAvatar } from "@/components/teacher-avatar";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, type ReactNode } from "react";
 import { Bell, ShieldCheck } from "lucide-react";
 import { Badge, tones } from "@/components/shared";
@@ -16,7 +16,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { dashboardProfiles, getDashboardProfile } from "./mock-data";
+import { getDashboardProfile } from "./mock-data";
 import type { DashboardRole } from "./types";
 import { usePortalPreview } from "./preview-context";
 import { useEnrollmentPreview } from "@/features/enrollments/context";
@@ -63,7 +63,6 @@ export function PortalShell({
               .join(" "),
           }
         : baseProfile;
-  const router = useRouter();
   const pathname = usePathname();
   const navigationPath = pathname.startsWith(`/${role}/learn/`)
     ? `/${role}/${role === "admin" ? "content" : "courses"}`
@@ -146,22 +145,6 @@ export function PortalShell({
                 اشتراكاتي
               </Link>
             )}
-            <label htmlFor="dashboard-role" className="text-xs font-bold">
-              تبديل اللوحة
-            </label>
-            <select
-              id="dashboard-role"
-              className="min-h-10 rounded-lg border border-[#c9d7c0] bg-white px-3 text-xs font-semibold"
-              value={role}
-              onChange={(event) => router.push(`/${event.target.value}`)}
-            >
-              {dashboardProfiles.map((p) => (
-                <option key={p.role} value={p.role}>
-                  {p.label}
-                </option>
-              ))}
-              <option value="owner">لوحة المالك</option>
-            </select>
           </div>
         </div>
         <div className="border-b bg-white">

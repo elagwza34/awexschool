@@ -14,7 +14,6 @@ import {
 import {
   ContinueLearning,
   LearningCards,
-  MetricCards,
   Panel,
   ProgressBar,
   WeeklyChart,
@@ -60,22 +59,6 @@ export function StudentView({
   const { getStudentCourses, resolveCourse } = useEnrollmentPreview();
   const studentCourses = getStudentCourses("youssef");
   const profile = getDashboardProfile("student");
-  const metrics = profile.metrics.map((metric, index) =>
-    index === 0
-      ? {
-          ...metric,
-          value: new Intl.NumberFormat("ar-EG").format(studentCourses.length),
-        }
-      : index === 1
-        ? {
-            ...metric,
-            value: new Intl.NumberFormat("ar-EG").format(
-              studentCourses.reduce((sum, course) => sum + course.completed, 0),
-            ),
-            note: `من أصل ${studentCourses.reduce((sum, course) => sum + course.total, 0)} درسًا`,
-          }
-        : metric,
-  );
   const heading = studentSections.find((item) => item.id === section)!;
   const descriptions: Record<
     Exclude<
@@ -106,7 +89,6 @@ export function StudentView({
       />
       {section === "overview" && (
         <>
-          <MetricCards metrics={metrics} />
           {studentCourses[0] ? (
             <ContinueLearning entry={studentCourses[0]} />
           ) : (
