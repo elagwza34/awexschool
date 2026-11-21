@@ -11,7 +11,7 @@ export default async function CourseLessons({ params }: { params: Promise<{ cour
   const enrollments = account ? await getCourseEnrollments() : [];
   if (!enrollments.some((row) => row.course_id === course.id && row.status === "active")) redirect(`/courses/${course.id}`);
   const { data, error } = await ownerClient()!.from("course_units")
-    .select("id,title,position,lessons(id,title,body,position)").eq("course_id", courseId).order("position");
+    .select("id,title,position,lessons(id,title,body,position)").eq("course_id", course.id).order("position");
   return <div className="container-shell grid gap-5 py-8">
     <Link href={`/courses/${courseId}`} className="inline-flex min-h-11 items-center text-primary underline">الرجوع للمقرر</Link>
     <h1 className="text-2xl font-bold">دروس {course.title}</h1>

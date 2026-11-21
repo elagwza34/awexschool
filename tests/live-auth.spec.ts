@@ -32,6 +32,6 @@ test("password recovery accepts a pasted email code and a new password", async (
 test("guest users cannot open legacy portal previews or fictional courses", async ({ page }) => {
   await page.goto("/student/attendance");
   await expect(page).toHaveURL("/login");
-  const result = await page.goto("/courses/math-prep-1");
+  const result = await page.goto("/courses/unpublished-verification-course");
   expect(result?.status()).toBe(404);
 });

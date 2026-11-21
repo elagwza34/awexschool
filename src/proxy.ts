@@ -32,6 +32,7 @@ const portalPath = /^\/(?:owner|admin|manager|support|teacher|student|parent|wor
 const livePortals = new Set([
   "/owner", "/admin", "/admin/catalog", "/admin/teacher-applications",
   "/student", "/student/courses", "/parent", "/parent/courses",
+  "/teacher", "/teacher/courses",
 ]);
 
 function gate(status: number, message: string, owner = false) {
@@ -216,8 +217,8 @@ export async function proxy(request: NextRequest) {
       return (await continueRequest(request)).response;
     }
 
-    // Account holders can use the published catalog while the landing page is locked.
-    if (lock.scope === "*" && /^\/courses(?:\/|$)/.test(pathname) && !await getRequestLock(pathname, false)) {
+    // Account holders can use the catalog and teacher profiles while the landing page is locked.
+    if (lock.scope === "*" && /^\/(?:courses|teachers)(?:\/|$)/.test(pathname) && !await getRequestLock(pathname, false)) {
       const account = await continueRequest(request, true);
       if (account.authenticated) return account.response;
     }

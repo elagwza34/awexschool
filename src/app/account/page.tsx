@@ -8,7 +8,7 @@ const labels: Record<string, string> = {
   owner: "المالك", admin: "الإدارة", manager: "مدير", support: "الدعم الفني",
   teacher: "مدرس", student: "طالب", parent: "ولي أمر",
 };
-const portalRoles = ["owner", "admin", "student", "parent"];
+const portalRoles = ["owner", "admin", "teacher", "student", "parent"];
 const messages: Record<string, string> = {
   unavailable: "ربط الحسابات غير متاح في النسخة الحالية.",
   login: "تعذّر تسجيل الدخول. راجع البريد وكلمة المرور وتأكيد البريد.",
@@ -54,7 +54,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
       {message && Object.hasOwn(messages, message) && <p role="status" className="soft-card p-4 text-sm">{messages[message]}</p>}
           <p className="text-sm">الأدوار: {account.roles.map((role) => labels[role] ?? role).join("، ") || "لم يُحدد دور"}</p>
           <div className="flex flex-wrap gap-2">
-            {portalRoles.filter((role) => account.roles.includes("owner") || account.roles.includes(role)).map((role) => (
+            {portalRoles.filter((role) => account.roles.includes(role) || (role !== "teacher" && account.roles.includes("owner"))).map((role) => (
               <Button asChild key={role} variant="outline"><Link href={`/${role}`}>لوحة {labels[role]}</Link></Button>
             ))}
           </div>
