@@ -4,6 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { cache } from "react";
+import { defaultSocialLinks, type SocialLinksConfig } from "./social-links";
 
 export function authConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -55,4 +56,15 @@ export const isDemoEnabled = cache(async function () {
   });
   const { data, error } = await client.from("site_settings").select("demo_enabled").eq("id", true).single();
   return !error && data?.demo_enabled === true;
+});
+
+export const getSocialLinks = cache(async function (): Promise<SocialLinksConfig> {
+  const config = authConfig();
+  if (!config) return defaultSocialLinks;
+  const client = createClient(config.url, config.key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }) },
+  });
+  const { data } = await client.from("site_settings").select("social_links").eq("id", true).maybeSingle();
+  return { ...defaultSocialLinks, ...data?.social_links };
 });

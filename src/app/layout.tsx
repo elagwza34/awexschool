@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { SiteHeader } from "@/components/layout/site-header";
+import { getSocialLinks } from "@/features/auth/supabase-server";
 import { TeacherApplicationsProvider } from "@/features/teachers/applications-context";
 import { PermissionPreviewProvider } from "@/features/dashboards/permissions-context";
 import { EnrollmentPreviewProvider } from "@/features/enrollments/context";
@@ -16,9 +17,10 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const socialLinks = await getSocialLinks();
   return (
     <html lang="ar" dir="rtl">
       <body>
@@ -28,7 +30,7 @@ export default function RootLayout({
         >
           انتقل إلى المحتوى
         </a>
-        <SiteHeader />
+        <SiteHeader socialLinks={socialLinks} />
         <PermissionPreviewProvider>
           <EnrollmentPreviewProvider>
             <StaffPreviewProvider>

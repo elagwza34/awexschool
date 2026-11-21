@@ -7,6 +7,8 @@ import { useEffect, useState } from "react";
 import { Brand } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { SocialLinks } from "./social-links";
+import type { SocialLinksConfig } from "@/features/auth/social-links";
 
 const navigation = [
   { href: "/stages", title: "المراحل الدراسية" },
@@ -16,7 +18,7 @@ const navigation = [
   { href: "/faq", title: "الأسئلة الشائعة" },
 ];
 
-export function SiteHeader() {
+export function SiteHeader({ socialLinks }: { socialLinks: SocialLinksConfig }) {
   const [open, setOpen] = useState(false);
   const path = usePathname();
   const isHome = path === "/";
@@ -39,7 +41,7 @@ export function SiteHeader() {
         <Brand />
         <nav
           aria-label="التنقل الرئيسي"
-          className="hidden items-center gap-5 xl:flex"
+          className="hidden items-center gap-4 2xl:flex"
         >
           {navigation.map(({ href, title }) => (
             <Link
@@ -57,6 +59,7 @@ export function SiteHeader() {
           ))}
         </nav>
         <div className="flex items-center gap-2">
+          <SocialLinks links={socialLinks} className="hidden xl:flex" />
           <Button variant="ghost" size="icon" asChild>
             <Link href="/search" aria-label="البحث" onClick={() => setOpen(false)}>
               <Search />
@@ -75,7 +78,7 @@ export function SiteHeader() {
             aria-controls="mobile-navigation"
             variant="outline"
             size="icon"
-            className="xl:hidden"
+            className="2xl:hidden"
             onClick={() => setOpen(!open)}
           >
             {open ? <X /> : <Menu />}
@@ -87,7 +90,7 @@ export function SiteHeader() {
           id="mobile-navigation"
           data-lenis-prevent=""
           aria-label="التنقل على الهاتف"
-          className="container-shell max-h-[75svh] overflow-y-auto border-t py-4 xl:hidden"
+          className="container-shell max-h-[75svh] overflow-y-auto border-t py-4 2xl:hidden"
         >
           {[
             ...navigation,
@@ -105,6 +108,7 @@ export function SiteHeader() {
               {title}
             </Link>
           ))}
+          <SocialLinks links={socialLinks} className="mt-3 border-t pt-4" showLabels />
         </nav>
       )}
       {isHome && (

@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getAccount, ownerClient, sessionClient } from "./supabase-server";
+import { socialChannels, type SocialLinksConfig } from "./social-links";
 
 const managedRoles = new Set(["student", "parent", "teacher", "support", "manager", "admin"]);
 const text = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
@@ -76,6 +77,28 @@ export async function changeDemoVisibility(form: FormData) {
     redirect("/account?message=invalid");
   const { error } = await admin.from("site_settings").update({ demo_enabled: enabled === "true" }).eq("id", true);
   redirect(error ? "/account?message=save-failed" : "/account?message=saved");
+}
+
+export async function saveSocialLinks(form: FormData) {
+  const admin = await requireOwner();
+  const links: SocialLinksConfig = {};
+  for (const { id, hosts } of socialChannels) {
+    const value = text(form, id);
+    if (!value) continue;
+    let url: URL;
+    try {
+      url = new URL(value);
+    } catch {
+      redirect("/owner?social=invalid#social-links");
+    }
+    if (value.length > 2048 || url.protocol !== "https:" || url.username || url.password || url.port ||
+      !hosts.some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`))) {
+      redirect("/owner?social=invalid#social-links");
+    }
+    links[id] = url.href;
+  }
+  const { error } = await admin.from("site_settings").update({ social_links: links }).eq("id", true);
+  redirect(error ? "/owner?social=failed#social-links" : "/owner?social=saved#social-links");
 }
 
 export async function removeUser(form: FormData) {

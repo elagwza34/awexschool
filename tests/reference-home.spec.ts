@@ -103,7 +103,7 @@ test("each school stage card opens its academic years", async ({ page }) => {
   }
 });
 
-test("the school landing page keeps its scroll scenes and the existing catalog", async ({ page }) => {
+test("the landing page keeps its scroll scenes and Home 2 keeps the original catalog", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
   await expect(page.locator("html")).toHaveClass(/kit-ready/);
@@ -111,8 +111,16 @@ test("the school landing page keeps its scroll scenes and the existing catalog",
   await expect(page.locator("[data-onair]").locator("xpath=../..")).toHaveClass(/pin-spacer/);
   await expect(page.locator("#school-stages")).toHaveClass(/kit-hpin/);
   await expect(page.locator("#school-stages article")).toHaveCount(5);
+  await expect(page.locator("#school-platform")).toHaveCount(0);
+  await expect(page.locator("header").getByRole("link", { name: "واتساب" })).toBeVisible();
+  await expect(page.locator("footer").getByRole("link", { name: "واتساب" })).toHaveAttribute("href", "https://wa.me/201033150405");
+  await page.goto("/home-2");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("فاهمها");
   await expect(page.locator("#school-platform section")).toHaveCount(9);
   await expect(page.locator("#find-grade select")).toHaveCount(2);
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.getByRole("button", { name: "فتح القائمة" }).click();
+  await expect(page.locator("#mobile-navigation").getByRole("link", { name: "واتساب" })).toBeVisible();
 });
 
 test("mobile visitors can browse the gallery and prepare the WhatsApp trial request", async ({ page }) => {
