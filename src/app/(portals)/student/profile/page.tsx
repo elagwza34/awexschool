@@ -1,19 +1,15 @@
-import type { Metadata } from "next";
-import { PortalShell } from "@/features/dashboards/portal-shell";
-import { StudentHeading } from "@/features/dashboards/student-heading";
-import { StudentProfileEditor } from "@/features/dashboards/student-profile-editor";
+﻿import { redirect } from "next/navigation";
+import { getAccount } from "@/features/auth/supabase-server";
 
-export const metadata: Metadata = { title: "بروفايلي — لوحة الطالب" };
-export default function StudentProfilePage() {
-  return (
-    <PortalShell role="student">
-      <div className="space-y-4">
-        <StudentHeading
-          title="بروفايلي"
-          description="بياناتك الشخصية والدراسية في مساحة واحدة. عدّل نموذج البروفايل وشوف شكله في المعاينة."
-        />
-        <StudentProfileEditor />
-      </div>
-    </PortalShell>
-  );
+export default async function StudentProfilePage() {
+  const account = await getAccount();
+  if (!account?.roles.includes("student")) redirect("/account");
+
+  return <main id="main-content" className="container-shell space-y-4 pt-5 pb-10">
+    <h1 className="text-2xl font-bold">الملف الشخصي</h1>
+    <dl className="soft-card grid gap-5 p-5 sm:grid-cols-2">
+      <div className="min-w-0"><dt className="text-sm text-muted-foreground">الاسم</dt><dd className="mt-1 break-words font-semibold">{account.name}</dd></div>
+      <div className="min-w-0"><dt className="text-sm text-muted-foreground">البريد الإلكتروني</dt><dd className="mt-1 break-all font-semibold"><bdi>{account.user.email}</bdi></dd></div>
+    </dl>
+  </main>;
 }

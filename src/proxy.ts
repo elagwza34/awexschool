@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
+import { liveDashboardPaths } from "@/features/auth/dashboard-roles";
 import {
   createSiteSession,
   getOwnerCode,
@@ -29,12 +30,6 @@ const headers = {
 };
 
 const portalPath = /^\/(?:owner|admin|manager|support|teacher|student|parent|workspace)(?:\/|$)/;
-const livePortals = new Set([
-  "/owner", "/admin", "/admin/catalog", "/admin/teacher-applications",
-  "/student", "/student/courses", "/parent", "/parent/courses",
-  "/teacher", "/teacher/courses",
-  "/manager", "/support",
-]);
 
 function gate(status: number, message: string, owner = false) {
   return screen(status, owner ? "إدارة أقفال الموقع" : "دخول Awex School", message, status === 503 ? "" : `
@@ -205,8 +200,11 @@ export async function proxy(request: NextRequest) {
 
   try {
     if (pathname === lockSettingsPath) return await settings(request);
-    if (portalPath.test(pathname) && !livePortals.has(pathname)) {
-      return NextResponse.redirect(new URL("/account", request.url));
+    if (portalPath.test(pathname) && !liveDashboardPaths.has(pathname)) {
+      const destination = new URL("/account", request.url);
+      destination.searchParams.set("message", "section-unavailable");
+      destination.searchParams.set("portal", pathname.split("/")[1]);
+      return NextResponse.redirect(destination);
     }
     if (["/account", "/account/callback", "/login", "/register", "/reset-password", "/teachers/apply", "/teachers/track", "/dashboards"].includes(pathname)) {
       return (await continueRequest(request)).response;

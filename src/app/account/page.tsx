@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { getAccount, ownerClient } from "@/features/auth/supabase-server";
 import { addUser, removeUser, signOut } from "@/features/auth/account-actions";
 import { dashboardFor, dashboardRoles } from "@/features/auth/dashboard-roles";
+import { LivePortalNavigation } from "@/components/layout/live-portal-navigation";
 
 const labels: Record<string, string> = {
   owner: "المالك", admin: "الإدارة", manager: "مدير", support: "الدعم الفني",
@@ -18,6 +19,7 @@ const messages: Record<string, string> = {
   callback: "رابط التأكيد انتهى أو اتفتح في متصفح مختلف.",
   owner: "تأكد البريد، لكن تفعيل دور المالك محتاج مراجعة إعدادات المشروع.",
   denied: "صلاحية المالك مطلوبة للعملية دي.",
+  "section-unavailable": "القسم ده لسه مش متاح. اختار قسم من تبويبات لوحتك.",
   "add-failed": "تعذّرت إضافة المستخدم. راجع البريد والدور.",
   "cleanup-failed": "اتعمل حساب، لكن الدور المطلوب ما اتسجلش. راجع الحساب في القائمة قبل استخدامه.",
   added: "تم إنشاء المستخدم وحفظ دوره.",
@@ -44,18 +46,23 @@ function Credentials({ newUser = false }: { newUser?: boolean }) {
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ message?: string; page?: string; from?: string }>;
+  searchParams: Promise<{ message?: string; page?: string; from?: string; portal?: string }>;
 }) {
-  const { message, page, from } = await searchParams;
+  const { message, page, from, portal } = await searchParams;
   const account = await getAccount();
   if (!account) redirect("/login");
   const dashboard = dashboardFor(account.roles);
   if (from === "login" && dashboard !== "/account") redirect(dashboard);
+  const accountRole = dashboardRoles.find(({ role }) => role === portal &&
+    (account.roles.includes(role) || (role === "admin" && account.roles.includes("owner"))))?.role ??
+    dashboardRoles.find(({ role }) => `/${role}` === dashboard)?.role;
   const admin = account?.roles.includes("owner") ? ownerClient() : null;
   const pageNumber = Math.max(1, Math.min(1000, Number.parseInt(page ?? "1", 10) || 1));
   const directory = admin ? await admin.auth.admin.listUsers({ page: pageNumber, perPage: 25 }) : null;
   return (
-    <main id="main-content" tabIndex={-1} className="container-shell space-y-5 pt-28 pb-8">
+    <>
+    {accountRole && <LivePortalNavigation name={account.name} roles={account.roles} accountRole={accountRole} />}
+    <main id="main-content" tabIndex={-1} className={`container-shell space-y-5 pb-8 ${accountRole ? "pt-5" : "pt-28"}`}>
       <h1 className="text-2xl font-bold sm:text-3xl">{account ? `حساب ${account.name}` : "حساب LiveSchool"}</h1>
       {message && Object.hasOwn(messages, message) && <p role="status" className="soft-card p-4 text-sm">{messages[message]}</p>}
           <p className="text-sm">الأدوار: {account.roles.map((role) => labels[role] ?? role).join("، ") || "لم يُحدد دور"}</p>
@@ -108,5 +115,6 @@ export default async function AccountPage({
           )}
           <form action={signOut}><Button variant="outline">تسجيل الخروج</Button></form>
     </main>
+    </>
   );
 }

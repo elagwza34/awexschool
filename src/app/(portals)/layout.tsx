@@ -13,7 +13,7 @@ export default async function PortalsLayout({ children }: { children: ReactNode 
     <PortalPreviewProvider>
       <AssignmentProvider>
         <ContentProvider>
-          {account && <LivePortalNavigation name={account.name} />}
+          {account && <LivePortalNavigation name={account.name} roles={account.roles} />}
           {children}
         </ContentProvider>
       </AssignmentProvider>
