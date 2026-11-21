@@ -1,7 +1,6 @@
-﻿"use client";
-
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
+import { Button } from "@/components/ui/button";
 import { dashboardLinks, dashboardRoles, type DashboardRole } from "@/features/auth/dashboard-roles";
 
 const actions: Partial<Record<DashboardRole, readonly { title: string; items: readonly string[] }[]>> = {
@@ -18,8 +17,7 @@ const actions: Partial<Record<DashboardRole, readonly { title: string; items: re
   student: [{ title: "إجراءات الواجبات", items: ["تسليم واجب"] }],
 };
 
-export function OwnerPermissions({ children }: { children: ReactNode }) {
-  const [role, setRole] = useState<DashboardRole>("admin");
+export function OwnerPermissions({ children, role }: { children: ReactNode; role: DashboardRole }) {
   const access = [...dashboardLinks(role), { href: `/account?portal=${role}`, label: "حسابي" }];
   if (role === "owner") {
     access.push(
@@ -37,20 +35,18 @@ export function OwnerPermissions({ children }: { children: ReactNode }) {
           اختر دورًا لعرض الأقسام والإجراءات المتاحة له. الصلاحيات الحالية محددة في النظام، ويمكنك إدارة أدوار الحسابات من صفحة الحسابات.
         </p>
       </header>
-      <div className="soft-card flex flex-wrap items-end justify-between gap-4 p-4">
+      <form action="/owner" method="get" className="soft-card flex flex-wrap items-end gap-4 p-4">
         <label className="grid min-w-0 flex-1 gap-2 text-sm font-bold">
           الدور
-          <select className="field max-w-xs" value={role} onChange={(event) => {
-            const selected = dashboardRoles.find((entry) => entry.role === event.target.value);
-            if (selected) setRole(selected.role);
-          }}>
+          <select className="field max-w-xs" name="role" defaultValue={role} key={role}>
             {dashboardRoles.map(({ role, label }) => <option key={role} value={role}>{label}</option>)}
           </select>
         </label>
+        <Button type="submit">عرض الصلاحيات</Button>
         <Link href="/account" className="inline-flex min-h-11 items-center rounded-lg border px-4 text-sm font-semibold text-primary">
           إدارة الحسابات
         </Link>
-      </div>
+      </form>
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <section className="soft-card space-y-3 p-4">
           <h2 className="text-lg font-bold">الوصول للأقسام</h2>

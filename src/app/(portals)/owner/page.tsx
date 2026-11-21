@@ -6,18 +6,19 @@ import { saveSocialLinks } from "@/features/auth/account-actions";
 import { socialChannels } from "@/features/auth/social-links";
 import { Button } from "@/components/ui/button";
 import { OwnerPermissions } from "@/features/dashboards/owner-permissions";
+import { dashboardRoles } from "@/features/auth/dashboard-roles";
 
 export const metadata: Metadata = { title: "لوحة المالك | إدارة الصلاحيات" };
 
 export default async function OwnerPage({
   searchParams,
 }: {
-  searchParams: Promise<{ social?: string }>;
+  searchParams: Promise<{ social?: string; role?: string }>;
 }) {
   const account = await getAccount();
   if (!account?.roles.includes("owner")) redirect("/account");
   const client = ownerClient();
-  const [links, { social }, courses, teachers, users] = await Promise.all([
+  const [links, { social, role }, courses, teachers, users] = await Promise.all([
     getSocialLinks(),
     searchParams,
     client?.from("courses").select("id", { head: true, count: "exact" }).eq("status", "published"),
@@ -25,7 +26,7 @@ export default async function OwnerPage({
     client?.from("profiles").select("user_id", { head: true, count: "exact" }).eq("status", "active"),
   ]);
   return (
-    <OwnerPermissions>
+    <OwnerPermissions role={dashboardRoles.find((entry) => entry.role === role)?.role ?? "admin"}>
       <PortalMetrics items={[
         { label: "المقررات المنشورة", value: courses?.count ?? null },
         { label: "ملفات المدرسين", value: teachers?.count ?? null },
