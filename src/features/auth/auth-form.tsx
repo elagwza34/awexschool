@@ -13,29 +13,70 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { DemoNotice } from "@/components/shared";
+import { createClient } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const register = mode === "register";
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const supabase = createClient();
+  const router = useRouter();
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoading(true);
+    setMessage("");
+
+    const formData = new FormData(event.currentTarget);
+    const email = String(formData.get("email") ?? "").trim().toLowerCase();
+    const password = String(formData.get("password") ?? "");
+    const displayName = String(formData.get("display-name") ?? "").trim();
+    const role = String(formData.get("role-preview") ?? "student");
+
+    try {
+      if (register) {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              display_name: displayName || email,
+              account_kind: role === "ولي أمر" ? "parent" : "student",
+            },
+            emailRedirectTo: `${window.location.origin}/account/callback`,
+          },
+        });
+        if (error) throw error;
+        setMessage(
+          "تم إنشاء الحساب. تحقق من بريدك الإلكتروني لتفعيل الحساب ثم يمكنك تسجيل الدخول."
+        );
+        event.currentTarget.reset();
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+        setMessage("تم تسجيل الدخول بنجاح. جاري التوجيه...");
+        setTimeout(() => {
+          router.push("/account");
+        }, 1000);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "حدث خطأ غير متوقع. يرجى المحاولة لاحقًا.";
+      setMessage(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
-      <DemoNotice className="mb-4" />
-      <p className="mb-4 text-sm font-semibold text-muted-foreground">
-        للتجربة فقط. استخدم بيانات وهمية، ولا تدخل معلوماتك الحقيقية.
-      </p>
       <form
         className="space-y-4"
-        onSubmit={(event) => {
-          event.preventDefault();
-          event.currentTarget.reset();
-          setMessage(
-            register
-              ? "اكتملت معاينة نموذج التسجيل. لم يتم إنشاء حساب أو حفظ أي بيانات."
-              : "اكتملت معاينة نموذج الدخول. لم يتم تسجيل الدخول أو إرسال أي بيانات.",
-          );
-        }}
+        onSubmit={handleSubmit}
       >
         {register && (
           <div className="space-y-2">
@@ -49,6 +90,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
               minLength={2}
               maxLength={80}
               className="min-h-11 rounded-xl"
+              disabled={loading}
             />
           </div>
         )}
@@ -64,30 +106,35 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             required
             placeholder="student@example.com"
             maxLength={120}
+            disabled={loading}
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password">كلمة المرور التجريبية</Label>
+          <Label htmlFor="password">كلمة المرور</Label>
           <div className="relative">
             <Input
               id="password"
               name="password"
               dir="ltr"
               className="min-h-11 rounded-xl pe-9 text-end"
-              autoComplete={register ? "new-password" : "off"}
+              autoComplete={register ? "new-password" : "current-password"}
               type={showPassword ? "text" : "password"}
               required
-              minLength={8}
+              minLength={register ? 12 : 1}
               maxLength={128}
               aria-describedby="password-hint"
+              disabled={loading}
             />
             <button
               type="button"
+              disabled={loading}
               aria-label={
                 showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"
               }
               aria-pressed={showPassword}
-              className="absolute start-1 top-0.5 flex size-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
+              className={`absolute start-1 top-0.5 flex size-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted ${
+                loading ? "opacity-50 cursor-not-allowed" : ""
+              }`}
               onClick={() => setShowPassword(!showPassword)}
             >
               {showPassword ? (
@@ -98,37 +145,45 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             </button>
           </div>
           <p id="password-hint" className="text-xs text-muted-foreground">
-            ٨ أحرف على الأقل للتجربة. لن تُحفظ كلمة المرور.
+            {register ? "١٢ حرفًا على الأقل" : "أدخل كلمة المرور الخاصة بك"}
           </p>
         </div>
         {register ? (
           <div className="space-y-2">
-            <Label htmlFor="role-preview">أستكشف الواجهة بصفتي</Label>
-            <select id="role-preview" name="role-preview" className="field">
-              <option>طالب</option>
-              <option>ولي أمر</option>
-              <option>مدرس</option>
+            <Label htmlFor="role-preview">نوع الحساب</Label>
+            <select
+              id="role-preview"
+              name="role-preview"
+              className="field"
+              disabled={loading}
+            >
+              <option value="student">طالب</option>
+              <option value="parent">ولي أمر</option>
             </select>
             <p className="text-xs text-muted-foreground">
-              اختيار بصري فقط، لا يمنح أي صلاحيات.
+              سيتم تعيين دورك في النظام بناءً على هذا الاختيار.
             </p>
           </div>
         ) : (
           <button
             type="button"
-            className="flex min-h-11 items-center text-sm font-bold text-primary underline underline-offset-4"
+            disabled={loading}
+            className={`flex min-h-11 items-center text-sm font-bold text-primary underline underline-offset-4 ${
+              loading ? "opacity-50 cursor-not-allowed" : ""
+            }`}
             onClick={() =>
               setMessage(
-                "استعادة الحساب غير مفعلة في هذه النسخة. لم يتم إرسال بريد إلكتروني.",
+                "إذا نسيت كلمة المرور، يرجى التواصل مع دعم المنصة لإعادة تعيينها."
               )
             }
           >
             نسيت كلمة المرور؟
           </button>
         )}
-        <Button type="submit" size="lg" className="w-full">
+        <Button type="submit" size="lg" className="w-full" disabled={loading}>
           <LockKeyhole aria-hidden="true" />
-          {register ? "معاينة إنشاء الحساب" : "معاينة تسجيل الدخول"}
+          {register ? "إنشاء الحساب" : "تسجيل الدخول"}
+          {loading && " ... Loading"}
         </Button>
       </form>
       <p className="mt-4 text-center text-sm text-muted-foreground">
@@ -140,21 +195,25 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           {register ? "شاهد نموذج الدخول" : "شاهد نموذج التسجيل"}
         </Link>
       </p>
-      <Dialog
-        open={!!message}
-        onOpenChange={(open) => {
-          if (!open) setMessage("");
-        }}
-      >
-        <DialogContent dir="rtl">
-          <DialogHeader className="text-start">
-            <DialogTitle>معاينة بدون حساب فعلي</DialogTitle>
-            <DialogDescription className="pt-3 leading-7">
-              {message}
-            </DialogDescription>
-          </DialogHeader>
-        </DialogContent>
-      </Dialog>
+      {message && (
+        <Dialog
+          open={!!message}
+          onOpenChange={(open) => {
+            if (!open) setMessage("");
+          }}
+        >
+          <DialogContent dir="rtl">
+            <DialogHeader className="text-start">
+              <DialogTitle>
+                {register ? "إنشاء الحساب" : "تسجيل الدخول"}
+              </DialogTitle>
+              <DialogDescription className="pt-3 leading-7">
+                {message}
+              </DialogDescription>
+            </DialogHeader>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }

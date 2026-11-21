@@ -25,7 +25,6 @@ const routes = [
   "/admin/chat",
   "/manager",
   "/support/requests",
-  "/customer-service/requests",
 ];
 const directory = "docs/ui/qa";
 await mkdir(directory, { recursive: true });

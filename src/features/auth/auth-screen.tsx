@@ -1,6 +1,7 @@
 import { BookOpen, Check } from "lucide-react";
 import { Breadcrumbs } from "@/components/shared";
 import { AuthForm } from "./auth-form";
+import Link from "next/link";
 
 export function AuthScreen({ mode }: { mode: "login" | "register" }) {
   const register = mode === "register";
@@ -23,6 +24,7 @@ export function AuthScreen({ mode }: { mode: "login" | "register" }) {
               : "نموذج بصري لتجربة دخول واضحة وبسيطة."}
           </p>
           <AuthForm mode={mode} />
+          <Link href="/account" className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold underline">افتح حساب LiveSchool الفعلي</Link>
         </div>
         <aside className="hidden flex-col justify-center bg-[#edf2e8] p-7 lg:flex">
           <span className="mb-5 flex size-16 items-center justify-center rounded-2xl border border-[#cbd8c3] bg-white">

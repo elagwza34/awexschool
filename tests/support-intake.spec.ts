@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-test("visitor technical complaint goes to support and stays out of customer service", async ({ page }) => {
+test("visitor complaints always go to the technical support queue", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("contentinfo").getByRole("link", { name: "قدّم شكوى أو طلب" }).click();
   await page.getByLabel("اسمك", { exact: true }).fill("زائر التجربة");
   await page.getByLabel("البريد الإلكتروني").fill("visitor@example.com");
-  await page.getByRole("combobox", { name: "نوع الطلب" }).selectOption("technical");
+  await expect(page.getByRole("combobox", { name: "نوع الطلب" })).toHaveCount(0);
   await page.getByLabel("عنوان الطلب").fill("عطل في فيديو المراجعة");
   await page.getByLabel("تفاصيل الطلب").fill("الفيديو لا يبدأ عند فتح الدرس.");
   await page.getByRole("button", { name: "إرسال الطلب في المعاينة" }).click();
@@ -14,21 +14,19 @@ test("visitor technical complaint goes to support and stays out of customer serv
   await page.locator('a[href="/support"]').click();
   await page.locator('nav a[href="/support/requests"]').click();
   await expect(page.getByRole("heading", { name: "عطل في فيديو المراجعة" })).toBeVisible();
-  await page.getByLabel("تبديل اللوحة").selectOption("customer-service");
-  await page.locator('nav a[href="/customer-service/requests"]').click();
-  await expect(page.getByRole("heading", { name: "عطل في فيديو المراجعة" })).toHaveCount(0);
+  await expect(page.getByLabel("تبديل اللوحة").locator('option[value="customer-service"]')).toHaveCount(0);
+  expect((await page.goto("/customer-service/requests"))?.status()).toBe(404);
 });
 
-test("parent can see a customer service status update from their dashboard", async ({ page }) => {
+test("parent can see a technical support status update from their dashboard", async ({ page }) => {
   await page.goto("/parent");
   await page.getByRole("link", { name: "قدّم شكوى أو طلب" }).click();
-  await page.getByRole("combobox", { name: "نوع الطلب" }).selectOption("complaint");
   await page.getByLabel("عنوان الطلب").fill("طلب مراجعة المجموعة");
   await page.getByLabel("تفاصيل الطلب").fill("أحتاج مراجعة اختيار مجموعة ابني.");
   await page.getByRole("button", { name: "إرسال الطلب في المعاينة" }).click();
-  await expect(page.getByRole("status")).toContainText("خدمة العملاء");
-  await page.getByLabel("تبديل اللوحة").selectOption("customer-service");
-  await page.locator('nav a[href="/customer-service/requests"]').click();
+  await expect(page.getByRole("status")).toContainText("الدعم الفني");
+  await page.getByLabel("تبديل اللوحة").selectOption("support");
+  await page.locator('nav a[href="/support/requests"]').click();
   const ticket = page.getByRole("article").filter({ hasText: "طلب مراجعة المجموعة" });
   await ticket.getByRole("combobox").selectOption("in-progress");
   await page.getByLabel("تبديل اللوحة").selectOption("parent");
@@ -39,7 +37,6 @@ test("parent can see a customer service status update from their dashboard", asy
 test("student request is attributed to their preview account and kept out of parent history", async ({ page }) => {
   await page.goto("/student");
   await page.getByRole("link", { name: "قدّم شكوى أو طلب" }).click();
-  await page.getByRole("combobox", { name: "نوع الطلب" }).selectOption("inquiry");
   await page.getByLabel("عنوان الطلب").fill("استفسار عن جدول المراجعة");
   await page.getByLabel("تفاصيل الطلب").fill("عايز أعرف موعد المجموعة المتاحة للمراجعة.");
   await page.getByRole("button", { name: "إرسال الطلب في المعاينة" }).click();

@@ -1,0 +1,26 @@
+-- Move foundation tables in place, preserving their rows, constraints, grants and RLS settings.
+alter table liveschool.profiles set schema public;
+alter table liveschool.roles set schema public;
+alter table liveschool.permissions set schema public;
+alter table liveschool.account_roles set schema public;
+alter table liveschool.role_permissions set schema public;
+alter table liveschool.guardian_links set schema public;
+alter table liveschool.stages set schema public;
+alter table liveschool.grades set schema public;
+alter table liveschool.subjects set schema public;
+alter table liveschool.teacher_profiles set schema public;
+alter table liveschool.courses set schema public;
+alter table liveschool.course_units set schema public;
+alter table liveschool.lessons set schema public;
+alter table liveschool.learning_groups set schema public;
+alter table liveschool.group_members set schema public;
+alter table liveschool.group_join_requests set schema public;
+alter table liveschool.group_payments set schema public;
+alter table liveschool.class_sessions set schema public;
+alter table liveschool.teacher_earnings set schema public;
+alter table liveschool.teacher_applications set schema public;
+alter table liveschool.support_requests set schema public;
+alter table liveschool.support_replies set schema public;
+alter table liveschool.chat_threads set schema public;
+alter table liveschool.chat_participants set schema public;
+alter table liveschool.chat_messages set schema public;

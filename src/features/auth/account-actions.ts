@@ -1,0 +1,96 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { getAccount, ownerClient, sessionClient } from "./supabase-server";
+
+const managedRoles = new Set(["student", "parent", "teacher", "support", "manager", "admin"]);
+const text = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
+const validEmail = (email: string) => email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+export async function signIn(form: FormData) {
+  const client = await sessionClient(true);
+  if (!client) redirect("/account?message=unavailable");
+  const result = await client.auth.signInWithPassword({
+    email: text(form, "email").toLowerCase(), password: String(form.get("password") ?? ""),
+  });
+  redirect(result.error ? "/account?message=login" : "/account");
+}
+
+export async function signUp(form: FormData) {
+  const client = await sessionClient(true);
+  const origin = process.env.LIVESCHOOL_WEB_ORIGIN;
+  if (!client || !origin) redirect("/account?message=unavailable");
+  const displayName = text(form, "name");
+  const email = text(form, "email").toLowerCase();
+  const password = String(form.get("password") ?? "");
+  const kind = text(form, "kind");
+  if (displayName.length < 2 || displayName.length > 100 || !validEmail(email) ||
+    password.length < 12 || password.length > 72 || !["student", "parent"].includes(kind))
+    redirect("/account?message=invalid");
+  const { error } = await client.auth.signUp({
+    email, password,
+    options: { emailRedirectTo: new URL("/account/callback", origin).toString(), data: { display_name: displayName, account_kind: kind } },
+  });
+  redirect(error ? "/account?message=signup" : "/account?message=confirm");
+}
+
+export async function signOut() {
+  const client = await sessionClient(true);
+  await client?.auth.signOut();
+  redirect("/account");
+}
+
+async function requireOwner() {
+  const account = await getAccount();
+  const admin = ownerClient();
+  if (!account?.roles.includes("owner") || !admin) redirect("/account?message=denied");
+  return admin;
+}
+
+export async function addUser(form: FormData) {
+  const admin = await requireOwner();
+  const role = text(form, "role");
+  const name = text(form, "name");
+  const email = text(form, "email").toLowerCase();
+  const password = String(form.get("password") ?? "");
+  if (!managedRoles.has(role) || !validEmail(email) || email === process.env.LIVESCHOOL_OWNER_EMAIL?.toLowerCase() ||
+    name.length < 2 || name.length > 100 || password.length < 12 || password.length > 72)
+    redirect("/account?message=invalid");
+  const { data, error } = await admin.auth.admin.createUser({
+    email, password, email_confirm: true,
+    user_metadata: { display_name: name },
+  });
+  if (error || !data.user) redirect("/account?message=add-failed");
+  const assigned = await admin.rpc("assign_created_account_role", { account_id: data.user.id, assigned_role: role });
+  if (assigned.error || assigned.data !== true) {
+    const cleanup = await admin.auth.admin.deleteUser(data.user.id);
+    redirect(cleanup.error ? "/account?message=cleanup-failed" : "/account?message=add-failed");
+  }
+  redirect("/account?message=added");
+}
+
+export async function changeDemoVisibility(form: FormData) {
+  const admin = await requireOwner();
+  const enabled = text(form, "enabled");
+  if (!["true", "false"].includes(enabled) || (enabled === "false" && form.get("confirmed") !== "on"))
+    redirect("/account?message=invalid");
+  const { error } = await admin.from("site_settings").update({ demo_enabled: enabled === "true" }).eq("id", true);
+  redirect(error ? "/account?message=save-failed" : "/account?message=saved");
+}
+
+export async function removeUser(form: FormData) {
+  const admin = await requireOwner();
+  const userId = text(form, "userId");
+  if (!/^[0-9a-f-]{36}$/i.test(userId) || form.get("confirmed") !== "on")
+    redirect("/account?message=invalid");
+  const [roles, target] = await Promise.all([
+    admin.from("account_roles").select("role_code").eq("user_id", userId),
+    admin.auth.admin.getUserById(userId),
+  ]);
+  if (roles.error || target.error || !target.data.user ||
+    roles.data.some(({ role_code }) => role_code === "owner") ||
+    target.data.user.email?.toLowerCase() === process.env.LIVESCHOOL_OWNER_EMAIL?.trim().toLowerCase())
+    redirect("/account?message=delete-failed");
+  const result = await admin.auth.admin.deleteUser(userId);
+  redirect(result.error ? "/account?message=delete-failed" : "/account?message=deleted");
+}

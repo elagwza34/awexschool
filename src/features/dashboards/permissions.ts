@@ -13,7 +13,6 @@ export const roleSections = {
   parent: parentSections,
   manager: staffSections("manager"),
   support: staffSections("support"),
-  "customer-service": staffSections("customer-service"),
 } satisfies Record<DashboardRole, readonly { id: string; href: string; label: string }[]>;
 
 export const contentPermissions = {
@@ -76,6 +75,7 @@ export function pagePermission(role: DashboardRole, pathname: string): Permissio
 
 export function defaultPermission(role: DashboardRole, permission: Permission): boolean {
   if (permission === "page:help") return role === "student" || role === "parent";
+  if (permission === "page:subscriptions") return role === "student";
   if (permission === "groups:manage" || permission === "page:group-requests") return role === "admin" || isStaffRole(role);
   if (permission === "groups:approve") return role === "admin";
   if (permission === groupChatPermission) return supportsGroupChat(role);

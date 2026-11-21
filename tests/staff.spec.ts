@@ -73,12 +73,11 @@ test("admin adds all staff roles, rejects duplicates and shares temporary team s
   expect(effects).toEqual([]);
 });
 
-test("support and service update only their own request queues and manager monitors changes", async ({
+test("support updates requests and manager monitors changes", async ({
   page,
 }) => {
   await page.goto("/support/requests");
   await expect(page.locator("article")).toHaveCount(2);
-  await expect(page.getByText("CS-201", { exact: true })).toHaveCount(0);
   await page
     .getByLabel("حالة TECH-101", { exact: true })
     .selectOption("resolved");
@@ -90,26 +89,15 @@ test("support and service update only their own request queues and manager monit
   ).toBeVisible();
   await page
     .getByLabel("تبديل اللوحة", { exact: true })
-    .selectOption("customer-service");
-  await page.locator('nav a[href="/customer-service/requests"]').click();
-  await expect(page.getByText("TECH-101", { exact: true })).toHaveCount(0);
-  await page
-    .getByLabel("حالة CS-201", { exact: true })
-    .selectOption("in-progress");
-  await page
-    .getByLabel("تبديل اللوحة", { exact: true })
     .selectOption("manager");
   await page.locator('nav a[href="/manager/requests"]').click();
-  await expect(page.locator("article")).toHaveCount(4);
+  await expect(page.locator("article")).toHaveCount(2);
   await expect(page.getByLabel("حالة TECH-101", { exact: true })).toHaveCount(
     0,
   );
   await page.locator('nav a[href="/manager/activity"]').click();
   await expect(
     page.getByText("TECH-101: تم الحل", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("CS-201: قيد المتابعة", { exact: true }),
   ).toBeVisible();
 });
 

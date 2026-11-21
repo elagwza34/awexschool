@@ -1,0 +1,126 @@
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { authConfig, getAccount, isDemoEnabled, ownerClient } from "@/features/auth/supabase-server";
+import { addUser, changeDemoVisibility, removeUser, signIn, signOut, signUp } from "@/features/auth/account-actions";
+
+const labels: Record<string, string> = {
+  owner: "المالك", admin: "الإدارة", manager: "مدير", support: "الدعم الفني",
+  teacher: "مدرس", student: "طالب", parent: "ولي أمر",
+};
+const messages: Record<string, string> = {
+  unavailable: "ربط الحسابات غير متاح في النسخة الحالية.",
+  login: "تعذّر تسجيل الدخول. راجع البريد وكلمة المرور وتأكيد البريد.",
+  invalid: "راجع البيانات المطلوبة وكلمة المرور.",
+  signup: "تعذّر إكمال التسجيل. جرّب مرة تانية.",
+  confirm: "لو التسجيل متاح للبريد ده، راجع بريدك وافتح رابط التأكيد في نفس المتصفح.",
+  callback: "رابط التأكيد انتهى أو اتفتح في متصفح مختلف.",
+  owner: "تأكد البريد، لكن تفعيل دور المالك محتاج مراجعة إعدادات المشروع.",
+  denied: "صلاحية المالك مطلوبة للعملية دي.",
+  "add-failed": "تعذّرت إضافة المستخدم. راجع البريد والدور.",
+  "cleanup-failed": "اتعمل حساب، لكن الدور المطلوب ما اتسجلش. راجع الحساب في القائمة قبل استخدامه.",
+  added: "تم إنشاء المستخدم وحفظ دوره.",
+  "save-failed": "تعذّر حفظ إعداد المعاينة.",
+  saved: "تم حفظ إعداد المعاينة.",
+  deleted: "تم حذف الحساب.",
+  "delete-failed": "تعذّر حذف الحساب. حساب المالك محمي، والحسابات المرتبط بها سجلات ممكن تحتاج معالجة الروابط أولًا.",
+};
+
+export const metadata = { title: "حساب LiveSchool" };
+
+function Credentials({ newUser = false }: { newUser?: boolean }) {
+  return <>
+    <label className="grid gap-2 text-sm font-semibold">البريد الإلكتروني
+      <input className="field" type="email" name="email" dir="ltr" maxLength={254} required />
+    </label>
+    <label className="grid gap-2 text-sm font-semibold">كلمة المرور
+      <input className="field" type="password" name="password" dir="ltr" autoComplete={newUser ? "new-password" : "current-password"}
+        minLength={newUser ? 12 : undefined} maxLength={newUser ? 72 : undefined} required />
+    </label>
+  </>;
+}
+
+export default async function AccountPage({ searchParams }: { searchParams: Promise<{ message?: string; page?: string }> }) {
+  const { message, page } = await searchParams;
+  const account = await getAccount();
+  const demo = await isDemoEnabled();
+  const admin = account?.roles.includes("owner") ? ownerClient() : null;
+  const pageNumber = Math.max(1, Math.min(1000, Number.parseInt(page ?? "1", 10) || 1));
+  const directory = admin ? await admin.auth.admin.listUsers({ page: pageNumber, perPage: 25 }) : null;
+  return (
+    <main id="main-content" tabIndex={-1} className="container-shell space-y-5 pt-28 pb-8">
+      <h1 className="text-2xl font-bold sm:text-3xl">{account ? `حساب ${account.name}` : "حساب LiveSchool"}</h1>
+      {message && Object.hasOwn(messages, message) && <p role="status" className="soft-card p-4 text-sm">{messages[message]}</p>}
+      {!authConfig() ? <p>الحسابات الفعلية غير مربوطة في النسخة دي.</p> : account ? (
+        <>
+          <p className="text-sm">الأدوار: {account.roles.map((role) => labels[role] ?? role).join("، ") || "لم يُحدد دور"}</p>
+          {account.roles.includes("owner") && (
+            <div className="grid items-start gap-4 md:grid-cols-2">
+              <form action={addUser} className="soft-card grid gap-3 p-5">
+                <h2 className="text-lg font-bold">إضافة مستخدم</h2>
+                <label className="grid gap-2 text-sm font-semibold">اسم المستخدم<input className="field" name="name" required minLength={2} maxLength={100} /></label>
+                <Credentials newUser />
+                <label className="grid gap-2 text-sm font-semibold">الدور
+                  <select className="field" name="role">{Object.entries(labels).filter(([role]) => role !== "owner").map(([role, label]) => <option key={role} value={role}>{label}</option>)}</select>
+                </label>
+                <Button className="justify-self-start">إنشاء الحساب</Button>
+              </form>
+              <form action={changeDemoVisibility} className="soft-card grid gap-3 p-5">
+                <h2 className="text-lg font-bold">المحتوى التجريبي</h2>
+                <p className="text-sm leading-7 text-muted-foreground">{demo ? "المعاينة ظاهرة حاليًا." : "المعاينة مخفية حاليًا."} تقدر ترجعها في أي وقت.</p>
+                <input type="hidden" name="enabled" value={String(!demo)} />
+                {!demo || <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="confirmed" required /> أؤكد إخفاء صفحات المعاينة من الموقع</label>}
+                <Button variant="outline" className="justify-self-start">{demo ? "إخفاء المعاينة" : "إظهار المعاينة"}</Button>
+              </form>
+            </div>
+          )}
+          {directory && (
+            <section className="soft-card space-y-3 p-5">
+              <h2 className="text-lg font-bold">حسابات المستخدمين</h2>
+              {directory.error ? <p role="alert">تعذّر تحميل الحسابات.</p> : (
+                <>
+                  <ul className="divide-y">
+                    {directory.data.users.map((user) => (
+                      <li key={user.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                        <bdi className="break-all text-sm">{user.email ?? user.id}</bdi>
+                        {user.id !== account.user.id && user.email?.toLowerCase() !== process.env.LIVESCHOOL_OWNER_EMAIL?.trim().toLowerCase() && (
+                          <form action={removeUser} className="flex flex-wrap items-center gap-3">
+                            <input type="hidden" name="userId" value={user.id} />
+                            <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" name="confirmed" required /> تأكيد حذف الحساب</label>
+                            <Button variant="outline">حذف</Button>
+                          </form>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="flex flex-wrap gap-3 text-sm">
+                    {pageNumber > 1 && <Link className="underline" href={`/account?page=${pageNumber - 1}`}>الصفحة السابقة</Link>}
+                    {directory.data.users.length === 25 && <Link className="underline" href={`/account?page=${pageNumber + 1}`}>الصفحة التالية</Link>}
+                  </div>
+                </>
+              )}
+            </section>
+          )}
+          <form action={signOut}><Button variant="outline">تسجيل الخروج</Button></form>
+        </>
+      ) : (
+        <div className="grid items-start gap-4 md:grid-cols-2">
+          <form action={signIn} className="soft-card grid gap-3 p-5">
+            <h2 className="text-lg font-bold">تسجيل الدخول</h2>
+            <Credentials />
+            <Button className="justify-self-start">دخول</Button>
+          </form>
+          <form action={signUp} className="soft-card grid gap-3 p-5">
+            <h2 className="text-lg font-bold">إنشاء حساب</h2>
+            <label className="grid gap-2 text-sm font-semibold">الاسم<input className="field" name="name" required minLength={2} maxLength={100} /></label>
+            <Credentials newUser />
+            <label className="grid gap-2 text-sm font-semibold">نوع الحساب
+              <select className="field" name="kind"><option value="student">طالب</option><option value="parent">ولي أمر</option></select>
+            </label>
+            <Button className="justify-self-start">إنشاء الحساب</Button>
+          </form>
+        </div>
+      )}
+      {demo && <Link href="/dashboards" className="inline-flex min-h-11 items-center text-sm font-semibold underline">افتح اللوحات التجريبية</Link>}
+    </main>
+  );
+}

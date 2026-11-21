@@ -12,7 +12,6 @@ test("shared application style uses small radii and underline navigation across 
       "admin",
       "manager",
       "support",
-      "customer-service",
     ]) {
       await page.goto(`/${role}`);
       const current = page.locator('nav a[aria-current="page"]');

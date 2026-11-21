@@ -13,10 +13,10 @@ import { availableSeats, formatGroupFee, groupDays, holdsSeat } from "./registra
 const timeFormat = new Intl.DateTimeFormat("ar-EG", { timeStyle: "short", timeZone: "Africa/Cairo" });
 const emptyFilters = { stage: "", grade: "", subject: "", track: "", day: "" };
 
-export function PublicGroups() {
+export function PublicGroups({ initialGroup = "" }: { initialGroup?: string }) {
   const { groups, catalogCourses, accounts, assignments, isEntityActive, joinRequests, reserveSeat, payReservation } = useEnrollmentPreview();
   const [filters, setFilters] = useState(emptyFilters);
-  const [selection, setSelection] = useState("");
+  const [selection, setSelection] = useState(initialGroup);
   const [error, setError] = useState("");
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
@@ -113,6 +113,9 @@ export function PublicGroups() {
                 const result = payReservation(request.id);
                 setError(result.ok ? "" : result.error);
               }}>تأكيد الدفع التجريبي</Button>
+              <Button variant="outline" onClick={() => setError("محاكاة: الدفع ما تمّش. مكانك لسه محجوز لحد الموعد المكتوب، وتقدر تعيد المحاولة.")}>
+                محاكاة فشل الدفع
+              </Button>
             </>
           ) : selected ? (
             <>

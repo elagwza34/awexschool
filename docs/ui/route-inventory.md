@@ -67,7 +67,7 @@ Administration messaging adds `/admin/chat`, `/student/admin-chat`, `/teacher/ad
 
 Admin horizontal navigation adds `/admin/reports`, `/admin/schedule` and `/admin/activity`, replacing overview anchor navigation. See [Admin navigation](admin-top-navigation.md).
 
-Staff roles add `/admin/team`, `/manager`, `/manager/requests`, `/manager/team`, `/manager/activity`, `/support`, `/support/requests`, `/support/activity`, `/customer-service`, `/customer-service/requests`, `/customer-service/activity`. See [Staff role previews](staff-roles.md).
+Staff roles use `/admin/team`, `/manager`, `/manager/requests`, `/manager/team`, `/manager/activity`, `/support`, `/support/requests` and `/support/activity`. See [Staff role previews](staff-roles.md).
 
 Current removal: the Platform Activity and Latest Updates sections and shortcuts were removed. `/admin/reports`, `/admin/activity`, `/student/activity` and `/parent/activity` now return 404. Earlier route tables describe historical additions; these four routes are no longer available. Progress views and staff audit activity remain separate existing features.
 

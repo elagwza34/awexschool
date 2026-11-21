@@ -139,6 +139,11 @@ export function PortalShell({
                 قدّم شكوى أو طلب
               </Link>
             )}
+            {role === "student" && can(role, "page:subscriptions") && (
+              <Link href="/student/subscriptions" className="inline-flex min-h-11 items-center px-2 text-xs font-bold text-primary underline underline-offset-4">
+                اشتراكاتي
+              </Link>
+            )}
             <label htmlFor="dashboard-role" className="text-xs font-bold">
               تبديل اللوحة
             </label>

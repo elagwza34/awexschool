@@ -1,15 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { CourseCard } from "@/components/catalog-cards";
 import { EmptyState } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { grades, subjects } from "./mock-data";
-import { filterCourses } from "./service";
-import type { CourseTrack } from "./types";
+import { catalogService } from "./service";
+import type { Course, CourseTrack } from "./types";
 
 export function CatalogBrowser({
   initialQuery = "",
@@ -26,12 +26,31 @@ export function CatalogBrowser({
   fixedTrack?: CourseTrack;
   search?: boolean;
 }) {
+  const [results, setResults] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState(initialQuery);
   const [grade, setGrade] = useState(initialGrade);
   const [subject, setSubject] = useState(fixedSubject ?? initialSubject);
   const router = useRouter();
   const pathname = usePathname();
-  const results = filterCourses({ query, grade, subject, track: fixedTrack });
+
+  useEffect(() => {
+    let cancelled = false;
+    catalogService
+      .listCourses({ query, grade, subject, track: fixedTrack })
+      .then((data) => {
+        if (!cancelled) {
+          setResults(data);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [query, grade, subject, fixedTrack]);
   const apply = (q: string, g: string, s: string) => {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
@@ -131,7 +150,7 @@ export function CatalogBrowser({
           aria-live="polite"
           className="min-w-0 flex-1 break-words text-sm text-muted-foreground"
         >
-          {results.length} مقررات نموذجية{query && <> تطابق «{query}»</>}
+          {loading ? "جاري التحميل..." : results.length ? results.length + " مقررات نموذجية" : "لا توجد نتائج"}{query && <> تطابق «{query}»</>}
         </p>
         {(query || grade || (!fixedSubject && subject)) && (
           <Button

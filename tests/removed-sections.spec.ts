@@ -10,7 +10,6 @@ test("platform activity and latest updates are absent from every dashboard", asy
     "parent",
     "manager",
     "support",
-    "customer-service",
   ]) {
     await page.goto(`/${role}`);
     await expect(

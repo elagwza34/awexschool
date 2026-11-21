@@ -104,7 +104,7 @@ export function AdminUsersWorkspace({ actor = "admin" }: { actor?: DashboardRole
             {role.id === "admin" && actor === "admin" && can(actor, "page:team") && (
               <div className="mb-4 rounded-xl border bg-secondary p-4">
                 <p className="mb-3 text-sm">
-                  أعضاء الإدارة: مدير، دعم فني، وخدمة عملاء.
+                  أعضاء الإدارة: مدير ودعم فني.
                 </p>
                 <Button asChild>
                   <Link href="/admin/team">إدارة أعضاء الفريق</Link>

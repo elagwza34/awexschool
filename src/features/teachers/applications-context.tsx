@@ -8,10 +8,11 @@ type Application = {
   profile: TeacherProfileDraft;
   status: "pending" | "accepted" | "rejected";
 };
+export const applicationStatuses = { pending: "قيد المراجعة", accepted: "مقبول", rejected: "مرفوض" } as const;
 
 const ApplicationsContext = createContext<{
   applications: Application[];
-  submit: (profile: TeacherProfileDraft) => string | undefined;
+  submit: (profile: TeacherProfileDraft) => { id: string } | { error: string };
   decide: (id: string, status: "accepted" | "rejected") => void;
 } | null>(null);
 
@@ -22,10 +23,11 @@ export function TeacherApplicationsProvider({ children }: { children: ReactNode 
       applications,
       submit(profile) {
         if (applications.some((item) => item.profile.email === profile.email && item.status !== "rejected"))
-          return "فيه طلب مسجّل بالبريد ده بالفعل.";
-        const id = crypto.randomUUID();
+          return { error: "فيه طلب مسجّل بالبريد ده بالفعل." };
+        const id = `TCH-${crypto.randomUUID().slice(0, 12).toUpperCase()}`;
         setApplications((previous) => previous.some((item) => item.profile.email === profile.email && item.status !== "rejected")
           ? previous : [{ id, profile, status: "pending" }, ...previous]);
+        return { id };
       },
       decide(id, status) {
         setApplications((previous) => previous.map((item) =>

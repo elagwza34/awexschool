@@ -21,6 +21,7 @@ test("footer application without video reaches admin and becomes a teacher recor
   await fillTeacher(page, "candidate@example.com", "مدرس من طلب التقديم");
   await page.getByRole("button", { name: "إرسال طلب الانضمام" }).click();
   await expect(page.getByRole("status")).toContainText("تم تسجيل طلبك");
+  const reference = (await page.getByRole("status").locator("bdi").innerText()).trim();
   await page.getByRole("link", { name: "لوحات التحكم", exact: true }).last().click();
   await page.locator('a[href="/admin"]').click();
   await page.getByRole("navigation", { name: "أقسام لوحة الإدارة" }).getByRole("link", { name: "طلبات المدرسين" }).click();
@@ -31,6 +32,13 @@ test("footer application without video reaches admin and becomes a teacher recor
   await page.getByRole("navigation", { name: "أقسام لوحة الإدارة" }).getByRole("link", { name: "المستخدمون والأدوار" }).click();
   await page.getByRole("tab", { name: "مدرس", exact: true }).click();
   await expect(page.getByRole("row", { name: /مدرس من طلب التقديم/ })).toBeVisible();
+  await page.getByRole("link", { name: "liveschool — الرئيسية" }).click();
+  await page.getByRole("contentinfo").getByRole("link", { name: "انضم إلينا كمدرس" }).click();
+  await page.getByRole("link", { name: "متابعة طلب انضمام مدرس" }).click();
+  await page.getByLabel("رقم المتابعة").fill(reference);
+  await page.getByLabel("البريد الإلكتروني").fill("candidate@example.com");
+  await page.getByRole("button", { name: "عرض حالة الطلب" }).click();
+  await expect(page.getByRole("status")).toContainText("مقبول");
 });
 
 test("admin adds a teacher through the same professional fields", async ({ page }) => {

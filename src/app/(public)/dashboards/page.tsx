@@ -15,7 +15,6 @@ export const metadata: Metadata = { title: "استكشف لوحات التحكم
 const descriptions = {
   manager: "متابعة الفريق والطلبات.",
   support: "متابعة التذاكر التقنية.",
-  "customer-service": "متابعة استفسارات العملاء.",
   student: "مقرراتك، تقدّمك، وخطوتك الجاية في التعلّم.",
   teacher: "مقرراتك، مجموعاتك، وأعمال تنتظر مراجعتك.",
   parent: "متابعة هادئة لتقدّم الأبناء ومواعيد تعلّمهم.",
@@ -24,7 +23,6 @@ const descriptions = {
 const icons = {
   manager: ShieldCheck,
   support: LayoutDashboard,
-  "customer-service": HeartHandshake,
   student: GraduationCap,
   teacher: LayoutDashboard,
   parent: HeartHandshake,

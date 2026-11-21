@@ -19,11 +19,15 @@ test("reserved seat becomes membership only after approval", async ({ page }) =>
   const groupName = await card.getByRole("heading").innerText();
   await card.getByRole("button", { name: "انضم للمجموعة" }).click();
   await page.getByRole("button", { name: "احجز مكانك مؤقتًا" }).click();
+  await page.getByRole("button", { name: "محاكاة فشل الدفع" }).click();
+  await expect(page.getByRole("dialog").getByRole("alert")).toContainText("الدفع ما تمّش");
   await page.getByRole("button", { name: "تأكيد الدفع التجريبي" }).click();
   await expect(page.getByRole("dialog")).toContainText("بانتظار موافقة الإدارة");
   await page.keyboard.press("Escape");
   await page.getByRole("link", { name: "لوحات التحكم", exact: true }).last().click();
   await page.locator('a[href="/student"]').click();
+  await page.getByRole("link", { name: "اشتراكاتي", exact: true }).click();
+  await expect(page.getByText(/الدفع مسجّل وبانتظار موافقة الإدارة/)).toBeVisible();
   await page.getByRole("navigation", { name: "أقسام لوحة الطالب" }).locator('a[href="/student/courses"]').click();
   await expect(page.getByText(groupName, { exact: true })).toHaveCount(0);
   await page.getByLabel("تبديل اللوحة").selectOption("admin");
@@ -31,6 +35,9 @@ test("reserved seat becomes membership only after approval", async ({ page }) =>
   await page.getByRole("button", { name: "تأكيد الدفع والموافقة" }).click();
   await expect(page.getByRole("status")).toContainText("تم تفعيل العضوية");
   await page.getByLabel("تبديل اللوحة").selectOption("student");
+  await page.getByRole("link", { name: "اشتراكاتي", exact: true }).click();
+  const subscribed = page.getByRole("listitem").filter({ hasText: groupName }).filter({ has: page.getByRole("link", { name: "افتح شات المجموعة" }) });
+  await expect(subscribed).toContainText("العضوية مفعّلة");
   await page.getByRole("navigation", { name: "أقسام لوحة الطالب" }).locator('a[href="/student/courses"]').click();
   await expect(page.getByText(groupName, { exact: true })).toBeVisible();
   await page.getByLabel("تبديل اللوحة").selectOption("parent");
@@ -57,6 +64,12 @@ test("a support member can publish a one-seat paid group and an expired hold fre
   await card.getByRole("button", { name: "انضم للمجموعة" }).click();
   await dialog.getByRole("button", { name: "احجز مكانك مؤقتًا" }).click();
   await expect(card).toContainText("0 من 1");
+  await page.keyboard.press("Escape");
+  await page.getByRole("contentinfo").getByRole("link", { name: "لوحات التحكم", exact: true }).click();
+  await page.locator('a[href="/student"]').click();
+  await page.getByRole("link", { name: "اشتراكاتي" }).click();
+  await page.getByRole("link", { name: "كمّل الدفع" }).click();
+  await expect(dialog.getByRole("button", { name: "تأكيد الدفع التجريبي" })).toBeVisible();
   await page.clock.fastForward(10 * 60 * 1000 + 1000);
   await expect(card).toContainText("1 من 1");
   await expect(dialog.getByRole("button", { name: "تأكيد الدفع التجريبي" })).toHaveCount(0);

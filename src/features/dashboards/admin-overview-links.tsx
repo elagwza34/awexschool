@@ -24,7 +24,7 @@ export function AdminOverviewLinks() {
           {
             href: "/admin/team",
             title: "فريق الإدارة",
-            description: "إضافة مدير وأعضاء دعم فني وخدمة عملاء في المعاينة.",
+            description: "إضافة مدير وأعضاء دعم فني في المعاينة.",
             Icon: Users,
           },
           {

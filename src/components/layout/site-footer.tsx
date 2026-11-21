@@ -25,6 +25,7 @@ export function SiteFooter() {
                 ["مدرسونا", "/teachers"],
                 ["انضم إلينا كمدرس", "/teachers/apply"],
                 ["قدّم شكوى أو طلب", "/contact"],
+                ["متابعة طلب", "/track-request"],
                 ["الباقات التوضيحية", "/pricing"],
                 ["لوحات التحكم", "/dashboards"],
               ].map(([label, href]) => (

@@ -4,10 +4,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useEnrollmentPreview } from "@/features/enrollments/context";
 import { usePermissions } from "@/features/dashboards/permissions-context";
-import { useTeacherApplications } from "./applications-context";
+import { applicationStatuses as statuses, useTeacherApplications } from "./applications-context";
 import { TeacherProfileDetails } from "./profile-details";
 
-const statuses = { pending: "قيد المراجعة", accepted: "مقبول", rejected: "مرفوض" } as const;
 
 export function TeacherApplicationsWorkspace() {
   const { applications, decide } = useTeacherApplications();

@@ -4,11 +4,12 @@ import Link from "next/link";
 import { Panel, MetricCards } from "./dashboard-panels";
 import { TeamManagement } from "./team-management";
 import { useStaffPreview } from "./staff-context";
+import { Button } from "@/components/ui/button";
+import { RequestReplies } from "./request-replies";
 import {
   staffRoles,
   staffSections,
   requestStatusLabels,
-  requestCategories,
   type RequestStatus,
 } from "./staff-data";
 import type { StaffRole } from "./types";
@@ -19,14 +20,12 @@ export function StaffWorkspace({
   role: StaffRole;
   section?: "overview" | "requests" | "team" | "activity";
 }) {
-  const { members, requests, activity, updateRequest } = useStaffPreview();
+  const { members, requests, activity, updateRequest, replyToRequest } = useStaffPreview();
+  const [replyFeedback, setReplyFeedback] = useState<{ id: string; error?: string }>();
   const [filter, setFilter] = useState("all"),
     [query, setQuery] = useState("");
   const definition = staffRoles.find((item) => item.id === role)!;
-  const relevant = requests.filter(
-    (item) => role === "manager" || item.owner === role,
-  );
-  const visible = relevant.filter(
+  const visible = requests.filter(
     (item) =>
       (filter === "all" || item.status === filter) &&
       `${item.id} ${item.title} ${item.sender} ${item.contactEmail ?? ""}`.toLowerCase().includes(query.trim().toLowerCase()),
@@ -35,7 +34,7 @@ export function StaffWorkspace({
     role === "manager"
       ? activity
       : activity.filter((entry) =>
-          relevant.some((item) => entry.startsWith(`${item.id}:`)),
+          requests.some((item) => entry.startsWith(`${item.id}:`)),
         );
   return (
     <div className="space-y-4">
@@ -54,7 +53,7 @@ export function StaffWorkspace({
             metrics={[
               {
                 label: "الطلبات",
-                value: String(relevant.length),
+                value: String(requests.length),
                 note: "بيانات توضيحية",
                 icon: "review",
                 tone: "blue",
@@ -62,7 +61,7 @@ export function StaffWorkspace({
               {
                 label: "قيد المتابعة",
                 value: String(
-                  relevant.filter((item) => item.status !== "resolved").length,
+                  requests.filter((item) => item.status !== "resolved").length,
                 ),
                 note: "طلبات لم تُحل بعد",
                 icon: "time",
@@ -73,7 +72,7 @@ export function StaffWorkspace({
                 value: String(
                   role === "manager"
                     ? members.length
-                    : relevant.filter((item) => item.status === "resolved")
+                    : requests.filter((item) => item.status === "resolved")
                         .length,
                 ),
                 note: "داخل المعاينة",
@@ -105,8 +104,8 @@ export function StaffWorkspace({
           }
           subtitle={
             role === "manager"
-              ? "متابعة فقط؛ تحديث الحالة من لوحة الفريق المختص."
-              : "تحديث الحالة محلي ولا يرسل إشعارات أو ردودًا."
+              ? "متابعة فقط؛ تحديث الحالة من لوحة الدعم الفني."
+              : "حدّث الحالة أو أضف ردًا يظهر لصاحب الطلب في المعاينة."
           }
         >
           <div className="mb-4 grid gap-3 sm:grid-cols-2">
@@ -152,7 +151,6 @@ export function StaffWorkspace({
                 <p className="text-xs text-muted-foreground">
                   <bdi>{item.id}</bdi> · {item.sender}
                 </p>
-                {item.category && <p className="mt-1 text-xs text-muted-foreground">{requestCategories[item.category].label}</p>}
                 {item.contactEmail && <p className="mt-1 break-all text-xs text-muted-foreground"><bdi>{item.contactEmail}</bdi></p>}
                 <h3 className="my-3 font-bold">{item.title}</h3>
                 <p className="mb-4 whitespace-pre-wrap break-words text-sm leading-7 text-muted-foreground">
@@ -191,6 +189,24 @@ export function StaffWorkspace({
                       )}
                     </select>
                   </div>
+                )}
+                <RequestReplies replies={item.replies} />
+                {role === "support" && (
+                  <form className="mt-4 grid gap-2" onSubmit={(event) => {
+                    event.preventDefault();
+                    const form = event.currentTarget;
+                    const error = replyToRequest(role, item.id, String(new FormData(form).get("reply") ?? ""));
+                    setReplyFeedback({ id: item.id, error });
+                    if (!error) form.reset();
+                  }}>
+                    <label className="grid gap-2 text-sm font-semibold">رد الفريق
+                      <textarea className="field min-h-20 py-2" name="reply" required minLength={3} maxLength={2000} />
+                    </label>
+                    {replyFeedback?.id === item.id && <p role={replyFeedback.error ? "alert" : "status"} className="text-sm">
+                      {replyFeedback.error ?? "تم إضافة الرد."}
+                    </p>}
+                    <Button type="submit" className="justify-self-start">إضافة الرد</Button>
+                  </form>
                 )}
               </article>
             ))}

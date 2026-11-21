@@ -2,10 +2,10 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { useEnrollmentPreview } from "@/features/enrollments/context";
 import { previewStudentId } from "./chat-data";
+import { usePermissions } from "./permissions-context";
 import {
   staffRequestFixtures,
   requestStatusLabels,
-  requestCategories,
   requestSources,
   type RequestDraft,
   type RequestSource,
@@ -23,11 +23,13 @@ interface StaffPreview {
     error?: string;
   };
   updateRequest: (role: StaffRole, id: string, status: RequestStatus) => void;
+  replyToRequest: (role: StaffRole, id: string, message: string) => string | undefined;
   submitRequest: (source: RequestSource, draft: RequestDraft) =>
     { ok: true; request: StaffRequest } | { ok: false; error: string };
 }
 const Context = createContext<StaffPreview | null>(null);
 export function StaffPreviewProvider({ children }: { children: ReactNode }) {
+  const { can } = usePermissions();
   const { staffMembers: members, addStaffMember, accounts } = useEnrollmentPreview();
   const [requests, setRequests] = useState(staffRequestFixtures);
   const [activity, setActivity] = useState<string[]>([]);
@@ -44,7 +46,8 @@ export function StaffPreviewProvider({ children }: { children: ReactNode }) {
     const request = requests.find((item) => item.id === id);
     if (
       !request ||
-      request.owner !== role ||
+      role !== "support" ||
+      !can(role, "page:requests") ||
       !Object.hasOwn(requestStatusLabels, status) ||
       request.status === status
     )
@@ -58,8 +61,6 @@ export function StaffPreviewProvider({ children }: { children: ReactNode }) {
     ]);
   };
   const submitRequest: StaffPreview["submitRequest"] = (source, draft) => {
-    if (!Object.hasOwn(requestCategories, draft.category))
-      return { ok: false, error: "اختار نوع الطلب." };
     const account = source === "visitor" ? undefined : accounts.find((item) =>
       item.kind === source && item.entityId === (source === "student" ? previewStudentId : "preview-parent"),
     );
@@ -73,19 +74,28 @@ export function StaffPreviewProvider({ children }: { children: ReactNode }) {
       return { ok: false, error: "راجع الاسم والبريد الإلكتروني." };
     if (title.length < 5 || title.length > 120 || details.length < 10 || details.length > 2000)
       return { ok: false, error: "اكتب عنوان من 5 إلى 120 حرف وتفاصيل من 10 إلى 2000 حرف." };
-    const owner = requestCategories[draft.category].owner;
-    const id = `${owner === "support" ? "TECH" : "CS"}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+    const id = `TECH-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
     const request: StaffRequest = {
-      id, owner, title, details, sender: `${name} · ${requestSources[source]}`,
-      contactEmail, source, category: draft.category, status: "new",
+      id, title, details, sender: `${name} · ${requestSources[source]}`,
+      contactEmail, source, status: "new",
     };
     setRequests((previous) => [request, ...previous]);
     setActivity((previous) => [`${id}: طلب جديد`, ...previous]);
     return { ok: true, request };
   };
+  const replyToRequest: StaffPreview["replyToRequest"] = (role, id, message) => {
+    if (role !== "support" || !can(role, "page:requests") || !requests.some((item) => item.id === id))
+      return "الرد متاح لفريق الدعم الفني.";
+    const text = message.trim();
+    if (text.length < 3 || text.length > 2000) return "اكتب ردًا من 3 إلى 2000 حرف.";
+    setRequests((previous) => previous.map((item) => item.id === id
+      ? { ...item, replies: [...(item.replies ?? []), text], status: item.status === "new" ? "in-progress" : item.status }
+      : item));
+    setActivity((previous) => [`${id}: تم إضافة رد`, ...previous]);
+  };
   return (
     <Context.Provider
-      value={{ members, requests, activity, addMember, updateRequest, submitRequest }}
+      value={{ members, requests, activity, addMember, updateRequest, submitRequest, replyToRequest }}
     >
       {children}
     </Context.Provider>

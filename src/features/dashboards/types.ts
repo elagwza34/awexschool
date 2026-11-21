@@ -1,6 +1,6 @@
 import type { Tone } from "@/features/catalog/types";
 
-export type StaffRole = "manager" | "support" | "customer-service";
+export type StaffRole = "manager" | "support";
 export type DashboardRole =
   | "student"
   | "teacher"
