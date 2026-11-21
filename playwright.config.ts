@@ -1,4 +1,7 @@
 import { defineConfig } from "@playwright/test";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 export default defineConfig({
   testDir: "./tests",
@@ -17,5 +20,9 @@ export default defineConfig({
     url: "http://127.0.0.1:3100",
     reuseExistingServer: false,
     timeout: 60_000,
+    env: {
+      SITE_LOCK_ADMIN_CODE: "local-playwright-owner-code",
+      SITE_LOCK_STORE_DIR: mkdtempSync(join(tmpdir(), "awex-playwright-locks-")),
+    },
   },
 });

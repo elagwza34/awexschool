@@ -1,3 +1,5 @@
+import { TeacherAvatar } from "@/components/teacher-avatar";
+import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -21,7 +23,7 @@ const stageIcons = {
   secondary: GraduationCap,
 };
 
-export function StageCard({ stage }: { stage: Stage }) {
+export function StageCard({ stage, image }: { stage: Stage; image?: string }) {
   const Icon = stageIcons[stage.id];
   const yearCount = grades.filter((grade) => grade.stageId === stage.id).length;
   return (
@@ -29,6 +31,17 @@ export function StageCard({ stage }: { stage: Stage }) {
       href={routes.stage(stage.id)}
       className="soft-card group relative flex flex-col p-4 transition-colors hover:border-primary"
     >
+      {image && (
+        <div className="relative mb-4 aspect-[16/10] overflow-hidden rounded-xl bg-muted">
+          <Image
+            src={image}
+            alt=""
+            fill
+            sizes="(min-width: 1240px) 260px, (min-width: 1024px) 25vw, (min-width: 640px) 48vw, 92vw"
+            className="object-cover"
+          />
+        </div>
+      )}
       <div className="flex items-start justify-between">
         <span
           className={cn(
@@ -129,15 +142,7 @@ export function CourseCard({ course }: { course: Course }) {
           href={routes.teacher(teacher.id)}
           className="mt-3 flex min-h-11 items-center gap-2 text-sm text-muted-foreground"
         >
-          <span
-            aria-hidden="true"
-            className={cn(
-              "flex size-8 items-center justify-center rounded-full text-[10px] font-bold",
-              tones[teacher.tone],
-            )}
-          >
-            {teacher.initials}
-          </span>
+            <TeacherAvatar teacherId={teacher.id} fallback={teacher.initials} className="size-8" />
           أ. {teacher.name}
         </Link>
         <div className="mt-4 flex flex-wrap gap-3 border-t pt-4 text-xs text-muted-foreground">
@@ -155,21 +160,47 @@ export function CourseCard({ course }: { course: Course }) {
     </article>
   );
 }
-export function TeacherCard({ teacher }: { teacher: Teacher }) {
+export function TeacherCard({
+  teacher,
+  variant = "default",
+}: {
+  teacher: Teacher;
+  variant?: "default" | "compact" | "directory";
+}) {
+  if (variant !== "default") {
+    const directory = variant === "directory";
+    return (
+      <Link
+        href={routes.teacher(teacher.id)}
+        className={cn(
+          "soft-card flex h-full items-center transition-colors hover:border-primary focus-visible:outline-offset-0",
+          directory ? "min-h-28 gap-4 p-3 sm:p-4" : "min-h-20 gap-3 px-3 py-2.5",
+        )}
+      >
+        <TeacherAvatar
+          teacherId={teacher.id}
+          fallback={teacher.initials}
+          className={directory ? "size-20 rounded-xl sm:size-24" : "size-11"}
+        />
+        <div className="min-w-0 flex-1">
+          <h3 className={cn("font-bold leading-6", directory ? "text-base" : "text-sm")}>
+            أ. {teacher.name}
+          </h3>
+          <p className={cn("leading-5 text-muted-foreground", directory ? "mt-1 text-sm" : "text-xs")}>
+            {teacher.title}
+          </p>
+        </div>
+        <ArrowLeft aria-hidden="true" className="size-4 shrink-0 text-primary" />
+      </Link>
+    );
+  }
+
   return (
     <Link
       href={routes.teacher(teacher.id)}
       className="soft-card group flex h-full flex-col items-center p-6 text-center transition-all hover:-translate-y-1 hover:border-primary hover:shadow-md"
     >
-      <span
-        aria-hidden="true"
-        className={cn(
-          "mb-4 flex size-20 items-center justify-center rounded-full border-4 border-white text-2xl font-bold shadow-sm ring-1 ring-border",
-          tones[teacher.tone],
-        )}
-      >
-        {teacher.initials}
-      </span>
+      <TeacherAvatar teacherId={teacher.id} fallback={teacher.initials} className="mb-4 size-20 border-4 border-white text-2xl shadow-sm ring-1 ring-border" />
       <h3 className="text-lg font-semibold">أ. {teacher.name}</h3>
       <p className="mt-1 text-sm font-medium text-primary">{teacher.title}</p>
       <span className="mt-3 inline-flex rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-muted-foreground">

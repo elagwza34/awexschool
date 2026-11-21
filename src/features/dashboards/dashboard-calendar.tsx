@@ -1,4 +1,5 @@
 "use client";
+import { TeacherAvatar } from "@/components/teacher-avatar";
 import { portalCourseHref } from "@/features/content/routes";
 
 import Link from "next/link";
@@ -549,7 +550,10 @@ export function DashboardCalendar({
                     <GraduationCap aria-hidden="true" className="size-3.5" />
                     المدرس
                   </dt>
-                  <dd>{selected.teacherName}</dd>
+                  <dd className="flex items-center gap-2">
+                    <TeacherAvatar teacherId={selected.teacherId} className="size-6" />
+                    {selected.teacherName}
+                  </dd>
                 </div>
                 <div>
                   <dt className="mb-1 flex items-center gap-1 text-xs text-muted-foreground">

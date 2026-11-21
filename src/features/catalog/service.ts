@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase";
-import type { Course, Grade, Stage, Subject, Teacher } from "./types";
+import { getGrade, getSubject, getTeacher } from "./mock-data";
+import { languageCourses } from "./language-courses";
+import type { CatalogQuery, Course, Grade, Stage, Subject, Teacher } from "./types";
 
 export const normalizeArabic = (value: string) =>
   value
@@ -15,26 +17,17 @@ const hasSupabase = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 );
 
-export function filterCourses({
-  query = "",
-  grade,
-  subject,
-  track,
-}: {
-  query?: string;
-  grade?: string;
-  subject?: string;
-  track?: "arabic" | "languages";
-}) {
-  const needle = query.toLocaleLowerCase("ar-EG");
-  return (courses: Course[]) =>
-    courses.filter(
-      (course) =>
-        (!grade || course.gradeId === grade) &&
-        (!subject || course.subjectId === subject) &&
-        (!track || course.track === track) &&
-        course.title.toLocaleLowerCase("ar-EG").includes(needle)
-    );
+function filterCourses(courses: Course[], { query = "", grade, subject, track }: CatalogQuery) {
+  const needle = normalizeArabic(query);
+  return courses.filter(
+    (course) =>
+      (!grade || course.gradeId === grade) &&
+      (!subject || course.subjectId === subject) &&
+      (!track || (course.track ?? "arabic") === track) &&
+      normalizeArabic(
+        [course.title, getSubject(course.subjectId)?.name, getGrade(course.gradeId)?.name, getTeacher(course.teacherId)?.name].join(" "),
+      ).includes(needle),
+  );
 }
 
 export const catalogService = {
@@ -147,15 +140,11 @@ export const catalogService = {
     grade,
     subject,
     track,
-  }: {
-    query?: string;
-    grade?: string;
-    subject?: string;
-    track?: "arabic" | "languages";
-  } = {}): Promise<Course[]> {
+  }: CatalogQuery = {}): Promise<Course[]> {
+    const filters = { query, grade, subject, track };
     if (!hasSupabase) {
       const { courses } = await import("./mock-data");
-      return filterCourses({ query, grade, subject, track })(courses);
+      return filterCourses(courses, filters);
     }
     try {
       const supabase = createClient();
@@ -173,7 +162,7 @@ export const catalogService = {
       }
       const { data, error } = await q.order("created_at", { ascending: false });
       if (error) throw error;
-      return (
+      const publishedCourses = (
         (data ?? []).map((row: Record<string, unknown>) => ({
           id: row.id,
           title: row.title,
@@ -187,13 +176,20 @@ export const catalogService = {
           units: [],
         })) as Course[]
       );
+      const publishedIds = new Set(publishedCourses.map((course) => course.id));
+      return [
+        ...publishedCourses,
+        ...filterCourses(languageCourses, filters).filter((course) => !publishedIds.has(course.id)),
+      ];
     } catch {
       const { courses } = await import("./mock-data");
-      return filterCourses({ query, grade, subject, track })(courses);
+      return filterCourses(courses, filters);
     }
   },
 
   async getCourse(id: string): Promise<Course | undefined> {
+    const languageCourse = languageCourses.find((course) => course.id === id);
+    if (languageCourse) return languageCourse;
     if (!hasSupabase) {
       const { getCourse } = await import("./mock-data");
       return getCourse(id);

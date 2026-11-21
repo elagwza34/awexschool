@@ -1,4 +1,5 @@
 "use client";
+import { TeacherAvatar } from "@/components/teacher-avatar";
 import { portalCourseHref } from "@/features/content/routes";
 
 import Link from "next/link";
@@ -52,6 +53,7 @@ export function ChatWorkspace({
   const contacts = administration
     ? adminThreads.map((thread) => ({
         ...thread,
+        portraitTeacherId: role === "admin" && thread.role === "teacher" ? thread.userId : undefined,
         name:
           role === "admin"
             ? thread.userId === previewTeacherId
@@ -89,6 +91,7 @@ export function ChatWorkspace({
           .join("، ");
         return {
           ...thread,
+          portraitTeacherId: role === "student" ? thread.teacherId : undefined,
           name,
           description:
             role === "student"
@@ -262,20 +265,16 @@ export function ChatWorkspace({
                         : "border-transparent hover:bg-muted",
                     )}
                   >
-                    <span
-                      aria-hidden="true"
-                      className={cn(
-                        "flex size-11 shrink-0 items-center justify-center rounded-full text-xs font-bold",
-                        tones[contact.tone],
-                      )}
-                    >
-                      {contact.name
+                    <TeacherAvatar
+                      teacherId={contact.portraitTeacherId}
+                      className={cn("size-11", tones[contact.tone])}
+                      fallback={contact.name
                         .replace(/^أ\.\s*/, "")
                         .split(/\s+/)
                         .slice(0, 2)
                         .map((part) => part[0])
                         .join(" ")}
-                    </span>
+                    />
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-bold">
                         {contact.name}
@@ -324,6 +323,7 @@ export function ChatWorkspace({
                   >
                     <ArrowRight aria-hidden="true" />
                   </Button>
+                  <TeacherAvatar teacherId={selected.portraitTeacherId} className="size-8" />
                   <div className="min-w-0">
                     <h2 className="text-sm font-semibold">{selected.name}</h2>
                     <p className="mt-1 text-[11px] text-muted-foreground">

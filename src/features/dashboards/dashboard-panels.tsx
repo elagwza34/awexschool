@@ -1,4 +1,5 @@
 "use client";
+import { TeacherAvatar } from "@/components/teacher-avatar";
 import { portalCourseHref } from "@/features/content/routes";
 import { useEnrollmentPreview } from "@/features/enrollments/context";
 import { AccountEditor } from "@/features/enrollments/account-editor";
@@ -195,7 +196,8 @@ export function LearningCards({
                   {course.title}
                 </Link>
               </h3>
-              <p className="mb-4 mt-2 text-[11px] text-muted-foreground">
+              <p className="mb-4 mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
+                <TeacherAvatar teacherId={teacher.id} className="size-6" />
                 أ. {teacher.name}
               </p>
               <div className="mb-2 flex items-center justify-between text-[11px]">
@@ -668,7 +670,8 @@ export function ContinueLearning({ entry }: { entry: LearningCourse }) {
       <div className="relative">
         <Badge className="bg-white/80">نكمّل من هنا؟</Badge>
         <h2 className="mb-3 mt-4 text-xl font-semibold">{entry.nextLesson}</h2>
-        <p className="mb-4 text-sm text-muted-foreground">
+        <p className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+          <TeacherAvatar teacherId={teacher.id} className="size-6" />
           {subject.name} · أ. {teacher.name} · معاينة نصية تفاعلية
         </p>
         <Button asChild>

@@ -11,6 +11,21 @@ test("the hero leaves its background video paused when motion is reduced", async
   expect(await video.getAttribute("src")).toBeNull();
 });
 
+test("the stages page links its languages card to the filtered catalog", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/stages");
+  const card = page.getByRole("link", { name: /كورسات اللغات/ });
+  await card.locator("img").scrollIntoViewIfNeeded();
+  await expect.poll(() => card.locator("img").evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+  await card.click();
+  await expect(page).toHaveURL("/courses?track=languages");
+  await expect(page.getByRole("heading", { name: "كورسات اللغات", level: 1 })).toBeVisible();
+  await expect(page.locator("article")).toHaveCount(grades.length * 2);
+  await page.getByLabel("الصف الدراسي", { exact: true }).selectOption("preparatory-2");
+  await expect(page).toHaveURL(/track=languages/);
+  await expect(page.locator("article")).toHaveCount(2);
+});
+
 test("every grade provides Arabic and Languages tracks", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   for (const grade of grades) {
@@ -21,7 +36,7 @@ test("every grade provides Arabic and Languages tracks", async ({ page }) => {
     await arabic.focus();
     await page.keyboard.press("ArrowLeft");
     await expect(languages).toHaveAttribute("aria-selected", "true");
-    await expect(page.getByRole("tabpanel").locator("article")).toHaveCount(1);
+    await expect(page.getByRole("tabpanel").locator("article")).toHaveCount(2);
     await arabic.click();
     if (grade.id === "primary-4") {
       await expect(page.getByRole("tabpanel").getByText("أصدقاء الأرقام")).toBeVisible();
@@ -34,7 +49,8 @@ test("a Languages lesson opens from its grade and shows an example and answer", 
   await page.getByRole("tab", { name: "لغات" }).click();
   await page.getByRole("tabpanel").locator('a[href^="/subjects/english"]').click();
   await expect(page).toHaveURL(/track=languages/);
-  await expect(page.locator("article")).toHaveCount(1);
+  await expect(page.locator("article")).toHaveCount(2);
+  await expect(page.getByRole("link", { name: "Telling a Story in Order" })).toBeVisible();
   await page.getByRole("link", { name: "Talking About Experiences" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Talking About Experiences");
   await page.getByRole("link", { name: "شاهد معاينة مجانية" }).click();

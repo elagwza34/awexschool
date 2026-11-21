@@ -1,3 +1,4 @@
+import { TeacherAvatar } from "@/components/teacher-avatar";
 import { notFound } from "next/navigation";
 import { BookOpen, GraduationCap } from "lucide-react";
 import { teachers, courses, getTeacher } from "@/features/catalog/mock-data";
@@ -45,15 +46,7 @@ export default async function TeacherPage({
         <div className={cn("h-22 border-b", tones[teacher.tone])} />
         <div className="grid gap-5 p-4 sm:grid-cols-[140px_1fr] sm:p-6">
           <div>
-            <span
-              aria-hidden="true"
-              className={cn(
-                "-mt-10 flex size-32 items-center justify-center rounded-md border-8 border-white text-3xl font-bold",
-                tones[teacher.tone],
-              )}
-            >
-              {teacher.initials}
-            </span>
+            <TeacherAvatar teacherId={teacher.id} fallback={teacher.initials} className="-mt-10 size-32 rounded-md border-8 border-white text-3xl" />
             <Badge className="mt-4">ملف افتراضي للعرض</Badge>
           </div>
           <div>

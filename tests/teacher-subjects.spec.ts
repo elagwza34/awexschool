@@ -48,6 +48,62 @@ test("subject page lists multiple teachers and does not mix unrelated subjects",
   ).toBeVisible();
 });
 
+test("subject teacher cards scroll horizontally within the mobile row", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/subjects/math");
+  const row = page.getByRole("region", { name: "بطاقات مدرسو المادة" });
+  const cards = row.getByRole("link");
+  await expect(cards).toHaveCount(2);
+  expect(await row.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+  await cards.last().scrollIntoViewIfNeeded();
+  await expect.poll(() => row.evaluate((element) => Math.abs(element.scrollLeft))).toBeGreaterThan(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);
+  await cards.last().click();
+  await expect(page).toHaveURL("/teachers/mahmoud-samir");
+});
+
+test("the teachers directory stacks compact cards with portraits on mobile", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/teachers");
+  let previousTop = -Infinity;
+  for (const teacher of teachers) {
+    const card = page.locator(`main a[href="/teachers/${teacher.id}"]`);
+    await expect(card).toBeVisible();
+    const portrait = card.locator("img");
+    await portrait.scrollIntoViewIfNeeded();
+    await expect.poll(() => portrait.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+    expect((await portrait.boundingBox())?.width).toBeGreaterThanOrEqual(80);
+    const box = await card.evaluate((element) => ({
+      top: element.getBoundingClientRect().top + window.scrollY,
+      height: element.getBoundingClientRect().height,
+    }));
+    expect(box.top).toBeGreaterThan(previousTop);
+    expect(box.height).toBeLessThan(144);
+    previousTop = box.top;
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);
+  await page.locator('main a[href="/teachers/ahmed-hassan"]').click();
+  await expect(page).toHaveURL("/teachers/ahmed-hassan");
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/teachers");
+  const desktopPortrait = page.locator('main a[href="/teachers/ahmed-hassan"] img');
+  expect((await desktopPortrait.boundingBox())?.width).toBeGreaterThanOrEqual(96);
+});
+
+test("the same teacher portrait is reused across public and dashboard views", async ({ page }) => {
+  const paths = [
+    "/", "/subjects/math", "/courses", "/courses/math-prep-1",
+    "/teachers/ahmed-hassan", "/teacher/profile", "/student/chat",
+  ];
+  for (const path of paths) {
+    await page.goto(path);
+    const portrait = page.locator('main img[src="/teachers/ahmed-hassan.webp"]:visible').first();
+    await expect(portrait).toBeVisible();
+    await portrait.scrollIntoViewIfNeeded();
+    await expect.poll(() => portrait.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+  }
+});
+
 test("profile subject changes cannot contradict existing teaching assignments", async ({
   page,
 }) => {
