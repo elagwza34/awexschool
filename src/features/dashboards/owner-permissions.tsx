@@ -16,7 +16,8 @@ const actions: Partial<Record<DashboardRole, readonly { title: string; items: re
 };
 
 export function OwnerPermissions({ role }: { role: DashboardRole }) {
-  const access = [...dashboardLinks(role), { href: "/account", label: role === "owner" ? "الحسابات" : "حسابي" }];
+  const sections = dashboardLinks(role);
+  const access = role === "owner" ? sections : [...sections, { href: "/account", label: "حسابي" }];
 
   return (
     <main id="main-content" tabIndex={-1} className="dashboard-width space-y-6 pt-5 pb-8">

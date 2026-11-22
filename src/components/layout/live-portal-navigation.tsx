@@ -17,10 +17,11 @@ export function LivePortalNavigation({ name, roles, accountRole }: { name: strin
   const current = dashboardRoles.find(({ role }) => role === activeRole && roles.includes(role));
   if (!current) return null;
 
-  const links = [
-    ...dashboardLinks(current.role),
-    { href: `/account?portal=${current.role}`, label: ownerWorkspace ? "الحسابات" : "حسابي" },
-  ];
+  const sections = dashboardLinks(current.role);
+  const links = ownerWorkspace ? sections : [...sections, { href: `/account?portal=${current.role}`, label: "حسابي" }];
+  const activePath = ownerWorkspace && pathname === "/owner/permissions" ? "/account"
+    : ownerWorkspace && pathname === "/owner/settings" ? "/owner"
+    : pathname;
   const initials = name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join(" ");
   return <div className="min-w-0 pt-24">
     <div className="border-b bg-white">
@@ -36,7 +37,7 @@ export function LivePortalNavigation({ name, roles, accountRole }: { name: strin
       <nav ref={tabStrip} aria-label="أقسام لوحة التحكم" className="dashboard-width overflow-x-auto">
         <div className="flex w-max min-w-full gap-2">
         {links.map(({ href, label }) => {
-          const active = pathname === href.split("?")[0];
+          const active = activePath === href.split("?")[0];
           return <Link key={href} href={href} aria-current={active ? "page" : undefined}
           className={cn("inline-flex min-h-11 shrink-0 items-center whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold first:ps-0 focus-visible:outline-2 focus-visible:outline-offset-[-2px]",
             active ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:bg-secondary hover:text-primary")}>{label}</Link>;

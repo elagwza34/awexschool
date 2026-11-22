@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PortalMetrics } from "@/components/layout/portal-metrics";
+import { Button } from "@/components/ui/button";
 import { getAccount, ownerClient } from "@/features/auth/supabase-server";
 
 export const metadata = { title: "لوحة المالك" };
@@ -30,6 +32,7 @@ export default async function OwnerPage({ searchParams }: { searchParams: Promis
         { label: "طلبات الالتحاق المعلّقة", value: enrollments?.count ?? null },
         { label: "طلبات المدرسين المعلّقة", value: applications?.count ?? null },
       ]} />
+      <Button variant="outline" asChild><Link href="/owner/settings">إعدادات المنصة</Link></Button>
     </main>
   );
 }

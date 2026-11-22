@@ -5,19 +5,14 @@ import { studentSections } from "./student-navigation";
 import { teacherSections } from "./teacher-navigation";
 import type { DashboardRole } from "./types";
 import { canMonitorGroupChat, groupChatHref, groupChatPermission, supportsGroupChat } from "@/features/chat/groups";
+import { ownerSections } from "@/features/auth/dashboard-roles";
 
 export const roleSections = {
   admin: adminSections,
   teacher: teacherSections,
   student: studentSections,
   parent: parentSections,
-  owner: [
-    { id: "overview", href: "/owner", label: "نظرة عامة" },
-    { id: "users", href: "/account", label: "المستخدمون والأدوار" },
-    { id: "content", href: "/admin/catalog", label: "إدارة المحتوى" },
-    { id: "teacher-applications", href: "/admin/teacher-applications", label: "طلبات المدرسين" },
-    { id: "integrations", href: "/admin/integrations", label: "ربط Meet وZoom" },
-  ],
+  owner: ownerSections,
   manager: staffSections("manager"),
   support: staffSections("support"),
 } satisfies Record<DashboardRole, readonly { id: string; href: string; label: string }[]>;

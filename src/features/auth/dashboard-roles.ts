@@ -17,13 +17,15 @@ export type DashboardRole = (typeof dashboardRoles)[number]["role"];
 
 type DashboardLink = { href: string; label: string };
 
+export const ownerSections = [
+  { id: "overview", href: "/owner", label: "نظرة عامة" },
+  { id: "users", href: "/account", label: "المستخدمون والأدوار" },
+  { id: "content", href: "/admin/catalog", label: "إدارة المحتوى" },
+  { id: "teacher-applications", href: "/admin/teacher-applications", label: "طلبات المدرسين" },
+  { id: "integrations", href: "/admin/integrations", label: "ربط Meet وZoom" },
+] as const;
+
 const sections: Partial<Record<DashboardRole, readonly DashboardLink[]>> = {
-  owner: [
-    { href: "/admin/catalog", label: "المقررات والالتحاق" },
-    { href: "/admin/teacher-applications", label: "طلبات المدرسين" },
-    { href: "/owner/permissions", label: "الصلاحيات" },
-    { href: "/owner/settings", label: "إعدادات المنصة" },
-  ],
   admin: [
     { href: "/admin/catalog", label: "المقررات والالتحاق" },
     ...adminSections.filter(({ id }) => ["teacher-applications", "group-requests", "chat", "schedule", "finance", "assignments"].includes(id)),
@@ -34,6 +36,7 @@ const sections: Partial<Record<DashboardRole, readonly DashboardLink[]>> = {
 };
 
 export function dashboardLinks(role: DashboardRole) {
+  if (role === "owner") return ownerSections;
   return [
     { href: `/${role}`, label: "نظرة عامة" },
     ...(sections[role] ?? []),
@@ -44,7 +47,11 @@ export function isOwnerWorkspace(path: string) {
   return path === "/account" || path === "/owner" || path.startsWith("/owner/") || path === "/admin" || path.startsWith("/admin/");
 }
 
-export const liveDashboardPaths = new Set(dashboardRoles.flatMap(({ role }) => dashboardLinks(role).map(({ href }) => href)));
+export const liveDashboardPaths = new Set([
+  ...dashboardRoles.flatMap(({ role }) => dashboardLinks(role).map(({ href }) => href)),
+  "/owner/permissions",
+  "/owner/settings",
+]);
 
 export function dashboardFor(roles: readonly string[]) {
   const dashboard = dashboardRoles.find(({ role }) => roles.includes(role));
