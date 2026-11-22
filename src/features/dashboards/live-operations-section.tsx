@@ -1,5 +1,6 @@
 ﻿import { redirect } from "next/navigation";
 import { getAccount, ownerClient } from "@/features/auth/supabase-server";
+import type { ReactNode } from "react";
 
 type Role = "admin" | "teacher" | "student" | "parent";
 type Section = "schedule" | "sessions" | "groups" | "finance" | "group-requests";
@@ -32,7 +33,7 @@ const statuses: Record<string, string> = {
 const time = new Intl.DateTimeFormat("ar-EG", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Cairo" });
 const money = new Intl.NumberFormat("ar-EG", { style: "currency", currency: "EGP" });
 
-export async function LiveOperationsSection({ role, section }: { role: Role; section: Section }) {
+export async function LiveOperationsSection({ role, section, children }: { role: Role; section: Section; children?: ReactNode }) {
   const account = await getAccount();
   const client = ownerClient();
   if (!client || !account?.roles.some((item) => item === role || (role === "admin" && item === "owner"))) redirect("/account");
@@ -103,8 +104,10 @@ export async function LiveOperationsSection({ role, section }: { role: Role; sec
     })) ?? [];
   }
 
+  const Title = children ? "h2" : "h1";
   return <main id="main-content" className="dashboard-width space-y-4 py-5 lg:py-6">
-    <h1 className="text-2xl font-bold">{role === "admin" && section === "finance" ? "مستحقات المدرسين" : labels[section]}</h1>
+    {children}
+    <Title className={children ? "text-lg font-bold" : "text-2xl font-bold"}>{role === "admin" && section === "finance" ? "مستحقات المدرسين" : labels[section]}</Title>
     {error ? <p role="alert" className="soft-card p-5">تعذّر تحميل البيانات حاليًا.</p> : rows.length ? (
       <ul className="grid gap-3 sm:grid-cols-2">{rows.map((row) => <li key={row.id} className="soft-card p-4">
         <h2 className="font-bold">{row.title}</h2><p className="mt-1 text-sm text-muted-foreground">{row.details}</p>

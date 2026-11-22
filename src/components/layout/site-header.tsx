@@ -16,6 +16,7 @@ const navigation = [
   { href: "/stages", title: "المراحل الدراسية" },
   { href: "/subjects", title: "المواد التعليمية" },
   { href: "/courses", title: "المقررات" },
+  { href: "/groups", title: "المجموعات الدراسية" },
   { href: "/teachers", title: "مدرسونا" },
   { href: "/faq", title: "الأسئلة الشائعة" },
 ];
@@ -53,7 +54,7 @@ export function SiteHeader({ socialLinks, dashboardHref }: { socialLinks: Social
         <Brand />
         <nav
           aria-label="التنقل الرئيسي"
-          className="hidden items-center gap-4 2xl:flex"
+          className="hidden items-center gap-3 2xl:flex"
         >
           {navigation.map(({ href, title }) => (
             <Link
