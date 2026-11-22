@@ -44,7 +44,8 @@ export const getAccount = cache(async function () {
     client.from("account_roles").select("role_code").eq("user_id", user.id),
   ]);
   if (profile.error || roles.error || profile.data?.status !== "active") return null;
-  return { user, name: profile.data.display_name as string, roles: roles.data.map(({ role_code }) => role_code as string) };
+  const assignedRoles = roles.data.map(({ role_code }) => role_code as string);
+  return { user, name: profile.data.display_name as string, roles: assignedRoles.includes("owner") ? ["owner"] : assignedRoles };
 });
 
 export const isDemoEnabled = cache(async function () {

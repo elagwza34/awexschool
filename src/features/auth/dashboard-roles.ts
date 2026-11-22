@@ -21,6 +21,8 @@ const sections: Partial<Record<DashboardRole, readonly DashboardLink[]>> = {
   owner: [
     { href: "/admin/catalog", label: "المقررات والالتحاق" },
     { href: "/admin/teacher-applications", label: "طلبات المدرسين" },
+    { href: "/owner/permissions", label: "الصلاحيات" },
+    { href: "/owner/settings", label: "إعدادات المنصة" },
   ],
   admin: [
     { href: "/admin/catalog", label: "المقررات والالتحاق" },
@@ -36,6 +38,10 @@ export function dashboardLinks(role: DashboardRole) {
     { href: `/${role}`, label: "نظرة عامة" },
     ...(sections[role] ?? []),
   ];
+}
+
+export function isOwnerWorkspace(path: string) {
+  return path === "/account" || path === "/owner" || path.startsWith("/owner/") || path === "/admin" || path.startsWith("/admin/");
 }
 
 export const liveDashboardPaths = new Set(dashboardRoles.flatMap(({ role }) => dashboardLinks(role).map(({ href }) => href)));

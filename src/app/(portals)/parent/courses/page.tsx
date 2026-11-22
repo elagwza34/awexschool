@@ -1,5 +1,5 @@
 import { MyCourses } from "@/features/catalog/my-courses";
 
 export default function Page() {
-  return <MyCourses />;
+  return <MyCourses role="parent" />;
 }

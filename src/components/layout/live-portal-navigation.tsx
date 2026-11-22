@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { dashboardLinks, dashboardRoles, type DashboardRole } from "@/features/auth/dashboard-roles";
+import { dashboardLinks, dashboardRoles, isOwnerWorkspace, type DashboardRole } from "@/features/auth/dashboard-roles";
 import { cn } from "@/lib/utils";
 
 export function LivePortalNavigation({ name, roles, accountRole }: { name: string; roles: readonly string[]; accountRole?: DashboardRole }) {
@@ -12,15 +12,14 @@ export function LivePortalNavigation({ name, roles, accountRole }: { name: strin
   useEffect(() => {
     tabStrip.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [pathname]);
-  const ownerSection = roles.includes("owner") && dashboardLinks("owner").some(({ href }) => href === pathname && href !== "/owner");
-  const activeRole = accountRole ?? (ownerSection ? "owner" : pathname.split("/")[1]);
-  const current = dashboardRoles.find(({ role }) => role === activeRole &&
-    (roles.includes(role) || (roles.includes("owner") && role === "admin")));
+  const ownerWorkspace = roles.includes("owner") && isOwnerWorkspace(pathname);
+  const activeRole = ownerWorkspace ? "owner" : accountRole ?? pathname.split("/")[1];
+  const current = dashboardRoles.find(({ role }) => role === activeRole && roles.includes(role));
   if (!current) return null;
 
   const links = [
     ...dashboardLinks(current.role),
-    { href: `/account?portal=${current.role}`, label: "حسابي" },
+    { href: `/account?portal=${current.role}`, label: ownerWorkspace ? "الحسابات" : "حسابي" },
   ];
   const initials = name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join(" ");
   return <div className="min-w-0 pt-24">

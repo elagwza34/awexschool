@@ -19,6 +19,7 @@ const messages: Record<string, string> = {
   callback: "رابط التأكيد انتهى أو اتفتح في متصفح مختلف.",
   owner: "تأكد البريد، لكن تفعيل دور المالك محتاج مراجعة إعدادات المشروع.",
   denied: "صلاحية المالك مطلوبة للعملية دي.",
+  "portal-denied": "اللوحة دي مخصصة للحسابات اللي عندها الدور المطلوب.",
   "section-unavailable": "القسم ده لسه مش متاح. اختار قسم من تبويبات لوحتك.",
   "add-failed": "تعذّرت إضافة المستخدم. راجع البريد والدور.",
   "cleanup-failed": "اتعمل حساب، لكن الدور المطلوب ما اتسجلش. راجع الحساب في القائمة قبل استخدامه.",
@@ -53,8 +54,9 @@ export default async function AccountPage({
   if (!account) redirect("/login");
   const dashboard = dashboardFor(account.roles);
   if (from === "login" && dashboard !== "/account") redirect(dashboard);
-  const accountRole = dashboardRoles.find(({ role }) => role === portal &&
-    (account.roles.includes(role) || (role === "admin" && account.roles.includes("owner"))))?.role ??
+  const isOwner = account.roles.includes("owner");
+  const accountRole = (isOwner ? "owner" : dashboardRoles.find(({ role }) => role === portal &&
+    account.roles.includes(role))?.role) ??
     dashboardRoles.find(({ role }) => `/${role}` === dashboard)?.role;
   const admin = account?.roles.includes("owner") ? ownerClient() : null;
   const pageNumber = Math.max(1, Math.min(1000, Number.parseInt(page ?? "1", 10) || 1));
@@ -70,13 +72,11 @@ export default async function AccountPage({
             <div className="min-w-0"><dt className="text-sm text-muted-foreground">البريد الإلكتروني</dt><dd className="mt-1 break-all font-semibold"><bdi>{account.user.email ?? "—"}</bdi></dd></div>
             <div className="min-w-0"><dt className="text-sm text-muted-foreground">الأدوار</dt><dd className="mt-1 font-semibold">{account.roles.map((role) => labels[role] ?? role).join("، ") || "لم يُحدد دور"}</dd></div>
           </dl>
-          <div className="flex flex-wrap gap-2">
-            {dashboardRoles.filter(({ role }) =>
-              account.roles.includes(role) || (role === "admin" && account.roles.includes("owner")),
-            ).map(({ role, label }) => (
+          {!isOwner && <div className="flex flex-wrap gap-2">
+            {dashboardRoles.filter(({ role }) => account.roles.includes(role)).map(({ role, label }) => (
               <Button asChild key={role} variant="outline"><Link href={`/${role}`}>{label}</Link></Button>
             ))}
-          </div>
+          </div>}
           {account.roles.includes("owner") && (
             <div>
               <form action={addUser} className="soft-card grid gap-3 p-5">

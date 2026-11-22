@@ -19,9 +19,7 @@ export async function GET(request: Request) {
     const response = await fetch(new URL("/auth/v1/settings", config.url), { headers: { apikey: config.key }, cache: "no-store" }).catch(() => null);
     const settings = response?.ok ? await response.json().catch(() => null) : null;
     if (settings?.mailer_autoconfirm === false && admin) {
-      const result = await admin.from("account_roles").upsert({
-        user_id: data.user.id, role_code: "owner",
-      }, { onConflict: "user_id,role_code", ignoreDuplicates: true });
+      const result = await admin.rpc("assign_owner_role", { account_id: data.user.id });
       if (result.error) destination.searchParams.set("message", "owner");
     } else destination.searchParams.set("message", "owner");
   }

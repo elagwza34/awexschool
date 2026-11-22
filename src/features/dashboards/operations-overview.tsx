@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 
 export async function OperationsOverview({ role }: { role: "admin" | "manager" | "support" }) {
   const account = await getAccount();
-  if (!account?.roles.some((item) => item === role || item === "owner")) redirect("/account");
+  if (role === "admin" && account?.roles.includes("owner")) redirect("/owner");
+  if (!account?.roles.includes(role)) redirect("/account");
   const client = ownerClient();
   const support = role === "support";
   const items = support

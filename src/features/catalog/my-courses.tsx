@@ -1,9 +1,14 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { PortalMetrics } from "@/components/layout/portal-metrics";
+import { getAccount } from "@/features/auth/supabase-server";
 import { getCourseEnrollments } from "./enrollment-actions";
 import { listPublishedCourses } from "./live-catalog";
 
-export async function MyCourses({ overview = false }: { overview?: boolean }) {
+export async function MyCourses({ role, overview = false }: { role: "student" | "parent"; overview?: boolean }) {
+  const account = await getAccount();
+  if (!account) redirect("/login");
+  if (!account.roles.includes(role)) redirect("/account?message=portal-denied");
   const [requests, courses] = await Promise.all([getCourseEnrollments(), listPublishedCourses()]);
   const titles = new Map(courses.map(({ id, title }) => [id, title]));
   return <main id="main-content" className="dashboard-width space-y-4 pt-5 pb-10">

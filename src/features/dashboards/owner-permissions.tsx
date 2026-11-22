@@ -1,5 +1,3 @@
-import Link from "next/link";
-import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { dashboardLinks, dashboardRoles, type DashboardRole } from "@/features/auth/dashboard-roles";
 
@@ -17,25 +15,18 @@ const actions: Partial<Record<DashboardRole, readonly { title: string; items: re
   student: [{ title: "إجراءات الواجبات", items: ["تسليم واجب"] }],
 };
 
-export function OwnerPermissions({ children, role }: { children: ReactNode; role: DashboardRole }) {
-  const access = [...dashboardLinks(role), { href: `/account?portal=${role}`, label: "حسابي" }];
-  if (role === "owner") {
-    access.push(
-      { href: "#social-links", label: "روابط التواصل الاجتماعي" },
-      { href: "/admin/site-locks", label: "أقفال الموقع" },
-    );
-  }
+export function OwnerPermissions({ role }: { role: DashboardRole }) {
+  const access = [...dashboardLinks(role), { href: "/account", label: role === "owner" ? "الحسابات" : "حسابي" }];
 
   return (
     <main id="main-content" tabIndex={-1} className="dashboard-width space-y-6 pt-5 pb-8">
       <header className="space-y-2">
-        <p className="text-sm font-bold text-primary">لوحة المالك</p>
         <h1 className="text-2xl font-bold sm:text-3xl">إدارة صلاحيات الأدوار</h1>
         <p className="text-sm leading-7 text-muted-foreground">
-          اختر دورًا لعرض الأقسام والإجراءات المتاحة له. الصلاحيات الحالية محددة في النظام، ويمكنك إدارة أدوار الحسابات من صفحة الحسابات.
+          اختر دورًا لعرض الأقسام والإجراءات المتاحة له.
         </p>
       </header>
-      <form action="/owner" method="get" className="soft-card flex flex-wrap items-end gap-4 p-4">
+      <form action="/owner/permissions" method="get" className="soft-card flex flex-wrap items-end gap-4 p-4">
         <label className="grid min-w-0 flex-1 gap-2 text-sm font-bold">
           الدور
           <select className="field max-w-xs" name="role" defaultValue={role} key={role}>
@@ -43,9 +34,6 @@ export function OwnerPermissions({ children, role }: { children: ReactNode; role
           </select>
         </label>
         <Button type="submit">عرض الصلاحيات</Button>
-        <Link href="/account" className="inline-flex min-h-11 items-center rounded-lg border px-4 text-sm font-semibold text-primary">
-          إدارة الحسابات
-        </Link>
       </form>
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <section className="soft-card space-y-3 p-4">
@@ -54,7 +42,6 @@ export function OwnerPermissions({ children, role }: { children: ReactNode; role
             {access.map(({ href, label }) => (
               <li key={href} className="flex min-h-11 flex-wrap items-center justify-between gap-x-4 rounded-lg border px-3 text-sm font-semibold">
                 {label}
-                {role === "owner" && <Link href={href} className="inline-flex min-h-11 items-center text-primary underline underline-offset-4" aria-label={`فتح ${label}`}>فتح القسم</Link>}
               </li>
             ))}
           </ul>
@@ -70,7 +57,6 @@ export function OwnerPermissions({ children, role }: { children: ReactNode; role
           ))}
         </div>
       </div>
-      {children}
     </main>
   );
 }
