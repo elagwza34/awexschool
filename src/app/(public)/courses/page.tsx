@@ -1,5 +1,5 @@
-﻿import Link from "next/link";
 import { Breadcrumbs, PageIntro } from "@/components/shared";
+import { PublishedCourseCard } from "@/components/published-course-card";
 import { listCatalogOptions, listPublishedCourses } from "@/features/catalog/live-catalog";
 
 export const metadata = { title: "المقررات" };
@@ -46,13 +46,7 @@ export default async function CoursesPage({ searchParams }: {
     </form>
     {visible.length ? <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {visible.map((course) => <li key={course.id}>
-        <Link href={`/courses/${course.id}`} className="soft-card block h-full p-5 hover:border-primary">
-          <h2 className="text-lg font-bold">{course.title}</h2>
-          <p className="mt-1 text-sm font-semibold text-primary">
-            {grades.find((item) => item.id === course.grade_id)?.name} · {course.track === "languages" ? "لغات" : "عربي"}
-          </p>
-          {course.description && <p className="mt-2 line-clamp-3 text-sm leading-7 text-muted-foreground">{course.description}</p>}
-        </Link>
+        <PublishedCourseCard course={course} grade={grades.find((item) => item.id === course.grade_id)?.name} />
       </li>)}
     </ul> : <p className="soft-card p-5 text-muted-foreground">{courses.length ? "مفيش مقررات تطابق البحث." : "لا توجد مقررات منشورة حاليًا."}</p>}
   </div>;

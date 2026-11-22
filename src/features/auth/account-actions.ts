@@ -119,23 +119,25 @@ async function requireOwner() {
 export async function addUser(form: FormData) {
   const admin = await requireOwner();
   const role = text(form, "role");
+  if (role === "teacher") redirect("/admin/teachers");
+  const destination = "/account";
   const name = text(form, "name");
   const email = text(form, "email").toLowerCase();
   const password = String(form.get("password") ?? "");
   if (!managedRoles.has(role) || !validEmail(email) || email === process.env.LIVESCHOOL_OWNER_EMAIL?.toLowerCase() ||
     name.length < 2 || name.length > 100 || password.length < 12 || password.length > 72)
-    redirect("/account?message=invalid");
+    redirect(`${destination}?message=invalid`);
   const { data, error } = await admin.auth.admin.createUser({
     email, password, email_confirm: true,
     user_metadata: { display_name: name },
   });
-  if (error || !data.user) redirect("/account?message=add-failed");
+  if (error || !data.user) redirect(`${destination}?message=add-failed`);
   const assigned = await admin.rpc("assign_created_account_role", { account_id: data.user.id, assigned_role: role });
   if (assigned.error || assigned.data !== true) {
     const cleanup = await admin.auth.admin.deleteUser(data.user.id);
-    redirect(cleanup.error ? "/account?message=cleanup-failed" : "/account?message=add-failed");
+    redirect(`${destination}?message=${cleanup.error ? "cleanup-failed" : "add-failed"}`);
   }
-  redirect("/account?message=added");
+  redirect(`${destination}?message=added`);
 }
 
 export async function changeDemoVisibility(form: FormData) {

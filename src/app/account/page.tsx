@@ -85,9 +85,10 @@ export default async function AccountPage({
                 <label className="grid gap-2 text-sm font-semibold">اسم المستخدم<input className="field" name="name" required minLength={2} maxLength={100} /></label>
                 <Credentials newUser />
                 <label className="grid gap-2 text-sm font-semibold">الدور
-                  <select className="field" name="role">{Object.entries(labels).filter(([role]) => role !== "owner").map(([role, label]) => <option key={role} value={role}>{label}</option>)}</select>
+                  <select className="field" name="role">{Object.entries(labels).filter(([role]) => role !== "owner" && role !== "teacher").map(([role, label]) => <option key={role} value={role}>{label}</option>)}</select>
                 </label>
                 <Button className="justify-self-start">إنشاء الحساب</Button>
+                <Link href="/admin/teachers" className="inline-flex min-h-11 items-center text-primary underline">إنشاء حساب مدرس</Link>
               </form>
             </div>
           )}

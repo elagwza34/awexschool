@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, Search, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Brand } from "@/components/shared";
 import { Button } from "@/components/ui/button";
@@ -73,11 +73,6 @@ export function SiteHeader({ socialLinks, dashboardHref }: { socialLinks: Social
         </nav>
         <div className="flex items-center gap-2">
           <SocialLinks links={socialLinks} className="hidden xl:flex" />
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/search" aria-label="البحث" onClick={() => setOpen(false)}>
-              <Search />
-            </Link>
-          </Button>
           {dashboardHref ? (
             <>
               <Button asChild variant="ghost" className="hidden rounded-full sm:inline-flex">

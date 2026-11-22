@@ -10,7 +10,10 @@ export function LivePortalNavigation({ name, roles, accountRole }: { name: strin
   const pathname = usePathname();
   const tabStrip = useRef<HTMLElement>(null);
   useEffect(() => {
-    tabStrip.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    const nav = tabStrip.current;
+    if (nav && nav.scrollWidth > nav.clientWidth) {
+      nav.querySelector('[aria-current="page"]')?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
   }, [pathname]);
   const adminWorkspace = roles.some((role) => role === "admin" || role === "owner") && isAdminWorkspace(pathname);
   const activeRole = adminWorkspace ? "admin" : accountRole ?? pathname.split("/")[1];
@@ -19,7 +22,8 @@ export function LivePortalNavigation({ name, roles, accountRole }: { name: strin
 
   const sections = dashboardLinks(current.role);
   const links = adminWorkspace ? sections : [...sections, { href: `/account?portal=${current.role}`, label: "حسابي" }];
-  const activePath = adminWorkspace && pathname === "/admin/permissions" ? "/account"
+  const activePath = adminWorkspace && ["/admin/teacher-applications", "/admin/finance"].includes(pathname) ? "/admin/teachers"
+    : adminWorkspace && pathname === "/admin/permissions" ? "/account"
     : adminWorkspace && (pathname === "/admin/settings" || pathname === "/admin/integrations") ? "/admin"
     : pathname;
   const initials = name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join(" ");
@@ -35,12 +39,14 @@ export function LivePortalNavigation({ name, roles, accountRole }: { name: strin
     </div>
     <div className="border-b bg-white">
       <nav ref={tabStrip} aria-label="أقسام لوحة التحكم" className="dashboard-width overflow-x-auto">
-        <div className="flex w-max min-w-full gap-2">
+        <div className={cn("flex w-max min-w-full gap-2", adminWorkspace && "py-2")}>
         {links.map(({ href, label }) => {
           const active = activePath === href.split("?")[0];
           return <Link key={href} href={href} aria-current={active ? "page" : undefined}
-          className={cn("inline-flex min-h-11 shrink-0 items-center whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold first:ps-0 focus-visible:outline-2 focus-visible:outline-offset-[-2px]",
-            active ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:bg-secondary hover:text-primary")}>{label}</Link>;
+          className={cn("inline-flex min-h-11 shrink-0 items-center whitespace-nowrap px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-[-2px]",
+            adminWorkspace ? "rounded-lg border border-transparent" : "border-b-2 first:ps-0",
+            active ? adminWorkspace ? "border-primary bg-accent text-primary" : "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:bg-secondary hover:text-primary")}>{label}</Link>;
         })}
         </div>
       </nav>

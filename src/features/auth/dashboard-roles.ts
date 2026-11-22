@@ -18,12 +18,11 @@ type DashboardLink = { href: string; label: string };
 
 export const adminWorkspaceSections = [
   { id: "overview", href: "/admin", label: "نظرة عامة" },
-  { id: "content", href: "/admin/catalog", label: "المقررات والالتحاق" },
-  { id: "teacher-applications", href: "/admin/teacher-applications", label: "طلبات المدرسين" },
+  { id: "content", href: "/admin/catalog", label: "المقررات" },
+  { id: "teachers", href: "/admin/teachers", label: "المدرسين" },
   { id: "group-requests", href: "/admin/group-requests", label: "طلبات انضمام المجموعات" },
   { id: "chat", href: "/admin/chat", label: "المحادثات" },
   { id: "schedule", href: "/admin/schedule", label: "الجدول الأسبوعي" },
-  { id: "finance", href: "/admin/finance", label: "مستحقات المدرسين" },
   { id: "assignments", href: "/admin/assignments", label: "الواجبات والتكليفات" },
   { id: "users", href: "/account", label: "حسابي" },
 ] as const;
@@ -51,6 +50,8 @@ export const liveDashboardPaths = new Set([
   "/admin/permissions",
   "/admin/settings",
   "/admin/integrations",
+  "/admin/teacher-applications",
+  "/admin/finance",
 ]);
 
 export function dashboardFor(roles: readonly string[]) {

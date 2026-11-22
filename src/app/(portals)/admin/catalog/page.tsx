@@ -2,28 +2,34 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAccount, ownerClient } from "@/features/auth/supabase-server";
 import { AuthSubmit } from "@/features/auth/form-controls";
-import { publishCourse, reviewEnrollment } from "@/features/catalog/catalog-admin-actions";
+import { archiveCourse, publishCourse, reviewEnrollment } from "@/features/catalog/catalog-admin-actions";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { PublishedCourseCard } from "@/components/published-course-card";
+import { cn } from "@/lib/utils";
 
-export default async function CatalogAdmin({ searchParams }: { searchParams: Promise<{ notice?: string; published?: string }> }) {
+export default async function CatalogAdmin({ searchParams }: { searchParams: Promise<{ notice?: string; published?: string; tab?: string; track?: string }> }) {
   const account = await getAccount();
   const client = ownerClient();
   if (!client || !account?.roles.some((role) => role === "owner" || role === "admin")) redirect("/account");
-  const [{ data: grades }, { data: subjects }, { data: requests }, { data: drafts }, { notice, published }] = await Promise.all([
-    client.from("grades").select("id,name").order("stage_id").order("position"),
-    client.from("subjects").select("id,name").order("name"),
-    client.from("course_enrollments").select("course_id, requester_id, learner_name, courses(title)")
-      .eq("status", "pending").order("created_at").limit(50),
-    client.from("courses").select("id,title,description,track,course_units(title,position,lessons(title,body,position))")
-      .eq("status", "draft").order("title").limit(100),
-    searchParams,
+  const { notice, published, tab, track } = await searchParams;
+  const activeTrack = track === "languages" ? "languages" : "arabic";
+  const showEnrollments = tab === "enrollments";
+  const showArchive = tab === "archived";
+  const showCourses = !showEnrollments && !showArchive;
+  const [grades, subjects, requests, courses, archived] = await Promise.all([
+    showCourses ? client.from("grades").select("id,name").order("stage_id").order("position") : null,
+    showCourses ? client.from("subjects").select("id,name").order("name") : null,
+    showEnrollments ? client.from("course_enrollments").select("course_id, requester_id, learner_name")
+      .eq("status", "pending").order("created_at").limit(50) : null,
+    showCourses ? client.from("courses").select("id,title,description,grade_id,track").eq("status", "published").eq("track", activeTrack).order("title") : null,
+    showArchive ? client.from("courses").select("id,title,description,track").eq("status", "archived").order("title") : null,
   ]);
   return (
       <main className="dashboard-width space-y-7 pt-5 pb-10" id="main-content">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-bold">إدارة المقررات والالتحاق</h1>
-          <Dialog key={published ?? "publish"} defaultOpen={notice === "publish-failed"}>
+          <h1 className="text-2xl font-bold">إدارة المقررات</h1>
+          {showCourses && <Dialog key={published ?? "publish"} defaultOpen={notice === "publish-failed"}>
             <DialogTrigger asChild>
               <Button type="button" className="ms-auto min-h-11">نشر مقرر جديد</Button>
             </DialogTrigger>
@@ -40,19 +46,19 @@ export default async function CatalogAdmin({ searchParams }: { searchParams: Pro
                   <label htmlFor="publish-course-grade">الصف</label>
                   <select id="publish-course-grade" name="grade" className="field" required defaultValue="">
                     <option value="" disabled>اختر الصف</option>
-                    {grades?.map((grade) => <option key={grade.id} value={grade.id}>{grade.name}</option>)}
+                    {grades?.data?.map((grade) => <option key={grade.id} value={grade.id}>{grade.name}</option>)}
                   </select>
                 </div>
                 <div className="grid gap-2 text-sm font-semibold">
                   <label htmlFor="publish-course-subject">المادة</label>
                   <select id="publish-course-subject" name="subject" className="field" required defaultValue="">
                     <option value="" disabled>اختر المادة</option>
-                    {subjects?.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
+                    {subjects?.data?.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
                   </select>
                 </div>
                 <div className="grid gap-2 text-sm font-semibold">
                   <label htmlFor="publish-course-track">المسار</label>
-                  <select id="publish-course-track" name="track" className="field">
+                  <select id="publish-course-track" name="track" className="field" defaultValue={activeTrack}>
                     <option value="arabic">عربي</option>
                     <option value="languages">لغات</option>
                   </select>
@@ -60,42 +66,89 @@ export default async function CatalogAdmin({ searchParams }: { searchParams: Pro
                 <AuthSubmit>نشر المقرر</AuthSubmit>
               </form>
             </DialogContent>
-          </Dialog>
+          </Dialog>}
         </div>
-        <Link href="/admin/teacher-applications" className="inline-flex min-h-11 items-center text-primary underline">طلبات تقديم المدرسين</Link>
+        <nav aria-label="أقسام المقررات" className="flex gap-2 overflow-x-auto border-b">
+          {[
+            { href: "/admin/catalog", label: "المقررات", active: showCourses },
+            { href: "/admin/catalog?tab=archived", label: "مقررات مؤرشفة", active: showArchive },
+            { href: "/admin/catalog?tab=enrollments", label: "طلبات الالتحاق", active: showEnrollments },
+          ].map(({ href, label, active }) => (
+            <Link key={href} href={href} aria-current={active ? "page" : undefined}
+              className={cn("inline-flex min-h-11 shrink-0 items-center whitespace-nowrap border-b-2 px-3 text-sm font-semibold",
+                active ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:bg-accent")}>
+              {label}
+            </Link>
+          ))}
+        </nav>
         {notice && notice !== "publish-failed" && <p role="status" className="rounded-lg bg-accent p-3">
-          {notice === "published" ? "تم نشر المقرر." : notice === "reviewed" ? "تمت مراجعة الطلب." : "تعذّر الحفظ. راجع البيانات وحاول مرة تانية."}
+          {notice === "published" ? "تم نشر المقرر." : notice === "reviewed" ? "تمت مراجعة الطلب." :
+            notice === "archived" ? "اتنقل المقرر لتبويب مقررات مؤرشفة." :
+            notice === "archive-failed" ? "تعذّرت أرشفة المقرر. حدّث الصفحة وحاول مرة تانية." :
+            "تعذّر الحفظ. راجع البيانات وحاول مرة تانية."}
         </p>}
-        <section className="space-y-3" id="drafts" aria-labelledby="drafts-title">
-          <h2 id="drafts-title" className="text-lg font-bold">مسودات المقررات</h2>
-          {drafts?.length ? drafts.map((draft) => (
-            <details key={draft.id} className="soft-card p-4">
-              <summary className="cursor-pointer font-semibold">{draft.title} · {draft.track === "languages" ? "لغات" : "عربي"}</summary>
-              <p className="mt-3 text-sm text-muted-foreground">{draft.description}</p>
-              {[...draft.course_units].sort((a, b) => a.position - b.position).map((unit) => (
-                <section key={unit.position} className="mt-4 rounded-lg border p-3">
-                  <h3 className="font-bold">{unit.title}</h3>
-                  {[...unit.lessons].sort((a, b) => a.position - b.position).map((lesson) => (
-                    <details key={lesson.position} className="mt-2 border-t pt-2">
-                      <summary className="cursor-pointer text-sm font-semibold">{lesson.title}</summary>
-                      <p className="mt-2 whitespace-pre-line text-sm leading-7">{lesson.body}</p>
-                    </details>
-                  ))}
-                </section>
+        {showCourses &&
+        <section className="space-y-3" aria-labelledby="published-courses-title">
+          <h2 id="published-courses-title" className="text-lg font-bold">المقررات المنشورة</h2>
+          <nav aria-label="مسارات المقررات المنشورة" className="flex gap-2 border-b">
+            {([{ value: "arabic", label: "عربي" }, { value: "languages", label: "لغات" }] as const).map(({ value, label }) => (
+              <Link key={value} href={`/admin/catalog?track=${value}`} aria-current={activeTrack === value ? "page" : undefined}
+                className={cn("inline-flex min-h-11 items-center border-b-2 px-3 text-sm font-semibold",
+                  activeTrack === value ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:bg-accent")}>
+                {label}
+              </Link>
+            ))}
+          </nav>
+          {courses?.error ? <p role="alert">تعذّر تحميل المقررات المنشورة.</p> : courses?.data?.length ? (
+            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {courses.data.map((course) => (
+                <li key={course.id}>
+                  <PublishedCourseCard course={course} grade={grades?.data?.find(({ id }) => id === course.grade_id)?.name} headingLevel={3}
+                    actions={<Dialog>
+                      <DialogTrigger asChild>
+                        <Button type="button" variant="outline" className="min-h-11" aria-label={`أرشفة ${course.title}`}>أرشفة</Button>
+                      </DialogTrigger>
+                      <DialogContent dir="rtl">
+                        <DialogHeader className="pe-12 text-start">
+                          <DialogTitle>أرشفة المقرر</DialogTitle>
+                          <DialogDescription>«{course.title}» هيتنقل للأرشيف ويختفي من المقررات المنشورة وصفحة التسجيل فيه.</DialogDescription>
+                        </DialogHeader>
+                        <form action={archiveCourse.bind(null, course.id, activeTrack)} className="flex flex-wrap gap-2">
+                          <div><AuthSubmit pending="جارٍ الأرشفة…">تأكيد الأرشفة</AuthSubmit></div>
+                          <DialogClose asChild><Button type="button" variant="outline" className="min-h-11">إلغاء</Button></DialogClose>
+                        </form>
+                      </DialogContent>
+                    </Dialog>} />
+                </li>
               ))}
-            </details>
-          )) : <p className="text-muted-foreground">مفيش مسودات للمراجعة.</p>}
+            </ul>
+          ) : <p className="text-muted-foreground">مفيش مقررات منشورة في المسار ده حاليًا.</p>}
         </section>
-        <section className="space-y-3">
-          <h2 className="text-lg font-bold">طلبات الالتحاق قيد المراجعة</h2>
-          {requests?.length ? requests.map((request) => <article key={`${request.course_id}-${request.requester_id}`} className="soft-card flex flex-wrap items-center justify-between gap-3 p-4">
+        }
+        {showArchive && <section className="space-y-3" aria-labelledby="archived-courses-title">
+          <h2 id="archived-courses-title" className="text-lg font-bold">مقررات مؤرشفة</h2>
+          {archived?.error ? <p role="alert">تعذّر تحميل المقررات المؤرشفة.</p> : archived?.data?.length ? (
+            <ul className="grid gap-3 sm:grid-cols-2">
+              {archived.data.map((course) => (
+                <li key={course.id} className="soft-card space-y-2 p-4">
+                  <h3 className="font-semibold">{course.title}</h3>
+                  <p className="text-sm text-muted-foreground">{course.track === "languages" ? "لغات" : "عربي"}</p>
+                  {course.description && <p className="whitespace-pre-line break-words text-sm">{course.description}</p>}
+                </li>
+              ))}
+            </ul>
+          ) : <p className="text-muted-foreground">مفيش مقررات مؤرشفة حاليًا.</p>}
+        </section>}
+        {showEnrollments && <section id="enrollment-requests" className="space-y-3" aria-labelledby="enrollment-requests-title">
+          <h2 id="enrollment-requests-title" className="text-lg font-bold">طلبات الالتحاق قيد المراجعة</h2>
+          {requests?.error ? <p role="alert">تعذّر تحميل طلبات الالتحاق.</p> : requests?.data?.length ? requests.data.map((request) => <article key={`${request.course_id}-${request.requester_id}`} className="soft-card flex flex-wrap items-center justify-between gap-3 p-4">
             <p>{request.learner_name} · <Link className="underline" href={`/courses/${request.course_id}`}>عرض المقرر</Link></p>
             <form action={reviewEnrollment.bind(null, request.course_id, request.requester_id)} className="flex gap-2">
               <button className="min-h-11 rounded-lg bg-primary px-4 text-primary-foreground" name="status" value="active">قبول</button>
               <button className="min-h-11 rounded-lg border px-4" name="status" value="declined">رفض</button>
             </form>
           </article>) : <p className="text-muted-foreground">مفيش طلبات قيد المراجعة.</p>}
-        </section>
+        </section>}
       </main>
   );
 }

@@ -46,7 +46,8 @@ export async function reviewTeacherApplication(id: string, form: FormData) {
   const client = ownerClient();
   if (!client || !account?.roles.some((role) => role === "owner" || role === "admin")) redirect("/account");
   const status = field(form, "status");
-  if (status !== "accepted" && status !== "rejected") redirect("/admin/teacher-applications");
+  if (status === "accepted") redirect(`/admin/teachers?application=${encodeURIComponent(id)}`);
+  if (status !== "rejected") redirect("/admin/teacher-applications");
   const result = await client.from("teacher_applications").update({ status }).eq("id", id).eq("status", "pending");
   redirect(result.error ? "/admin/teacher-applications?status=failed" : "/admin/teacher-applications");
 }
