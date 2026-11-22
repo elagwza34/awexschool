@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, Headphones, Search } from "lucide-react";
+import { ArrowLeft, Headphones } from "lucide-react";
 import { Brand } from "@/components/shared";
 import { getSocialLinks } from "@/features/auth/supabase-server";
 import { SocialLinks } from "./social-links";
@@ -63,10 +63,6 @@ export async function SiteFooter() {
         </div>
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-white/15 py-3 text-sm text-[#d4e5dc]">
           <span>© ٢٠٢٦ LiveSchool</span>
-          <Link href="/search" className="inline-flex min-h-11 items-center gap-2 hover:text-white hover:underline">
-            <Search aria-hidden="true" className="size-4" />
-            ابحث عن مادة أو درس
-          </Link>
         </div>
       </div>
     </footer>

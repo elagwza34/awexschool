@@ -37,7 +37,7 @@ export function SiteHeader({ socialLinks, dashboardHref }: { socialLinks: Social
   }, [open]);
   if (dashboardHref === "/admin" && isAdminWorkspace(path)) {
     return (
-      <header data-home-header="" className="site-header-width fixed inset-x-0 top-3 z-30 rounded-[2rem] border border-emerald-950/10 bg-white shadow-md">
+        <header data-home-header="" className="site-header-width fixed inset-x-0 top-3 z-30 rounded-[2rem] border border-emerald-950/10 bg-white shadow-md">
         <div className="container-shell flex min-h-17 items-center justify-between gap-4">
           <Brand />
           <Button asChild variant="ghost"><Link href="/">عرض الموقع</Link></Button>
@@ -46,10 +46,10 @@ export function SiteHeader({ socialLinks, dashboardHref }: { socialLinks: Social
     );
   }
   return (
-    <header
-      data-home-header=""
-      className="site-header-width fixed inset-x-0 top-3 z-30 rounded-[2rem] border border-emerald-950/10 bg-white shadow-md"
-    >
+      <header
+        data-home-header=""
+        className="site-header-width fixed inset-x-0 top-3 z-30 rounded-[1rem] border border-emerald-950/10 bg-white shadow-md"
+      >
       <div className="container-shell flex min-h-17 items-center justify-between gap-4">
         <Brand />
         <nav
