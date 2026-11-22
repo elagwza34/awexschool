@@ -17,13 +17,14 @@ export async function publishCourse(form: FormData) {
   const description = String(form.get("description") ?? "").trim();
   const track = String(form.get("track") ?? "");
   if (title.length < 3 || title.length > 160 || description.length > 3000 || !["arabic", "languages"].includes(track)) {
-    redirect("/admin/catalog?notice=invalid");
+    redirect("/admin/catalog?notice=publish-failed");
   }
+  const slug = randomUUID();
   const { error } = await client.from("courses").insert({
-    slug: randomUUID(), title, description, track, status: "published",
+    slug, title, description, track, status: "published",
     grade_id: String(form.get("grade") ?? ""), subject_id: String(form.get("subject") ?? ""),
   });
-  redirect(error ? "/admin/catalog?notice=failed" : "/admin/catalog?notice=published");
+  redirect(error ? "/admin/catalog?notice=publish-failed" : `/admin/catalog?notice=published&published=${slug}`);
 }
 
 export async function reviewEnrollment(course: string, requester: string, form: FormData) {

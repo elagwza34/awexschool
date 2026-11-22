@@ -3,12 +3,14 @@ import { redirect } from "next/navigation";
 import { getAccount, ownerClient } from "@/features/auth/supabase-server";
 import { AuthSubmit } from "@/features/auth/form-controls";
 import { publishCourse, reviewEnrollment } from "@/features/catalog/catalog-admin-actions";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
-export default async function CatalogAdmin({ searchParams }: { searchParams: Promise<{ notice?: string }> }) {
+export default async function CatalogAdmin({ searchParams }: { searchParams: Promise<{ notice?: string; published?: string }> }) {
   const account = await getAccount();
   const client = ownerClient();
   if (!client || !account?.roles.some((role) => role === "owner" || role === "admin")) redirect("/account");
-  const [{ data: grades }, { data: subjects }, { data: requests }, { data: drafts }, { notice }] = await Promise.all([
+  const [{ data: grades }, { data: subjects }, { data: requests }, { data: drafts }, { notice, published }] = await Promise.all([
     client.from("grades").select("id,name").order("stage_id").order("position"),
     client.from("subjects").select("id,name").order("name"),
     client.from("course_enrollments").select("course_id, requester_id, learner_name, courses(title)")
@@ -19,22 +21,51 @@ export default async function CatalogAdmin({ searchParams }: { searchParams: Pro
   ]);
   return (
       <main className="dashboard-width space-y-7 pt-5 pb-10" id="main-content">
-        <h1 className="text-2xl font-bold">إدارة المقررات والالتحاق</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-bold">إدارة المقررات والالتحاق</h1>
+          <Dialog key={published ?? "publish"} defaultOpen={notice === "publish-failed"}>
+            <DialogTrigger asChild>
+              <Button type="button" className="ms-auto min-h-11">نشر مقرر جديد</Button>
+            </DialogTrigger>
+            <DialogContent dir="rtl" className="max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain sm:p-6">
+              <DialogHeader className="pe-12 text-start">
+                <DialogTitle>نشر مقرر جديد</DialogTitle>
+                <DialogDescription>أدخل بيانات المقرر عشان يظهر في قائمة المقررات بعد النشر.</DialogDescription>
+              </DialogHeader>
+              {notice === "publish-failed" && <p role="alert" className="text-sm text-destructive">تعذّر نشر المقرر. راجع البيانات وحاول مرة تانية.</p>}
+              <form action={publishCourse} className="grid gap-4">
+                <label className="grid gap-2 text-sm font-semibold">اسم المقرر<input name="title" className="field" minLength={3} maxLength={160} required /></label>
+                <label className="grid gap-2 text-sm font-semibold">الوصف<textarea name="description" className="field min-h-24 py-2" maxLength={3000} /></label>
+                <div className="grid gap-2 text-sm font-semibold">
+                  <label htmlFor="publish-course-grade">الصف</label>
+                  <select id="publish-course-grade" name="grade" className="field" required defaultValue="">
+                    <option value="" disabled>اختر الصف</option>
+                    {grades?.map((grade) => <option key={grade.id} value={grade.id}>{grade.name}</option>)}
+                  </select>
+                </div>
+                <div className="grid gap-2 text-sm font-semibold">
+                  <label htmlFor="publish-course-subject">المادة</label>
+                  <select id="publish-course-subject" name="subject" className="field" required defaultValue="">
+                    <option value="" disabled>اختر المادة</option>
+                    {subjects?.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
+                  </select>
+                </div>
+                <div className="grid gap-2 text-sm font-semibold">
+                  <label htmlFor="publish-course-track">المسار</label>
+                  <select id="publish-course-track" name="track" className="field">
+                    <option value="arabic">عربي</option>
+                    <option value="languages">لغات</option>
+                  </select>
+                </div>
+                <AuthSubmit>نشر المقرر</AuthSubmit>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
         <Link href="/admin/teacher-applications" className="inline-flex min-h-11 items-center text-primary underline">طلبات تقديم المدرسين</Link>
-        {notice && <p role="status" className="rounded-lg bg-accent p-3">
+        {notice && notice !== "publish-failed" && <p role="status" className="rounded-lg bg-accent p-3">
           {notice === "published" ? "تم نشر المقرر." : notice === "reviewed" ? "تمت مراجعة الطلب." : "تعذّر الحفظ. راجع البيانات وحاول مرة تانية."}
         </p>}
-        <form action={publishCourse} className="soft-card grid gap-4 p-5">
-          <h2 className="text-lg font-bold">نشر مقرر جديد</h2>
-          <label className="grid gap-2 text-sm font-semibold">اسم المقرر<input name="title" className="field" minLength={3} maxLength={160} required /></label>
-          <label className="grid gap-2 text-sm font-semibold">الوصف<textarea name="description" className="field min-h-24 py-2" maxLength={3000} /></label>
-          <label className="grid gap-2 text-sm font-semibold">الصف<select name="grade" className="field" required defaultValue=""><option value="" disabled>اختر الصف</option>
-            {grades?.map((grade) => <option key={grade.id} value={grade.id}>{grade.name}</option>)}</select></label>
-          <label className="grid gap-2 text-sm font-semibold">المادة<select name="subject" className="field" required defaultValue=""><option value="" disabled>اختر المادة</option>
-            {subjects?.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select></label>
-          <label className="grid gap-2 text-sm font-semibold">المسار<select name="track" className="field"><option value="arabic">عربي</option><option value="languages">لغات</option></select></label>
-          <AuthSubmit>نشر المقرر</AuthSubmit>
-        </form>
         <section className="space-y-3" id="drafts" aria-labelledby="drafts-title">
           <h2 id="drafts-title" className="text-lg font-bold">مسودات المقررات</h2>
           {drafts?.length ? drafts.map((draft) => (
