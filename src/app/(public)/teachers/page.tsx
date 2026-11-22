@@ -3,13 +3,13 @@ import { ownerClient } from "@/features/auth/supabase-server";
 import { PageIntro } from "@/components/shared";
 import { LiveTeacherPhoto } from "@/components/live-teacher-photo";
 
-export const metadata = { title: "???????" };
+export const metadata = { title: "المدرسين" };
 
 export default async function TeachersPage() {
   const response = await ownerClient()?.from("teacher_profiles").select("user_id,full_name,qualification,bio,portrait_path").order("full_name");
   return <div className="container-shell py-8">
-    <PageIntro title="???????" />
-    <Link href="/teachers/apply" className="mb-4 inline-flex min-h-11 items-center font-bold text-primary underline">???? ?????</Link>
+    <PageIntro title="المدرسين" />
+    <Link href="/teachers/apply" className="mb-4 inline-flex min-h-11 items-center font-bold text-primary underline">انضم كمدرس</Link>
     {response?.data?.length ? <div className="grid gap-4 md:grid-cols-3">
       {response.data.map((teacher) => <article key={teacher.user_id} className="soft-card p-5">
         <div className="flex items-center gap-4">
@@ -21,6 +21,8 @@ export default async function TeachersPage() {
         </div>
         <p className="mt-2 whitespace-pre-line text-sm leading-7">{teacher.bio}</p>
       </article>)}
-    </div> : <p className="soft-card p-5">????? ???????? ??? ????? ??????.</p>}
+    </div> : response?.error || !response
+      ? <p role="alert" className="soft-card p-5">تعذّر تحميل قائمة المدرسين حاليًا.</p>
+      : <p className="soft-card p-5">لا يوجد مدرسون متاحون حاليًا.</p>}
   </div>;
 }
