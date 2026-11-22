@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { dashboardLinks, dashboardRoles, isOwnerWorkspace, type DashboardRole } from "@/features/auth/dashboard-roles";
+import { dashboardLinks, dashboardRoles, isAdminWorkspace, type DashboardRole } from "@/features/auth/dashboard-roles";
 import { cn } from "@/lib/utils";
 
 export function LivePortalNavigation({ name, roles, accountRole }: { name: string; roles: readonly string[]; accountRole?: DashboardRole }) {
@@ -12,15 +12,15 @@ export function LivePortalNavigation({ name, roles, accountRole }: { name: strin
   useEffect(() => {
     tabStrip.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [pathname]);
-  const ownerWorkspace = roles.includes("owner") && isOwnerWorkspace(pathname);
-  const activeRole = ownerWorkspace ? "owner" : accountRole ?? pathname.split("/")[1];
-  const current = dashboardRoles.find(({ role }) => role === activeRole && roles.includes(role));
+  const adminWorkspace = roles.some((role) => role === "admin" || role === "owner") && isAdminWorkspace(pathname);
+  const activeRole = adminWorkspace ? "admin" : accountRole ?? pathname.split("/")[1];
+  const current = dashboardRoles.find(({ role }) => role === activeRole && (adminWorkspace || roles.includes(role)));
   if (!current) return null;
 
   const sections = dashboardLinks(current.role);
-  const links = ownerWorkspace ? sections : [...sections, { href: `/account?portal=${current.role}`, label: "حسابي" }];
-  const activePath = ownerWorkspace && pathname === "/owner/permissions" ? "/account"
-    : ownerWorkspace && pathname === "/owner/settings" ? "/owner"
+  const links = adminWorkspace ? sections : [...sections, { href: `/account?portal=${current.role}`, label: "حسابي" }];
+  const activePath = adminWorkspace && pathname === "/admin/permissions" ? "/account"
+    : adminWorkspace && (pathname === "/admin/settings" || pathname === "/admin/integrations") ? "/admin"
     : pathname;
   const initials = name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join(" ");
   return <div className="min-w-0 pt-24">

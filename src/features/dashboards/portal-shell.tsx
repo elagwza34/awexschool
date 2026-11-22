@@ -207,7 +207,7 @@ export function PortalShell({
               <p className="text-sm leading-7 text-muted-foreground">الدور الحالي لا يملك صلاحية فتح هذا القسم في المعاينة. اختار قسمًا متاحًا أو راجع إعدادات الدور.</p>
               <div className="flex flex-wrap gap-3">
                 {topSections[0] && <Button asChild><Link href={topSections[0].href}>افتح قسمًا متاحًا</Link></Button>}
-                <Button asChild variant="outline"><Link href="/owner">راجع صلاحيات الدور</Link></Button>
+                <Button asChild variant="outline"><Link href="/admin">راجع صلاحيات الدور</Link></Button>
               </div>
             </section>
           )}

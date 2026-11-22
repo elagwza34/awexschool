@@ -1,10 +1,9 @@
-import { adminSections } from "@/features/dashboards/admin-navigation";
 import { parentSections } from "@/features/dashboards/parent-navigation";
 import { studentSections } from "@/features/dashboards/student-navigation";
 import { teacherSections } from "@/features/dashboards/teacher-navigation";
 
 export const dashboardRoles = [
-  { role: "owner", label: "لوحة المالك" },
+  { role: "owner", label: "صلاحيات المالك" },
   { role: "admin", label: "لوحة الإدارة" },
   { role: "manager", label: "لوحة المدير" },
   { role: "support", label: "لوحة الدعم الفني" },
@@ -17,43 +16,45 @@ export type DashboardRole = (typeof dashboardRoles)[number]["role"];
 
 type DashboardLink = { href: string; label: string };
 
-export const ownerSections = [
-  { id: "overview", href: "/owner", label: "نظرة عامة" },
-  { id: "users", href: "/account", label: "المستخدمون والأدوار" },
-  { id: "content", href: "/admin/catalog", label: "إدارة المحتوى" },
+export const adminWorkspaceSections = [
+  { id: "overview", href: "/admin", label: "نظرة عامة" },
+  { id: "content", href: "/admin/catalog", label: "المقررات والالتحاق" },
   { id: "teacher-applications", href: "/admin/teacher-applications", label: "طلبات المدرسين" },
-  { id: "integrations", href: "/admin/integrations", label: "ربط Meet وZoom" },
+  { id: "group-requests", href: "/admin/group-requests", label: "طلبات انضمام المجموعات" },
+  { id: "chat", href: "/admin/chat", label: "المحادثات" },
+  { id: "schedule", href: "/admin/schedule", label: "الجدول الأسبوعي" },
+  { id: "finance", href: "/admin/finance", label: "مستحقات المدرسين" },
+  { id: "assignments", href: "/admin/assignments", label: "الواجبات والتكليفات" },
+  { id: "users", href: "/account", label: "حسابي" },
 ] as const;
 
 const sections: Partial<Record<DashboardRole, readonly DashboardLink[]>> = {
-  admin: [
-    { href: "/admin/catalog", label: "المقررات والالتحاق" },
-    ...adminSections.filter(({ id }) => ["teacher-applications", "group-requests", "chat", "schedule", "finance", "assignments"].includes(id)),
-  ],
   teacher: teacherSections.filter(({ id }) => ["profile", "courses", "groups", "sessions", "finance", "schedule", "attendance", "assignments", "reviews", "chat", "admin-chat"].includes(id)),
   parent: parentSections.filter(({ id }) => ["courses", "schedule", "attendance", "assignments", "admin-chat"].includes(id)),
   student: studentSections.filter(({ id }) => ["courses", "schedule", "attendance", "assignments", "chat", "admin-chat"].includes(id)),
 };
 
 export function dashboardLinks(role: DashboardRole) {
-  if (role === "owner") return ownerSections;
+  if (role === "owner" || role === "admin") return adminWorkspaceSections;
   return [
     { href: `/${role}`, label: "نظرة عامة" },
     ...(sections[role] ?? []),
   ];
 }
 
-export function isOwnerWorkspace(path: string) {
-  return path === "/account" || path === "/owner" || path.startsWith("/owner/") || path === "/admin" || path.startsWith("/admin/");
+export function isAdminWorkspace(path: string) {
+  return path === "/account" || path === "/admin" || path.startsWith("/admin/");
 }
 
 export const liveDashboardPaths = new Set([
   ...dashboardRoles.flatMap(({ role }) => dashboardLinks(role).map(({ href }) => href)),
-  "/owner/permissions",
-  "/owner/settings",
+  "/admin/permissions",
+  "/admin/settings",
+  "/admin/integrations",
 ]);
 
 export function dashboardFor(roles: readonly string[]) {
+  if (roles.includes("owner")) return "/admin";
   const dashboard = dashboardRoles.find(({ role }) => roles.includes(role));
   return dashboard ? `/${dashboard.role}` : "/account";
 }

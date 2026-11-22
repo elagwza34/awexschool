@@ -157,16 +157,16 @@ export async function saveSocialLinks(form: FormData) {
     try {
       url = new URL(value);
     } catch {
-      redirect("/owner/settings?social=invalid#social-links");
+      redirect("/admin/settings?social=invalid#social-links");
     }
     if (value.length > 2048 || url.protocol !== "https:" || url.username || url.password || url.port ||
       !hosts.some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`))) {
-      redirect("/owner/settings?social=invalid#social-links");
+      redirect("/admin/settings?social=invalid#social-links");
     }
     links[id] = url.href;
   }
   const { error } = await admin.from("site_settings").update({ social_links: links }).eq("id", true);
-  redirect(error ? "/owner/settings?social=failed#social-links" : "/owner/settings?social=saved#social-links");
+  redirect(error ? "/admin/settings?social=failed#social-links" : "/admin/settings?social=saved#social-links");
 }
 
 export async function removeUser(form: FormData) {

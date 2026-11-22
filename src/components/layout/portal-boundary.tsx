@@ -13,6 +13,6 @@ export async function PortalBoundary({
   children: ReactNode;
 }) {
   const account = await getAccount();
-  if (!account || (!account.roles.includes(role) && !account.roles.includes("owner"))) redirect("/account");
+  if (!account?.roles.includes(role) && !(role === "admin" && account?.roles.includes("owner"))) redirect("/account");
   return children;
 }

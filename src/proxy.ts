@@ -29,7 +29,7 @@ const headers = {
   "X-Robots-Tag": "noindex, nofollow",
 };
 
-const portalPath = /^\/(?:owner|admin|manager|support|teacher|student|parent|workspace)(?:\/|$)/;
+const portalPath = /^\/(?:admin|manager|support|teacher|student|parent|workspace)(?:\/|$)/;
 
 function gate(status: number, message: string, owner = false) {
   return screen(status, owner ? "إدارة أقفال الموقع" : "دخول Awex School", message, status === 503 ? "" : `

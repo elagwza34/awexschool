@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { signOut } from "@/features/auth/account-actions";
 import { SocialLinks } from "./social-links";
 import type { SocialLinksConfig } from "@/features/auth/social-links";
-import { isOwnerWorkspace } from "@/features/auth/dashboard-roles";
+import { isAdminWorkspace } from "@/features/auth/dashboard-roles";
 
 const navigation = [
   { href: "/stages", title: "المراحل الدراسية" },
@@ -34,7 +34,7 @@ export function SiteHeader({ socialLinks, dashboardHref }: { socialLinks: Social
     window.addEventListener("keydown", escape);
     return () => window.removeEventListener("keydown", escape);
   }, [open]);
-  if (dashboardHref === "/owner" && isOwnerWorkspace(path)) {
+  if (dashboardHref === "/admin" && isAdminWorkspace(path)) {
     return (
       <header data-home-header="" className="site-header-width fixed inset-x-0 top-3 z-30 rounded-[2rem] border border-emerald-950/10 bg-white shadow-md">
         <div className="container-shell flex min-h-17 items-center justify-between gap-4">

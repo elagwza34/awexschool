@@ -15,9 +15,9 @@ const actions: Partial<Record<DashboardRole, readonly { title: string; items: re
   student: [{ title: "إجراءات الواجبات", items: ["تسليم واجب"] }],
 };
 
-export function OwnerPermissions({ role }: { role: DashboardRole }) {
+export function AdminPermissions({ role }: { role: DashboardRole }) {
   const sections = dashboardLinks(role);
-  const access = role === "owner" ? sections : [...sections, { href: "/account", label: "حسابي" }];
+  const access = role === "owner" || role === "admin" ? sections : [...sections, { href: "/account", label: "حسابي" }];
 
   return (
     <main id="main-content" tabIndex={-1} className="dashboard-width space-y-6 pt-5 pb-8">
@@ -27,7 +27,7 @@ export function OwnerPermissions({ role }: { role: DashboardRole }) {
           اختر دورًا لعرض الأقسام والإجراءات المتاحة له.
         </p>
       </header>
-      <form action="/owner/permissions" method="get" className="soft-card flex flex-wrap items-end gap-4 p-4">
+      <form action="/admin/permissions" method="get" className="soft-card flex flex-wrap items-end gap-4 p-4">
         <label className="grid min-w-0 flex-1 gap-2 text-sm font-bold">
           الدور
           <select className="field max-w-xs" name="role" defaultValue={role} key={role}>

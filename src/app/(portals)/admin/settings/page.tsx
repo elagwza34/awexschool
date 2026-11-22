@@ -5,16 +5,19 @@ import { saveSocialLinks } from "@/features/auth/account-actions";
 import { socialChannels } from "@/features/auth/social-links";
 import { getAccount, getSocialLinks } from "@/features/auth/supabase-server";
 
-export const metadata = { title: "إعدادات المنصة | لوحة المالك" };
+export const metadata = { title: "إعدادات المنصة | لوحة الإدارة" };
 
-export default async function OwnerSettings({ searchParams }: { searchParams: Promise<{ social?: string }> }) {
+export default async function AdminSettings({ searchParams }: { searchParams: Promise<{ social?: string }> }) {
   const account = await getAccount();
   if (!account?.roles.includes("owner")) redirect("/account");
   const [links, { social }] = await Promise.all([getSocialLinks(), searchParams]);
   return (
     <main id="main-content" tabIndex={-1} className="dashboard-width space-y-5 pt-5 pb-10">
       <h1 className="text-2xl font-bold sm:text-3xl">إعدادات المنصة</h1>
-      <Button asChild variant="outline"><Link href="/admin/site-locks">أقفال الموقع</Link></Button>
+      <div className="flex flex-wrap gap-2">
+        <Button asChild variant="outline"><Link href="/admin/site-locks">أقفال الموقع</Link></Button>
+        <Button asChild variant="outline"><Link href="/admin/integrations">ربط Meet وZoom</Link></Button>
+      </div>
       <section id="social-links" className="scroll-mt-24" aria-labelledby="social-title">
         <form action={saveSocialLinks} className="soft-card grid gap-4 p-5 sm:p-6">
           <h2 id="social-title" className="text-xl font-bold">روابط التواصل الاجتماعي</h2>

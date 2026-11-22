@@ -1,7 +1,7 @@
-﻿import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { getAccount } from "@/features/auth/supabase-server";
 
-export const metadata = { title: "ربط Meet وZoom | لوحة المالك" };
+export const metadata = { title: "ربط Meet وZoom | لوحة الإدارة" };
 
 export default async function AdminIntegrationsPage() {
   const account = await getAccount();

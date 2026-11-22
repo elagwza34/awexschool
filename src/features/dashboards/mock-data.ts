@@ -150,11 +150,11 @@ export const dashboardProfiles: DashboardProfile[] = [
   },
   {
     role: "owner",
-    label: "لوحة المالك",
+    label: "لوحة الإدارة",
     name: "المالك",
     initials: "م",
     subtitle: "المالك العام للمنصة",
-    greeting: "مرحبًا بك في لوحة المالك",
+    greeting: "مرحبًا بك في لوحة الإدارة",
     description:
       "إدارة الحسابات والمحتوى والطلبات والإعدادات العامة للمنصة من مساحة واحدة.",
     tone: "mint",

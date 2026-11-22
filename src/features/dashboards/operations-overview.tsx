@@ -2,9 +2,8 @@
 import { getAccount, ownerClient } from "@/features/auth/supabase-server";
 import { redirect } from "next/navigation";
 
-export async function OperationsOverview({ role }: { role: "admin" | "manager" | "support" }) {
+export async function OperationsOverview({ role }: { role: "manager" | "support" }) {
   const account = await getAccount();
-  if (role === "admin" && account?.roles.includes("owner")) redirect("/owner");
   if (!account?.roles.includes(role)) redirect("/account");
   const client = ownerClient();
   const support = role === "support";

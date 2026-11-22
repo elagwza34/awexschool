@@ -5,14 +5,14 @@ import { studentSections } from "./student-navigation";
 import { teacherSections } from "./teacher-navigation";
 import type { DashboardRole } from "./types";
 import { canMonitorGroupChat, groupChatHref, groupChatPermission, supportsGroupChat } from "@/features/chat/groups";
-import { ownerSections } from "@/features/auth/dashboard-roles";
+import { adminWorkspaceSections } from "@/features/auth/dashboard-roles";
 
 export const roleSections = {
   admin: adminSections,
   teacher: teacherSections,
   student: studentSections,
   parent: parentSections,
-  owner: ownerSections,
+  owner: adminWorkspaceSections,
   manager: staffSections("manager"),
   support: staffSections("support"),
 } satisfies Record<DashboardRole, readonly { id: string; href: string; label: string }[]>;
