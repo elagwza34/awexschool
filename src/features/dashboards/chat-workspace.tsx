@@ -26,7 +26,7 @@ import { sendPortalMessage } from "./live-chat-actions";
 
 export type ChatRole = "admin" | "student" | "teacher" | "parent";
 
-type ChatContact = {
+export type ChatContact = {
   id: string;
   name: string;
   role: ChatRole;
