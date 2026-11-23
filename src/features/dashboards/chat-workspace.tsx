@@ -1,9 +1,9 @@
 "use client";
 import { TeacherAvatar } from "@/components/teacher-avatar";
-import { portalCourseHref } from "@/features/content/routes";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   BookOpen,
@@ -11,133 +11,117 @@ import {
   Search,
   Send,
 } from "lucide-react";
-import { Badge, tones } from "@/components/shared";
 import { Button } from "@/components/ui/button";
-import { getGrade, getSubject, getTeacher } from "@/features/catalog/mock-data";
 import { normalizeArabic } from "@/features/catalog/service";
 import { cn } from "@/lib/utils";
-import { getDashboardProfile } from "./mock-data";
-import { useEnrollmentPreview } from "@/features/enrollments/context";
-import { studentFixtures } from "@/features/enrollments/data";
-import { adminThreadsForRole } from "./admin-chat-data";
-import { previewStudentId, previewTeacherId, type ChatRole } from "./chat-data";
-import { usePortalPreview } from "./preview-context";
-import { ChatAttachment, ChatAttachmentField } from "@/features/chat/attachment";
+import { createClient } from "@/lib/supabase";
+import {
+  ChatAttachment,
+  ChatAttachmentField,
+  chatAttachmentBucket,
+  chatAttachmentContentType,
+  type StoredChatFile,
+} from "@/features/chat/attachment";
+import { sendPortalMessage } from "./live-chat-actions";
+
+export type ChatRole = "admin" | "student" | "teacher" | "parent";
+
+type ChatContact = {
+  id: string;
+  name: string;
+  role: ChatRole;
+  description: string;
+  course_labels: string;
+  course_ids: string[];
+  latest: string | null;
+  unreadCount: number;
+};
+
+export type ChatData = {
+  contacts: ChatContact[];
+  selectedId: string | null;
+  messages: {
+    id: string;
+    body: string;
+    created_at: string;
+    mine: boolean;
+    from_admin: boolean;
+    attachment: StoredChatFile | null;
+  }[];
+};
 
 export function ChatWorkspace({
   role,
-  administration = false,
+  administration,
+  data,
+  path,
+  accountId,
 }: {
   role: ChatRole;
-  administration?: boolean;
+  administration: boolean;
+  data: ChatData;
+  path: string;
+  accountId: string;
 }) {
-  const { chatMessages, sendChatMessage, studentProfile, teacherProfile } =
-    usePortalPreview();
-  const { threadsForRole, accounts, resolveCourse } = useEnrollmentPreview();
-  const threads = threadsForRole(role);
-  const adminThreads = adminThreadsForRole(role);
-  const [selectedId, setSelectedId] = useState(
-    (administration ? adminThreads : threads)[0]?.id ?? "",
-  );
+  const router = useRouter();
+  const { contacts, selectedId, messages } = data;
   const [roleFilter, setRoleFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState("");
   const [attachment, setAttachment] = useState<File>();
   const [recording, setRecording] = useState(false);
-  const canSend = !recording && Boolean(draft.trim() || attachment);
+  const [contactCleared, setContactCleared] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
+  const [failedMessage, setFailedMessage] = useState<{ draft: string; attachment: File | undefined } | null>(null);
+  const [changingContact, changeContact] = useTransition();
+  const [sending, sendMessage] = useTransition();
+  const canSend = !changingContact && !sending && !recording && Boolean(draft.trim() || attachment);
   const logRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
-  const contacts = administration
-    ? adminThreads.map((thread) => ({
-        ...thread,
-        portraitTeacherId: role === "admin" && thread.role === "teacher" ? thread.userId : undefined,
-        name:
-          role === "admin"
-            ? thread.userId === previewTeacherId
-              ? teacherProfile.displayName
-              : thread.userId === previewStudentId
-                ? studentProfile.displayName
-                : thread.name
-            : getDashboardProfile("admin").name,
-        description: role === "admin" ? thread.description : "إدارة المنصة",
-      }))
-    : threads.map((thread) => {
-        const teacher = getTeacher(thread.teacherId)!;
-        const account = accounts.find(
-          (item) =>
-            item.kind === "student" && item.entityId === thread.studentId,
-        )!;
-        const student = {
-          name: account.name,
-          grade:
-            getGrade(
-              studentFixtures.find((item) => item.id === thread.studentId)!
-                .gradeId,
-            )?.name ?? "",
-        };
-        const name =
-          role === "student"
-            ? thread.teacherId === previewTeacherId
-              ? teacherProfile.displayName
-              : `أ. ${teacher.name}`
-            : thread.studentId === previewStudentId
-              ? studentProfile.displayName
-              : student.name;
-        const courseLabels = thread.courseIds
-          .map((id) => getSubject(resolveCourse(id)!.subjectId)!.name)
-          .join("، ");
-        return {
-          ...thread,
-          portraitTeacherId: role === "student" ? thread.teacherId : undefined,
-          name,
-          description:
-            role === "student"
-              ? courseLabels
-              : thread.studentId === previewStudentId
-                ? (getGrade(studentProfile.gradeId)?.name ?? student.grade)
-                : student.grade,
-          courseLabels,
-          tone: teacher.tone,
-        };
-      });
-  const filteredContacts = contacts.filter(
-    (contact) =>
-      (roleFilter === "all" ||
-        !administration ||
-        adminThreads.find((thread) => thread.id === contact.id)?.role ===
-          roleFilter) &&
-      normalizeArabic(
-        `${contact.name} ${contact.description} ${contact.courseLabels}`,
-      ).includes(normalizeArabic(query)),
+
+  const matchesRole = (contact: ChatContact) => roleFilter === "all" || contact.role === roleFilter;
+  const filteredContacts = contacts.filter((contact) =>
+    matchesRole(contact) && normalizeArabic(
+      `${contact.name} ${contact.description} ${contact.course_labels}`,
+    ).includes(normalizeArabic(query)),
   );
-  const selected = contacts.find(
-    (contact) =>
-      contact.id === selectedId &&
-      (!administration ||
-        roleFilter === "all" ||
-        adminThreads.find((thread) => thread.id === contact.id)?.role ===
-          roleFilter),
-  );
-  const messages = selected
-    ? chatMessages.filter((message) => message.threadId === selected.id)
-    : [];
+  const selected = contactCleared ? undefined : contacts.find((contact) => contact.id === selectedId && matchesRole(contact));
+
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [selectedId, messages.length, mobileOpen]);
   const send = () => {
     if (!selected || !canSend) return;
-    const result = sendChatMessage(role, selected.id, draft, attachment);
-    if (!result.ok) {
-      setError(result.error ?? "تعذّر إضافة الرسالة للمعاينة.");
-      return;
-    }
-    setDraft("");
-    setAttachment(undefined);
-    setError("");
-    setStatus("اتضافت الرسالة للمعاينة فقط. لم تُرسل إلى شخص حقيقي.");
+    sendMessage(async () => {
+      setError("");
+      setStatus("");
+      const storage = attachment ? createClient().storage.from(chatAttachmentBucket) : null;
+      const key = storage ? `${accountId}/${crypto.randomUUID()}` : null;
+      try {
+        if (storage && key && attachment) {
+          const contentType = chatAttachmentContentType(attachment.type);
+          const { error } = await storage.upload(key, attachment.slice(0, attachment.size, contentType), { contentType });
+          if (error) throw error;
+        }
+        const result = await sendPortalMessage(
+          role, administration, selected.id, draft,
+          key && attachment ? { key, name: attachment.name } : null,
+        );
+        if (!result.ok) throw new Error("Message rejected");
+      } catch {
+        if (storage && key) void storage.remove([key]).catch(() => {});
+        setFailedMessage({ draft, attachment });
+        setError("تعذّر إرسال الرسالة. يمكنك إعادة المحاولة.");
+        return;
+      }
+      setDraft("");
+      setAttachment(undefined);
+      setFailedMessage(null);
+      setStatus("تم إرسال الرسالة.");
+      router.refresh();
+    });
   };
   return (
     <section
@@ -152,9 +136,6 @@ export function ChatWorkspace({
               ? "تواصل مع المدرسين المرتبطين بمقرراتك فقط"
               : "محادثات الطلاب المرتبطين بمقرراتك فقط"}
         </p>
-        <Badge className="bg-white text-muted-foreground">
-          محادثات محلية تجريبية · بدون إرسال حقيقي
-        </Badge>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-[280px_minmax(0,1fr)]">
         <div
@@ -176,9 +157,10 @@ export function ChatWorkspace({
                   id="admin-chat-role"
                   className="field"
                   value={roleFilter}
+                  disabled={sending || changingContact}
                   onChange={(event) => {
                     setRoleFilter(event.target.value);
-                    setSelectedId("");
+                    setContactCleared(true);
                     setDraft("");
                     setAttachment(undefined);
                     setRecording(false);
@@ -202,7 +184,7 @@ export function ChatWorkspace({
                   : "طلابي"}
             </h2>
             <p className="mb-4 text-xs text-muted-foreground">
-              {contacts.length} جهات اتصال مرتبطة في المعاينة
+              {contacts.length} جهات اتصال
             </p>
             <label
               htmlFor="chat-contact-search"
@@ -237,25 +219,22 @@ export function ChatWorkspace({
             }
             className="max-h-[580px] space-y-1 overflow-y-auto p-2"
           >
-            {filteredContacts.map((contact) => {
-              const latest = chatMessages
-                .filter((message) => message.threadId === contact.id)
-                .at(-1);
-              return (
+            {filteredContacts.map((contact) => (
                 <li key={contact.id}>
                   <button
                     type="button"
-                    aria-pressed={selectedId === contact.id}
+                    aria-pressed={selected?.id === contact.id}
+                    disabled={sending || changingContact}
                     onClick={() => {
                       if (contact.id !== selectedId) {
-                        setSelectedId(contact.id);
                         setDraft("");
                         setAttachment(undefined);
                         setRecording(false);
                         setError("");
                         setStatus("");
+                        changeContact(() => router.replace(`${path}?contact=${contact.id}`, { scroll: false }));
                       }
-                      if (!mobileOpen) setRecording(false);
+                      setContactCleared(false);
                       setMobileOpen(true);
                     }}
                     className={cn(
@@ -266,8 +245,7 @@ export function ChatWorkspace({
                     )}
                   >
                     <TeacherAvatar
-                      teacherId={contact.portraitTeacherId}
-                      className={cn("size-11", tones[contact.tone])}
+                      className="size-11"
                       fallback={contact.name
                         .replace(/^أ\.\s*/, "")
                         .split(/\s+/)
@@ -283,16 +261,20 @@ export function ChatWorkspace({
                         {contact.description}
                       </span>
                       <span className="mt-2 block truncate text-xs text-muted-foreground">
-                        {(latest?.text || latest?.attachment?.name) ??
+                        {contact.latest ??
                           (administration
                             ? "ابدأ محادثة"
                             : "ابدأ محادثة عن المقرر")}
                       </span>
+                      {contact.unreadCount > 0 && (
+                        <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary text-white text-[10px] font-bold">
+                          {contact.unreadCount} جديد
+                        </span>
+                      )}
                     </span>
                   </button>
                 </li>
-              );
-            })}
+            ))}
           </ul>
           {!filteredContacts.length && (
             <p
@@ -304,12 +286,19 @@ export function ChatWorkspace({
           )}
         </div>
         <div
+          aria-busy={changingContact}
           className={cn(
             "min-w-0 flex-col",
             mobileOpen && selected ? "flex" : "hidden md:flex",
           )}
         >
-          {selected ? (
+          {changingContact ? (
+            <div className="p-7 flex flex-col items-center justify-center gap-3">
+              <div className="h-8 w-24 rounded-full bg-secondary/50 animate-pulse" />
+              <div className="h-8 w-48 rounded-full bg-secondary/50 animate-pulse" style={{ animationDelay: "200ms" }} />
+              <p className="text-xs text-muted-foreground">جارٍ تحميل المحادثة…</p>
+            </div>
+          ) : selected ? (
             <>
               <header className="flex min-h-16 items-center justify-between gap-3 border-b px-4 py-3 sm:px-4">
                 <div className="flex min-w-0 items-center gap-3">
@@ -323,17 +312,17 @@ export function ChatWorkspace({
                   >
                     <ArrowRight aria-hidden="true" />
                   </Button>
-                  <TeacherAvatar teacherId={selected.portraitTeacherId} className="size-8" />
+                  <TeacherAvatar className="size-8" />
                   <div className="min-w-0">
                     <h2 className="text-sm font-semibold">{selected.name}</h2>
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      {selected.courseLabels} · محادثة تجريبية
+                      {selected.course_labels || selected.description}
                     </p>
                   </div>
                 </div>
-                {selected.courseIds.length > 0 && (
+                {selected.course_ids.length > 0 && (
                   <Button variant="outline" size="sm" asChild>
-                    <Link href={portalCourseHref(role, selected.courseIds[0])}>
+                    <Link href={`/courses/${selected.course_ids[0]}`}>
                       <BookOpen aria-hidden="true" />
                       <span className="hidden sm:inline">المقرر</span>
                       <span className="sr-only sm:hidden">عرض المقرر</span>
@@ -352,13 +341,13 @@ export function ChatWorkspace({
               >
                 <p className="mb-4 text-center text-[11px] text-muted-foreground">
                   {administration
-                    ? "تواصل مع الإدارة · الرسائل هنا أمثلة ومحاكاة محلية فقط"
-                    : "مساحة للأسئلة الدراسية · الرسائل هنا أمثلة ومحاكاة محلية فقط"}
+                    ? "تواصل مع الإدارة"
+                    : "مساحة للأسئلة الدراسية"}
                 </p>
                 {messages.length ? (
                   <ol className="space-y-4">
                     {messages.map((message) => {
-                      const mine = message.sender === role;
+                      const mine = message.mine;
                       return (
                         <li
                           key={message.id}
@@ -381,14 +370,14 @@ export function ChatWorkspace({
                                 mine ? "text-white/90" : "text-primary",
                               )}
                             >
-                              {mine ? "أنت" : selected.name}
+                              {mine ? "أنت" : message.from_admin ? "الإدارة" : selected.name}
                             </p>
                             <p className="whitespace-pre-wrap break-words text-sm leading-7 [overflow-wrap:anywhere]">
-                              {message.text}
+                              {message.body}
                             </p>
-                            {message.attachment && <ChatAttachment file={message.attachment} />}
+                            {message.attachment && <ChatAttachment stored={message.attachment} />}
                             <time
-                              dateTime={message.sentAt}
+                              dateTime={message.created_at}
                               className={cn(
                                 "mt-2 block text-[10px]",
                                 mine
@@ -400,8 +389,7 @@ export function ChatWorkspace({
                                 hour: "numeric",
                                 minute: "2-digit",
                                 timeZone: "Africa/Cairo",
-                              }).format(new Date(message.sentAt))}{" "}
-                              · معاينة
+                              }).format(new Date(message.created_at))}
                             </time>
                           </div>
                         </li>
@@ -447,6 +435,7 @@ export function ChatWorkspace({
                   id="chat-message"
                   className="field min-h-16 max-h-40 resize-y py-3 text-sm"
                   value={draft}
+                  disabled={sending || changingContact}
                   maxLength={2000}
                   placeholder={
                     administration ? "اكتب رسالتك..." : "اكتب سؤالًا عن الدرس..."
@@ -467,21 +456,41 @@ export function ChatWorkspace({
                     }
                   }}
                 />
-                <ChatAttachmentField key={`${selected.id}:${mobileOpen}`} file={attachment} onFile={setAttachment} onBusy={setRecording} />
+                <fieldset disabled={sending}>
+                  <ChatAttachmentField key={`${selected.id}:${mobileOpen}`} file={attachment} onFile={setAttachment} onBusy={setRecording} />
+                </fieldset>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                   <p className="text-[10px] text-muted-foreground">
-                    <bdi>Enter</bdi> للإضافة · <bdi>Shift + Enter</bdi> لسطر
+                    <bdi>Enter</bdi> للإرسال · <bdi>Shift + Enter</bdi> لسطر
                     جديد · {draft.length}/٢٠٠٠
                   </p>
                   <Button type="submit" disabled={!canSend}>
                     <Send aria-hidden="true" className="rtl:rotate-180" />
-                    إرسال في المعاينة
+                    {sending ? "جارٍ الإرسال…" : "إرسال"}
                   </Button>
                 </div>
                 {error && (
-                  <p role="alert" className="mt-3 text-xs text-destructive">
-                    {error}
-                  </p>
+                  <div className="mt-3 flex items-center gap-2">
+                    <p role="alert" className="text-xs text-destructive flex-1">
+                      {error}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (failedMessage) {
+                          setDraft(failedMessage.draft);
+                          setAttachment(failedMessage.attachment);
+                          setFailedMessage(null);
+                          setError("");
+                          setStatus("");
+                        }
+                      }}
+                    >
+                      إعادة المحاولة
+                    </Button>
+                  </div>
                 )}
                 {status && (
                   <p role="status" className="mt-3 text-xs text-primary">
@@ -497,10 +506,6 @@ export function ChatWorkspace({
           )}
         </div>
       </div>
-      <p className="border-t px-4 py-3 text-[11px] leading-7 text-muted-foreground">
-        لا تستخدم بيانات حقيقية. الرسائل مؤقتة وتُحذف بتحديث الصفحة أو مغادرة
-        المعاينة. لا توجد تنبيهات أو إيصالات قراءة فعلية.
-      </p>
     </section>
   );
 }

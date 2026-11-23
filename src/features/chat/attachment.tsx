@@ -9,15 +9,24 @@ const maxBytes = 15 * 1024 * 1024;
 const subscribeToHydration = () => () => {};
 const browserSnapshot = () => true;
 const serverSnapshot = () => false;
+export const chatAttachmentBucket = "chat-attachments";
+
+export type StoredChatFile = { key: string; name: string; type: string | null };
+
+export function chatAttachmentContentType(type: string) {
+  const format = type.split(";")[0];
+  return imageTypes.has(format) || audioTypes.has(format) ? format : "application/octet-stream";
+}
 
 export function attachmentError(file: File) {
   if (!file.size || file.size > maxBytes) return "اختار ملف حجمه أكبر من صفر وبحد أقصى 15 ميجابايت.";
 }
 
-export function ChatAttachment({ file }: { file: File }) {
+export function ChatAttachment({ file, stored }: { file?: File; stored?: StoredChatFile }) {
   const preview = useRef<HTMLImageElement | HTMLAudioElement>(null);
   const download = useRef<HTMLAnchorElement>(null);
   useEffect(() => {
+    if (!file) return;
     const url = URL.createObjectURL(file);
     const media = preview.current;
     const anchor = download.current;
@@ -25,13 +34,16 @@ export function ChatAttachment({ file }: { file: File }) {
     if (anchor) anchor.href = url;
     return () => URL.revokeObjectURL(url);
   }, [file]);
-  const format = file.type.split(";")[0];
+  const name = file?.name ?? stored?.name;
+  const format = chatAttachmentContentType(file?.type ?? stored?.type ?? "");
+  const url = stored ? `/api/chat-attachment?key=${encodeURIComponent(stored.key)}` : undefined;
+  const downloadUrl = stored && `${url}&download=${encodeURIComponent(stored.name)}`;
   return (
     <div className="my-2 grid max-w-full gap-2 rounded-lg border border-current/20 p-2">
-      {/* eslint-disable-next-line @next/next/no-img-element -- Local object URL for a chat attachment. */}
-      {imageTypes.has(format) && <img ref={(element) => { preview.current = element; }} alt={file.name} className="max-h-56 max-w-full rounded object-contain" />}
-      {audioTypes.has(format) && <audio ref={(element) => { preview.current = element; }} aria-label={file.name} controls preload="metadata" className="w-full min-w-0 max-w-64" />}
-      <a ref={download} download={file.name} className="inline-flex min-h-11 items-center break-all text-sm underline"><bdi>{file.name}</bdi></a>
+      {/* eslint-disable-next-line @next/next/no-img-element -- Private and local chat attachments. */}
+      {imageTypes.has(format) && <img ref={(element) => { preview.current = element; }} src={url} loading="lazy" alt={name} className="max-h-56 max-w-full rounded object-contain" />}
+      {audioTypes.has(format) && <audio ref={(element) => { preview.current = element; }} src={url} aria-label={name} controls preload={stored ? "none" : "metadata"} className="w-full min-w-0 max-w-64" />}
+      <a ref={download} href={downloadUrl} download={name} className="inline-flex min-h-11 items-center break-all text-sm underline"><bdi>{name}</bdi></a>
     </div>
   );
 }
