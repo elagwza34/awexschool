@@ -1,7 +1,7 @@
 ﻿"use server";
 
 import { redirect } from "next/navigation";
-import { getAccount, sessionClient, ownerClient } from "@/features/auth/supabase-server";
+import { getAccount, sessionClient } from "@/features/auth/supabase-server";
 
 export async function sendPortalMessage(path: string, threadId: string, form: FormData) {
   const account = await getAccount();
@@ -15,9 +15,9 @@ export async function sendPortalMessage(path: string, threadId: string, form: Fo
   redirect(`${path}?thread=${threadId}${error ? "&message=failed" : ""}`);
 }
 
-export async function createChatThread(path: string) {
+export async function createChatThread(path: string, formData: FormData) {
   const account = await getAccount();
-  const client = ownerClient();
+  const client = await sessionClient(true);
   if (!account || !client) redirect("/login");
   const match = /^\/(admin|teacher|student|parent)\/(admin-chat|chat)$/.exec(path);
   if (!match || !account.roles.some((role) => role === match[1] || (match[1] === "admin" && role === "owner"))) redirect("/account");

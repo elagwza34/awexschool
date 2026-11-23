@@ -1,6 +1,7 @@
 ﻿import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AuthSubmit } from "@/features/auth/form-controls";
+import { MessagesSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAccount, sessionClient } from "@/features/auth/supabase-server";
 import { sendPortalMessage, createChatThread } from "./live-chat-actions";
@@ -26,21 +27,27 @@ export async function LiveChat({ role, section, searchParams }: {
   return <main id="main-content" className="dashboard-width space-y-4 py-5">
     <h1 className="text-2xl font-bold">{section === "admin-chat" ? "شات الإدارة" : "المحادثات"}</h1>
     {error ? <p role="alert" className="soft-card p-5">تعذّر تحميل المحادثات.</p> : !selected ? (
-      <div className="soft-card p-5">
-        <p className="text-sm text-muted-foreground mb-3">لسه مفيش محادثات متاحة لحسابك.</p>
-        <form action={createChatThread.bind(null, path)} className="flex gap-2">
-          <Button type="submit">بدء محادثة جديدة</Button>
+      <section className="soft-card p-8 text-center">
+        <div className="flex size-16 items-center justify-center rounded-full bg-secondary mx-auto mb-4">
+          <MessagesSquare aria-hidden="true" className="size-8 text-primary" />
+        </div>
+        <h2 className="text-lg font-bold mb-2">ابدأ محادثة جديدة</h2>
+        <p className="text-sm text-muted-foreground mb-6">لسه مفيش محادثات متاحة لحسابك. اضغط الزر لإنشاء محادثة أولى.</p>
+        <form action={createChatThread.bind(null, path)} className="flex justify-center gap-2">
+          <Button type="submit">محادثة جديدة</Button>
         </form>
-      </div>
+      </section>
     ) : <div className="grid items-start gap-4 md:grid-cols-[16rem_1fr]">
-      <form action={createChatThread.bind(null, path)} className="soft-card p-3 flex gap-2">
-        <Button type="submit">محادثة جديدة</Button>
-      </form>
-      <nav aria-label="المحادثات" className="soft-card grid gap-1 p-3">
-        {threads?.map((item, index) => <Link key={item.id} aria-current={item.id === selected.id ? "page" : undefined}
-          className="flex min-h-11 items-center rounded-lg px-3 hover:bg-accent aria-[current=page]:bg-accent"
-          href={`${path}?thread=${item.id}`}>محادثة {index + 1}</Link>)}
-      </nav>
+      <section className="soft-card p-4 flex flex-col gap-2">
+        <form action={createChatThread.bind(null, path)} className="flex gap-2">
+          <Button type="submit" className="flex-1">محادثة جديدة</Button>
+        </form>
+        <nav aria-label="المحادثات" className="grid gap-1 p-3">
+          {threads?.map((item, index) => <Link key={item.id} aria-current={item.id === selected.id ? "page" : undefined}
+            className="flex min-h-11 items-center rounded-lg px-3 hover:bg-accent aria-[current=page]:bg-accent"
+            href={`${path}?thread=${item.id}`}>محادثة {index + 1}</Link>)}
+        </nav>
+      </section>
       <section className="soft-card grid gap-4 p-4">
         {(messages?.error || message) && <p role="alert" className="text-sm text-destructive">تعذّر تحميل الرسالة أو إرسالها.</p>}
         <ol className="grid gap-3">
