@@ -8,8 +8,7 @@ import { usePermissions } from "./permissions-context";
 import type { Permission } from "./permissions";
 import { attachmentError } from "@/features/chat/attachment";
 import { groupChatPermission, isGroupChatMember } from "@/features/chat/groups";
-import { previewStudentId } from "./chat-data";
-import { adminThreadsForRole } from "./admin-chat-data";
+import { previewStudentId, threadsForRole } from "./chat-data";
 import {
   studentProfileFixture,
   type StudentProfileDraft,
@@ -115,13 +114,8 @@ export function PortalPreviewProvider({ children }: { children: ReactNode }) {
         ok: false,
         error: "المستخدم غير نشط في المعاينة؛ الإرسال متوقف.",
       };
-    const adminThread = adminThreadsForRole(role).find(
-      (thread) => thread.id === threadId,
-    );
-    if (adminThread && !isEntityActive(adminThread.role, adminThread.userId))
-      return { ok: false, error: "المستلم غير نشط في المعاينة." };
     if (
-      ![...threadsForRole(role), ...adminThreadsForRole(role)].some(
+      !threadsForRole(role).some(
         (thread) => thread.id === threadId,
       )
     )
