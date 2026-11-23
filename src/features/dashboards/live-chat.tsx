@@ -1,8 +1,9 @@
 ﻿import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AuthSubmit } from "@/features/auth/form-controls";
+import { Button } from "@/components/ui/button";
 import { getAccount, sessionClient } from "@/features/auth/supabase-server";
-import { sendPortalMessage } from "./live-chat-actions";
+import { sendPortalMessage, createChatThread } from "./live-chat-actions";
 
 type Role = "admin" | "teacher" | "student" | "parent";
 
@@ -25,8 +26,16 @@ export async function LiveChat({ role, section, searchParams }: {
   return <main id="main-content" className="dashboard-width space-y-4 py-5">
     <h1 className="text-2xl font-bold">{section === "admin-chat" ? "شات الإدارة" : "المحادثات"}</h1>
     {error ? <p role="alert" className="soft-card p-5">تعذّر تحميل المحادثات.</p> : !selected ? (
-      <p className="soft-card p-5 text-muted-foreground">لسه مفيش محادثات متاحة لحسابك.</p>
+      <div className="soft-card p-5">
+        <p className="text-sm text-muted-foreground mb-3">لسه مفيش محادثات متاحة لحسابك.</p>
+        <form action={createChatThread.bind(null, path)} className="flex gap-2">
+          <Button type="submit">بدء محادثة جديدة</Button>
+        </form>
+      </div>
     ) : <div className="grid items-start gap-4 md:grid-cols-[16rem_1fr]">
+      <form action={createChatThread.bind(null, path)} className="soft-card p-3 flex gap-2">
+        <Button type="submit">محادثة جديدة</Button>
+      </form>
       <nav aria-label="المحادثات" className="soft-card grid gap-1 p-3">
         {threads?.map((item, index) => <Link key={item.id} aria-current={item.id === selected.id ? "page" : undefined}
           className="flex min-h-11 items-center rounded-lg px-3 hover:bg-accent aria-[current=page]:bg-accent"

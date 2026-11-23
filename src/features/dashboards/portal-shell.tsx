@@ -4,7 +4,7 @@ import { TeacherAvatar } from "@/components/teacher-avatar";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, type ReactNode } from "react";
-import { Bell, ShieldCheck } from "lucide-react";
+import { Bell, MessagesSquare, ShieldCheck } from "lucide-react";
 import { Badge, tones } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import {
@@ -114,6 +114,21 @@ export function PortalShell({
                   </div>
                 </DialogContent>
               </Dialog>
+              <Link
+                href={
+                  role === "admin"
+                    ? "/admin/chat"
+                    : role === "teacher"
+                      ? "/teacher/chat"
+                      : role === "student"
+                        ? "/student/chat"
+                        : "/parent/admin-chat"
+                }
+                className="inline-flex min-h-11 items-center justify-center p-1.5 text-muted-foreground hover:text-primary hover:bg-secondary rounded-full transition-colors"
+                aria-label="الدردشة"
+              >
+                <MessagesSquare aria-hidden="true" className="size-4 shrink-0" />
+              </Link>
               <div className="h-7 border-e" />
               <TeacherAvatar
                 teacherId={role === "teacher" ? "ahmed-hassan" : undefined}
