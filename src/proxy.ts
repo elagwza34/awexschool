@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 import { liveDashboardPaths } from "@/features/auth/dashboard-roles";
+import { readSupabaseEnvironment } from "@/lib/environment";
 import {
   createSiteSession,
   getOwnerCode,
@@ -170,13 +171,12 @@ async function settings(request: NextRequest) {
 async function continueRequest(request: NextRequest, verifySession = false) {
   const responseHeaders = { "Cache-Control": "private, no-store", "CDN-Cache-Control": "no-store" };
   let response = NextResponse.next({ request, headers: responseHeaders });
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if ((!verifySession && request.nextUrl.pathname !== "/account") || !url || !key) {
+  const config = readSupabaseEnvironment();
+  if ((!verifySession && request.nextUrl.pathname !== "/account") || !config) {
     return { response, authenticated: false };
   }
 
-  const client = createServerClient(url, key, {
+  const client = createServerClient(config.url, config.key, {
     cookies: {
       getAll: () => request.cookies.getAll(),
       setAll(items) {

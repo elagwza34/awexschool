@@ -5,11 +5,11 @@ import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { cache } from "react";
 import { defaultSocialLinks, type SocialLinksConfig } from "./social-links";
+import { readSupabaseEnvironment } from "@/lib/environment";
 
 export function authConfig() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  return url && key ? { url, key } : null;
+  const config = readSupabaseEnvironment();
+  return config ? { url: config.url, key: config.key } : null;
 }
 
 export async function sessionClient(writable = false) {
@@ -27,9 +27,9 @@ export async function sessionClient(writable = false) {
 }
 
 export function ownerClient() {
-  const config = authConfig();
-  const key = process.env.SUPABASE_SECRET_KEY;
-  return config && key ? createClient(config.url, key, {
+  const environment = readSupabaseEnvironment();
+  const key = environment?.secretKey;
+  return environment && key ? createClient(environment.url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   }) : null;
 }
