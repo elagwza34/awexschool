@@ -24,7 +24,7 @@ export default defineConfig({
       LIVESCHOOL_ENV: "test",
       NEXT_PUBLIC_LIVESCHOOL_ENV: "test",
       NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "local-test-publishable-key",
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "",
       SUPABASE_SECRET_KEY: "",
       SUPABASE_ACCESS_TOKEN: "",
       SUPABASE_DB_PASSWORD: "",

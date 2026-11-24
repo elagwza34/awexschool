@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 import { liveDashboardPaths } from "@/features/auth/dashboard-roles";
+import { routeAccessRedirect } from "@/features/auth/route-access";
 import { readSupabaseEnvironment } from "@/lib/environment";
 import {
   createSiteSession,
@@ -168,12 +169,12 @@ async function settings(request: NextRequest) {
     <a href="/admin">العودة للوحة الإدارة</a>`);
 }
 
-async function continueRequest(request: NextRequest, verifySession = false) {
+async function continueRequest(request: NextRequest, verifySession = false, loadRoles = false) {
   const responseHeaders = { "Cache-Control": "private, no-store", "CDN-Cache-Control": "no-store" };
   let response = NextResponse.next({ request, headers: responseHeaders });
   const config = readSupabaseEnvironment();
   if ((!verifySession && request.nextUrl.pathname !== "/account") || !config) {
-    return { response, authenticated: false };
+    return { response, authenticated: false, roles: [] as string[] };
   }
 
   const client = createServerClient(config.url, config.key, {
@@ -186,8 +187,21 @@ async function continueRequest(request: NextRequest, verifySession = false) {
       },
     },
   });
-  const { data } = await client.auth.getClaims();
-  return { response, authenticated: typeof data?.claims.sub === "string" };
+  const { data: { session } } = await client.auth.getSession();
+  if (!session) return { response, authenticated: false, roles: [] as string[] };
+  const { data: { user } } = await client.auth.getUser();
+  let roles: string[] = [];
+  if (user && loadRoles) {
+    const result = await client.from("account_roles").select("role_code").eq("user_id", user.id);
+    roles = result.error ? [] : result.data.map(({ role_code }) => role_code);
+  }
+  return { response, authenticated: Boolean(user), roles };
+}
+
+function redirectTo(request: NextRequest, destination: string) {
+  return NextResponse.redirect(new URL(destination, request.url), {
+    headers: { "Cache-Control": "private, no-store" },
+  });
 }
 
 export async function proxy(request: NextRequest) {
@@ -207,14 +221,20 @@ export async function proxy(request: NextRequest) {
       destination.searchParams.set("portal", pathname.split("/")[1]);
       return NextResponse.redirect(destination);
     }
-    if (["/account", "/account/callback", "/login", "/register", "/reset-password", "/teachers/apply", "/teachers/track", "/dashboards"].includes(pathname)) {
+    if (pathname === "/login" || pathname === "/register") {
+      const access = await continueRequest(request, true);
+      const destination = routeAccessRedirect(pathname, access);
+      return destination ? redirectTo(request, destination) : access.response;
+    }
+    if (["/account", "/account/callback", "/reset-password", "/teachers/apply", "/teachers/track", "/dashboards"].includes(pathname)) {
       return (await continueRequest(request)).response;
     }
 
-    // Portal routes enforce their own account and role checks.
-    const lock = await getRequestLock(pathname, !portalPath.test(pathname));
+    const lock = await getRequestLock(pathname);
     if (!lock || hasSiteSession(request.cookies.get(lockCookie(lock.scope))?.value, lock.key)) {
-      return (await continueRequest(request)).response;
+      const access = await continueRequest(request, portalPath.test(pathname), /^\/(?:admin|manager)(?:\/|$)/.test(pathname));
+      const destination = routeAccessRedirect(pathname, access);
+      return destination ? redirectTo(request, destination) : access.response;
     }
 
     // Account holders can use the catalog and teacher profiles while the landing page is locked.

@@ -59,9 +59,14 @@ test("signup activation offers email code entry and a separate resend form", asy
   await expect(page.getByRole("button", { name: "إعادة إرسال الكود" })).toBeVisible();
 });
 
+test("guest portal redirects do not wait for an unconfigured Supabase service", async ({ page }) => {
+  await page.goto("/student", { timeout: 5_000 });
+  await expect(page).toHaveURL(/\/login\?next=%2Fstudent$/);
+});
+
 test("guest users cannot open legacy portal previews or fictional courses", async ({ page }) => {
   await page.goto("/student/attendance");
-  await expect(page).toHaveURL("/login");
+  await expect(page).toHaveURL("/login?next=%2Fstudent%2Fattendance");
   const result = await page.goto("/courses/unpublished-verification-course");
   expect(result?.status()).toBe(404);
 });
