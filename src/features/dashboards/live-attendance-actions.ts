@@ -2,13 +2,16 @@
 
 import { redirect } from "next/navigation";
 import { getAccount, ownerClient } from "@/features/auth/supabase-server";
+import { isAttendanceStatus, isUuid } from "./attendance-data";
 
 export async function recordPortalAttendance(sessionId: string, studentId: string, form: FormData) {
   const account = await getAccount();
   const client = ownerClient();
   if (!client || !account?.roles.includes("teacher")) redirect("/account");
   const status = String(form.get("status") ?? "");
-  if (!["present", "absent", "late"].includes(status)) redirect("/teacher/attendance?message=failed");
+  if (!isUuid(sessionId) || !isUuid(studentId) || !isAttendanceStatus(status)) {
+    redirect("/teacher/attendance?message=failed");
+  }
   const { data: session } = await client.from("class_sessions").select("group_id")
     .eq("id", sessionId).eq("teacher_id", account.user.id)
     .lte("starts_at", new Date().toISOString()).neq("status", "cancelled").maybeSingle();
