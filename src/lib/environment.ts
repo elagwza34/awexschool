@@ -33,10 +33,6 @@ function isApprovedTestUrl(value: string) {
   }
 }
 
-function hasProductionKeyPrefix(value: string | undefined) {
-  return /^sb_(?:publishable|secret)_/.test(value?.trim() ?? "");
-}
-
 export function readSupabaseEnvironment(env: Environment = process.env): SupabaseEnvironment | null {
   const testSignaled = env.NODE_ENV === "test" ||
     env.LIVESCHOOL_ENV === "test" ||
@@ -66,8 +62,13 @@ export function readSupabaseEnvironment(env: Environment = process.env): Supabas
       throw new UnsafeTestEnvironmentError(`${name} is not allowed in the test environment.`);
     }
   }
-  if (hasProductionKeyPrefix(key) || hasProductionKeyPrefix(secretKey)) {
-    throw new UnsafeTestEnvironmentError("Production Supabase API keys are not allowed in the test environment.");
+  const allowedKey = env.NEXT_PUBLIC_LIVESCHOOL_TEST_ALLOWED_PUBLISHABLE_KEY?.trim();
+  const allowedSecretKey = env.LIVESCHOOL_TEST_ALLOWED_SECRET_KEY?.trim();
+  if (key && key.trim() !== allowedKey) {
+    throw new UnsafeTestEnvironmentError("Test Supabase API keys must be explicitly allowlisted as local keys.");
+  }
+  if (secretKey && secretKey !== allowedSecretKey) {
+    throw new UnsafeTestEnvironmentError("Test Supabase API keys must be explicitly allowlisted as local keys.");
   }
   if (secretKey && env.LIVESCHOOL_TEST_ALLOW_SERVICE_ROLE !== "1") {
     throw new UnsafeTestEnvironmentError("Set LIVESCHOOL_TEST_ALLOW_SERVICE_ROLE=1 to use a local service-role key in tests.");

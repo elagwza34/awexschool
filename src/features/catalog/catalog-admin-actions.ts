@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getAccount, ownerClient } from "@/features/auth/supabase-server";
 import { mutationOutcome } from "@/lib/mutation-result";
-import { readCoursePublication } from "./catalog-mutations";
+import { applyEnrollmentReview, readCoursePublication, readEnrollmentReview } from "./catalog-mutations";
 
 async function requireCatalogAdmin() {
   const account = await getAccount();
@@ -51,13 +51,8 @@ export async function archiveCourse(course: string, track: string) {
 
 export async function reviewEnrollment(course: string, requester: string, form: FormData) {
   const client = await requireCatalogAdmin();
-  const status = String(form.get("status") ?? "");
-  const uuid = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
-  if ((status !== "active" && status !== "declined") || !uuid.test(course) || !uuid.test(requester)) {
-    redirect("/admin/catalog?tab=enrollments&notice=invalid");
-  }
-  const result = await client.from("course_enrollments").update({ status })
-    .eq("course_id", course).eq("requester_id", requester).eq("status", "pending")
-    .select("course_id,requester_id").maybeSingle();
-  redirect(`/admin/catalog?tab=enrollments&notice=${mutationOutcome(result) === "saved" ? "reviewed" : "failed"}`);
+  const review = readEnrollmentReview(course, requester, form);
+  if (!review) redirect("/admin/catalog?tab=enrollments&notice=invalid");
+  const outcome = await applyEnrollmentReview(client, review);
+  redirect(`/admin/catalog?tab=enrollments&notice=${outcome === "saved" ? "reviewed" : "failed"}`);
 }

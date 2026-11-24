@@ -6,11 +6,12 @@
   "scripts": {
     "dev": "next dev --hostname 127.0.0.1",
     "build": "next build --webpack",
+    "build:test": "node scripts/build-test.mjs",
     "start": "next start --hostname 127.0.0.1",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/unit/*.test.mjs",
-    "test:qa:preview": "npm run lint && npm run typecheck && npm test && npm run build && playwright test --config=playwright.preview.config.ts",
+    "test:qa:preview": "npm run lint && npm run typecheck && npm test && playwright test --config=playwright.preview.config.ts",
     "test:qa:live": "playwright test --config=playwright.live.config.ts",
     "test:e2e": "playwright test"
   },

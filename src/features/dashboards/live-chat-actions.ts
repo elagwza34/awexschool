@@ -2,12 +2,13 @@
 
 import { getAccount, sessionClient } from "@/features/auth/supabase-server";
 import type { ChatRole } from "./chat-workspace";
-import { validateDirectChatMessage } from "./chat-safety";
+import { canInvokeLiveChatAction, validateDirectChatMessage } from "./chat-safety";
 
 export async function sendPortalMessage(
   role: ChatRole, administration: boolean, contact: string, draft: string,
   attachment: { key: string; name: string } | null,
 ) {
+  if (!canInvokeLiveChatAction()) return { ok: false };
   const [account, client] = await Promise.all([getAccount(), sessionClient(true)]);
   if (!account || !client) return { ok: false };
   if (!validateDirectChatMessage({

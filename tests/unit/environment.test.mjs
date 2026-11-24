@@ -14,6 +14,7 @@ function environment(overrides = {}) {
     LIVESCHOOL_ENV: "test",
     NEXT_PUBLIC_SUPABASE_URL: localUrl,
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: localKey,
+    NEXT_PUBLIC_LIVESCHOOL_TEST_ALLOWED_PUBLISHABLE_KEY: localKey,
     ...overrides,
   };
 }
@@ -87,9 +88,12 @@ test("rejects management and database credentials in test mode without exposing 
   for (const name of [
     "SUPABASE_ACCESS_TOKEN",
     "SUPABASE_DB_PASSWORD",
+    "SUPABASE_SERVICE_ROLE_KEY",
     "DATABASE_URL",
     "POSTGRES_URL",
     "POSTGRES_PASSWORD",
+    "POSTGRES_USER",
+    "PGPASSWORD",
   ]) {
     const value = `sensitive-${name.toLowerCase()}-value`;
     assert.throws(
@@ -100,7 +104,7 @@ test("rejects management and database credentials in test mode without exposing 
   }
 });
 
-test("rejects production-style Supabase API keys in test mode", () => {
+test("rejects unapproved production-style Supabase API keys in test mode", () => {
   const publishable = "sb_publishable_do-not-use-in-tests";
   assert.throws(
     () => readSupabaseEnvironment(environment({ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishable })),
@@ -117,17 +121,56 @@ test("rejects production-style Supabase API keys in test mode", () => {
   );
 });
 
-test("requires deliberate opt-in before accepting a local service-role credential", () => {
+test("rejects legacy production JWTs unless explicitly allowlisted as local keys", () => {
+  const legacyPublishable = "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiYW5vbiIsInJlZiI6InJlbW90ZS1wcm9qZWN0In0.signature";
+  const legacySecret = "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwicmVmIjoicmVtb3RlLXByb2plY3QifQ.signature";
   assert.throws(
-    () => readSupabaseEnvironment(environment({ SUPABASE_SECRET_KEY: "local-service-role-key" })),
+    () => readSupabaseEnvironment(environment({ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: legacyPublishable })),
+    (error) => error instanceof UnsafeTestEnvironmentError && !error.message.includes(legacyPublishable),
+  );
+  assert.throws(
+    () => readSupabaseEnvironment(environment({
+      SUPABASE_SECRET_KEY: legacySecret,
+      LIVESCHOOL_TEST_ALLOW_SERVICE_ROLE: "1",
+    })),
+    (error) => error instanceof UnsafeTestEnvironmentError && !error.message.includes(legacySecret),
+  );
+});
+
+test("accepts modern and legacy local keys only through the explicit local allowlist", () => {
+  for (const key of [
+    "sb_publishable_local-approved-key",
+    "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIn0.signature",
+  ]) {
+    assert.equal(readSupabaseEnvironment(environment({
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: key,
+      NEXT_PUBLIC_LIVESCHOOL_TEST_ALLOWED_PUBLISHABLE_KEY: key,
+    })).key, key);
+  }
+  const secret = "sb_secret_local-approved-key";
+  assert.equal(readSupabaseEnvironment(environment({
+    SUPABASE_SECRET_KEY: secret,
+    LIVESCHOOL_TEST_ALLOWED_SECRET_KEY: secret,
+    LIVESCHOOL_TEST_ALLOW_SERVICE_ROLE: "1",
+  })).secretKey, secret);
+});
+
+test("requires deliberate opt-in before accepting a local service-role credential", () => {
+  const secret = "local-service-role-key";
+  assert.throws(
+    () => readSupabaseEnvironment(environment({
+      SUPABASE_SECRET_KEY: secret,
+      LIVESCHOOL_TEST_ALLOWED_SECRET_KEY: secret,
+    })),
     (error) => error instanceof UnsafeTestEnvironmentError && /LIVESCHOOL_TEST_ALLOW_SERVICE_ROLE/.test(error.message),
   );
   assert.equal(
     readSupabaseEnvironment(environment({
-      SUPABASE_SECRET_KEY: "local-service-role-key",
+      SUPABASE_SECRET_KEY: secret,
+      LIVESCHOOL_TEST_ALLOWED_SECRET_KEY: secret,
       LIVESCHOOL_TEST_ALLOW_SERVICE_ROLE: "1",
     })).secretKey,
-    "local-service-role-key",
+    secret,
   );
 });
 

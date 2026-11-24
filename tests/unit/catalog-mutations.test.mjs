@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { readCoursePublication } from "../../src/features/catalog/catalog-mutations.ts";
+import {
+  applyEnrollmentReview,
+  readCoursePublication,
+  readEnrollmentReview,
+} from "../../src/features/catalog/catalog-mutations.ts";
 
 function form(values) {
   const result = new FormData();
@@ -57,4 +62,54 @@ test("course publication enforces existing content limits and tracks", () => {
   ]) {
     assert.equal(readCoursePublication(form({ ...valid, ...values })), null);
   }
+});
+
+test("enrollment review accepts only real identifiers and supported transitions", () => {
+  const course = "11111111-1111-4111-8111-111111111111";
+  const requester = "22222222-2222-4222-8222-222222222222";
+  assert.deepEqual(readEnrollmentReview(course, requester, form({ status: "active" })), {
+    course, requester, status: "active",
+  });
+  assert.equal(readEnrollmentReview("fixture-course", requester, form({ status: "active" })), null);
+  assert.equal(readEnrollmentReview(course, requester, form({ status: "pending" })), null);
+});
+
+test("enrollment activation delegates the atomic state check to the database", async () => {
+  const calls = [];
+  const client = {
+    async rpc(name, args) {
+      calls.push([name, args]);
+      return { data: true, error: null };
+    },
+  };
+  const review = {
+    course: "11111111-1111-4111-8111-111111111111",
+    requester: "22222222-2222-4222-8222-222222222222",
+    status: "active",
+  };
+  assert.equal(await applyEnrollmentReview(client, review), "saved");
+  assert.deepEqual(calls, [["review_course_enrollment", {
+    p_course: review.course,
+    p_requester: review.requester,
+    p_status: "active",
+  }]]);
+});
+
+test("enrollment review distinguishes rejected transitions from database failures", async () => {
+  const review = {
+    course: "11111111-1111-4111-8111-111111111111",
+    requester: "22222222-2222-4222-8222-222222222222",
+    status: "active",
+  };
+  assert.equal(await applyEnrollmentReview({ rpc: async () => ({ data: false, error: null }) }, review), "not_found");
+  assert.equal(await applyEnrollmentReview({ rpc: async () => ({ data: null, error: { message: "failed" } }) }, review), "failed");
+});
+
+test("the enrollment RPC locks course and enrollment state before activation", () => {
+  const sql = readFileSync(new URL("../../supabase/migrations/20261124000000_atomic_enrollment_review.sql", import.meta.url), "utf8");
+  assert.match(sql, /from public\.courses where id = p_course\s+for update/i);
+  assert.match(sql, /from public\.course_enrollments[\s\S]*?for update/i);
+  assert.match(sql, /enrollment\.status <> 'pending'/i);
+  assert.match(sql, /p_status = 'active'[\s\S]*?course_status (?:<>|=) 'published'/i);
+  assert.match(sql, /grant execute[\s\S]*?to service_role/i);
 });

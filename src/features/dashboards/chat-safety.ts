@@ -7,6 +7,10 @@ function isUuid(value: unknown): value is string {
   return typeof value === "string" && uuid.test(value);
 }
 
+export function canInvokeLiveChatAction() {
+  return false;
+}
+
 export function canWriteDirectChat({
   readOnly,
   accountId,

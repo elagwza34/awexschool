@@ -1,17 +1,27 @@
 import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { readSupabaseEnvironment } from "../../src/lib/environment";
 
-const localUrl = "http://127.0.0.1:54321";
-const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
-const secretKey = process.env.SUPABASE_SECRET_KEY ?? "";
-const enabled = process.env.LIVESCHOOL_LIVE_TESTS === "1" && process.env.LIVESCHOOL_ENV === "test" &&
-  Boolean(publishableKey && secretKey) && !/^sb_/.test(secretKey);
+let localEnvironment: ReturnType<typeof readSupabaseEnvironment> = null;
+let skipReason = "BLOCKED: set LIVESCHOOL_LIVE_TESTS=1 with explicitly allowlisted local-only Supabase keys.";
 
-test.skip(!enabled, "BLOCKED: set LIVESCHOOL_LIVE_TESTS=1 with local-only Supabase keys; production keys are never accepted.");
+if (process.env.LIVESCHOOL_LIVE_TESTS === "1") {
+  try {
+    localEnvironment = readSupabaseEnvironment();
+  } catch (error) {
+    skipReason = `BLOCKED: ${error instanceof Error ? error.message : "unsafe local test environment"}`;
+  }
+}
+
+const enabled = Boolean(localEnvironment?.key && localEnvironment.secretKey);
+test.skip(!enabled, skipReason);
 
 function localAdmin() {
-  return createClient(localUrl, secretKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  if (!localEnvironment?.secretKey) throw new Error("Local Supabase credentials are unavailable.");
+  return createClient(localEnvironment.url, localEnvironment.secretKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 }
 
 async function login(page: Page, email: string, password: string) {

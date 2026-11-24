@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 import { liveDashboardPaths } from "@/features/auth/dashboard-roles";
 import { routeAccessRedirect } from "@/features/auth/route-access";
+import { redirectWithCookies } from "@/features/auth/proxy-response";
 import { readSupabaseEnvironment } from "@/lib/environment";
 import {
   createSiteSession,
@@ -169,11 +170,11 @@ async function settings(request: NextRequest) {
     <a href="/admin">العودة للوحة الإدارة</a>`);
 }
 
-async function continueRequest(request: NextRequest, verifySession = false, loadRoles = false) {
+async function continueRequest(request: NextRequest, loadRoles = false) {
   const responseHeaders = { "Cache-Control": "private, no-store", "CDN-Cache-Control": "no-store" };
   let response = NextResponse.next({ request, headers: responseHeaders });
   const config = readSupabaseEnvironment();
-  if ((!verifySession && request.nextUrl.pathname !== "/account") || !config) {
+  if (!config) {
     return { response, authenticated: false, roles: [] as string[] };
   }
 
@@ -198,12 +199,6 @@ async function continueRequest(request: NextRequest, verifySession = false, load
   return { response, authenticated: Boolean(user), roles };
 }
 
-function redirectTo(request: NextRequest, destination: string) {
-  return NextResponse.redirect(new URL(destination, request.url), {
-    headers: { "Cache-Control": "private, no-store" },
-  });
-}
-
 export async function proxy(request: NextRequest) {
   let pathname: string;
   try {
@@ -214,17 +209,21 @@ export async function proxy(request: NextRequest) {
 
   try {
     if (pathname === lockSettingsPath) return await settings(request);
-    if (pathname === "/student/profile") return NextResponse.redirect(new URL("/account?portal=student", request.url));
+    if (pathname === "/student/profile") {
+      const access = await continueRequest(request);
+      return redirectWithCookies(request, "/account?portal=student", access.response);
+    }
     if (portalPath.test(pathname) && !liveDashboardPaths.has(pathname)) {
+      const access = await continueRequest(request);
       const destination = new URL("/account", request.url);
       destination.searchParams.set("message", "section-unavailable");
       destination.searchParams.set("portal", pathname.split("/")[1]);
-      return NextResponse.redirect(destination);
+      return redirectWithCookies(request, destination.toString(), access.response);
     }
     if (pathname === "/login" || pathname === "/register") {
-      const access = await continueRequest(request, true);
+      const access = await continueRequest(request);
       const destination = routeAccessRedirect(pathname, access);
-      return destination ? redirectTo(request, destination) : access.response;
+      return destination ? redirectWithCookies(request, destination, access.response) : access.response;
     }
     if (["/account", "/account/callback", "/reset-password", "/teachers/apply", "/teachers/track", "/dashboards"].includes(pathname)) {
       return (await continueRequest(request)).response;
@@ -232,14 +231,14 @@ export async function proxy(request: NextRequest) {
 
     const lock = await getRequestLock(pathname);
     if (!lock || hasSiteSession(request.cookies.get(lockCookie(lock.scope))?.value, lock.key)) {
-      const access = await continueRequest(request, portalPath.test(pathname), /^\/(?:admin|manager)(?:\/|$)/.test(pathname));
+      const access = await continueRequest(request, /^\/(?:admin|manager)(?:\/|$)/.test(pathname));
       const destination = routeAccessRedirect(pathname, access);
-      return destination ? redirectTo(request, destination) : access.response;
+      return destination ? redirectWithCookies(request, destination, access.response) : access.response;
     }
 
     // Account holders can use the catalog and teacher profiles while the landing page is locked.
     if (lock.scope === "*" && /^\/(?:courses|teachers)(?:\/|$)/.test(pathname) && !await getRequestLock(pathname, false)) {
-      const account = await continueRequest(request, true);
+      const account = await continueRequest(request);
       if (account.authenticated) return account.response;
     }
 

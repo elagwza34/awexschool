@@ -18,7 +18,8 @@ async function CoursesContent({ searchParams }: CoursesPageProps) {
   const [query, coursesResult, optionsResult] = await Promise.all([searchParams, listPublishedCourses(), listCatalogOptions()]);
   const options = optionsResult.state === "ready" ? optionsResult.data : { grades: [], subjects: [] };
   const courses = coursesResult.state === "ready" ? coursesResult.data : [];
-  const unconfiguredPreview = coursesResult.state === "error" && coursesResult.kind === "configuration";
+  const unavailable = coursesResult.state === "error" || optionsResult.state === "error";
+  const canShowEmpty = coursesResult.state === "ready" && optionsResult.state === "ready";
   const [q, grade, subject, track] = ["q", "grade", "subject", "track"].map((key) => {
     const value = query[key];
     return typeof value === "string" ? value : undefined;
@@ -30,9 +31,7 @@ async function CoursesContent({ searchParams }: CoursesPageProps) {
   return <div className="container-shell py-8">
     <Breadcrumbs items={[{ label: "المقررات" }]} />
     <PageIntro title="المقررات الدراسية" description="تصفّح المقررات المنشورة وسجّل طلب التحاقك." />
-    {(coursesResult.state === "error" && coursesResult.kind !== "configuration" ||
-      optionsResult.state === "error" && optionsResult.kind !== "configuration") &&
-      <p role="alert" className="soft-card mb-5 p-5 text-destructive">تعذّر تحميل بيانات المقررات حاليًا.</p>}
+    {unavailable && <p role="alert" className="soft-card mb-5 p-5 text-destructive">تعذّر تحميل بيانات المقررات حاليًا.</p>}
     <form className="soft-card mb-5 grid items-end gap-3 p-4 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr_auto]">
       <label className="grid min-w-0 gap-2 text-sm font-semibold">ابحث عن مقرر
         <input className="field" name="q" defaultValue={q} maxLength={100} type="search" />
@@ -62,6 +61,6 @@ async function CoursesContent({ searchParams }: CoursesPageProps) {
       {visible.map((course) => <li key={course.id}>
         <PublishedCourseCard course={course} grade={options.grades.find((item) => item.id === course.grade_id)?.name} />
       </li>)}
-    </ul> : (coursesResult.state === "ready" || unconfiguredPreview) && <p className="soft-card p-5 text-muted-foreground">{courses.length ? "مفيش مقررات تطابق البحث." : "لا توجد مقررات منشورة حاليًا."}</p>}
+    </ul> : canShowEmpty && <p className="soft-card p-5 text-muted-foreground">{courses.length ? "مفيش مقررات تطابق البحث." : "لا توجد مقررات منشورة حاليًا."}</p>}
   </div>;
 }
