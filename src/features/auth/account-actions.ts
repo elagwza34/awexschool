@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { authConfig, getAccount, ownerClient, sessionClient } from "./supabase-server";
 import { socialChannels, type SocialLinksConfig } from "./social-links";
+import { readRegistration, signupMetadata } from "./registration";
 import { mutationOutcome } from "@/lib/mutation-result";
 
 const managedRoles = new Set(["student", "parent", "teacher", "support", "manager", "admin"]);
@@ -27,18 +28,12 @@ export async function signUp(form: FormData) {
   const client = await sessionClient(true);
   const origin = process.env.LIVESCHOOL_WEB_ORIGIN;
   if (!client || !origin) redirect("/register?message=unavailable");
-  const displayName = text(form, "name");
-  const email = text(form, "email").toLowerCase();
-  const password = String(form.get("password") ?? "");
-  const kind = text(form, "kind");
-  const phone = text(form, "phone");
-  if (displayName.length < 2 || displayName.length > 100 || !validEmail(email) ||
-    !validPassword(password) || password !== String(form.get("confirmPassword") ?? "") ||
-    (phone && !/^\+?[0-9 ()-]{8,25}$/.test(phone)) || !["student", "parent"].includes(kind))
-    redirect("/register?message=invalid");
+  const registration = readRegistration(form);
+  if (!registration) redirect("/register?message=invalid");
+  const { email, password } = registration;
   const { error } = await client.auth.signUp({
     email, password,
-    options: { emailRedirectTo: new URL("/account/callback", origin).toString(), data: { display_name: displayName, account_kind: kind, ...(phone && { contact_phone: phone }) } },
+    options: { emailRedirectTo: new URL("/account/callback", origin).toString(), data: signupMetadata(registration) },
   });
   if (error) {
     console.warn("Signup request failed", { code: error.code, status: error.status });

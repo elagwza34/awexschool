@@ -34,7 +34,13 @@ test("the Arabic login and signup flows are usable on mobile", async ({ page }) 
   await expect(password).toHaveAttribute("type", "password");
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);
   await page.getByRole("link", { name: "تسجيل جديد" }).click();
-  await expect(page.getByLabel("نوع الحساب")).toBeVisible();
+  const kind = page.getByLabel("نوع الحساب");
+  await expect(kind).toBeVisible();
+  await expect(kind.locator("option")).toHaveText(["اختر نوع الحساب", "طالب", "ولي أمر"]);
+  await kind.selectOption("parent");
+  await expect(kind).toHaveValue("parent");
+  await kind.selectOption("student");
+  await expect(kind).toHaveValue("student");
   await expect(page.getByLabel("تأكيد كلمة المرور")).toHaveAttribute("autocomplete", "new-password");
   await expect(page.getByRole("link", { name: "انضم كمدرس" })).toHaveAttribute("href", "/teachers/apply");
 });
