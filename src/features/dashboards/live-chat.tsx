@@ -54,7 +54,7 @@ export async function LiveChat({ role, section, searchParams }: {
       <h1 className="text-2xl font-bold">
         {administration ? "شات الإدارة" : role === "teacher" ? "شات الطلاب" : "الشات"}
       </h1>
-      <ChatWorkspace role={role} administration={administration} data={data} path={path} accountId={accountId} />
+      <ChatWorkspace role={role} administration={administration} data={data} path={path} accountId={accountId} readOnly />
     </main>
   );
 }
