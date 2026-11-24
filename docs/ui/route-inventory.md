@@ -1,5 +1,7 @@
 # Public route inventory
 
+> Historical frontend-only route inventory. Live portal access is now filtered by `src/proxy.ts` and `src/features/auth/dashboard-roles.ts`; legacy previews are not public account routes. Public catalog/groups readers use Supabase when configured. See the root [README](../../README.md) for current route and authentication behavior.
+
 All routes are frontend views with local fixtures. Dynamic route params are validated; unknown IDs return 404. Known fixture details are pre-rendered where search parameters are unnecessary. Search/filter pages render using local data on the Next.js server and client; no backend API is implemented.
 
 | Route                         | Purpose                                            | Example / behavior                                                                     |
