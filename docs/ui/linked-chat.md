@@ -12,6 +12,6 @@ Group-chat workspace messages and attachments use browser-local `PortalPreviewPr
 
 ## Verification scope
 
-Phase 01 unit tests cover client write gating, fixture identifier rejection, message validation, authenticated attachment-path ownership, and the unconditional server-action denial. The separate live Playwright project includes an authenticated fixture-chat read-only check, but it is **BLOCKED / NOT RUN** without a disposable local Supabase instance. Historical broad-suite chat results and screenshots described earlier frontend-only behavior and are not current live-chat verification.
+Phase 01 unit tests cover client write gating, fixture identifier rejection, message validation, authenticated attachment-path ownership, the unconditional action gate, and fixture-thread selection containment. Source review separately verified that `sendPortalMessage` returns before account or database access; there is no direct Server Action invocation unit test. The separate live Playwright project includes an authenticated fixture-chat read-only check, but it is **BLOCKED / NOT RUN** without a disposable local Supabase instance. Historical broad-suite chat results and screenshots described earlier frontend-only behavior and are not current live-chat verification.
 
 See the root [README](../../README.md) for the scoped QA commands and local-only environment requirements.

@@ -15,7 +15,7 @@ Arabic-first Next.js education platform with public discovery pages, Supabase-ba
 
 ## Local setup
 
-Use Node.js 20.9 or newer compatible with the installed Next.js release; this remediation was verified with Node.js 24.19.0. Supabase requires a separately approved local runtime. Docker and local Supabase were unavailable in the Phase 01 verification environment, so database-backed checks were not executed.
+The installed Next.js release has a Node.js 20.9 runtime floor, but the current QA scripts and tests require Node.js 24.19 or newer because they execute TypeScript directly and use Node module hooks; this remediation was verified with Node.js 24.19.0. Supabase requires a separately approved local runtime. Docker and local Supabase were unavailable in the Phase 01 verification environment, so database-backed checks were not executed.
 
 ```powershell
 npm ci
@@ -60,18 +60,19 @@ $env:NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "<local-publishable-key>"
 $env:NEXT_PUBLIC_LIVESCHOOL_TEST_ALLOWED_PUBLISHABLE_KEY = "<same-local-publishable-key>"
 $env:SUPABASE_SECRET_KEY = "<local-secret-key>"
 $env:LIVESCHOOL_TEST_ALLOWED_SECRET_KEY = "<same-local-secret-key>"
+$env:LIVESCHOOL_TEST_ALLOW_SERVICE_ROLE = "1"
 npm run test:qa:live
 ```
 
-The live project rebuilds the application because the public Supabase key is compiled into browser bundles. It creates and removes synthetic local accounts to verify student/parent metadata and triggered roles, admin role denial/allow behavior, and read-only fixture chat. Without the explicit opt-in and exactly allowlisted local keys, its tests are skipped and must be reported as **BLOCKED / NOT RUN**, never passed. Remote endpoints and unapproved modern or legacy API keys are rejected before client initialization, including in the live admin harness.
+The live project rebuilds the application because the public Supabase key is compiled into browser bundles. It creates and removes synthetic local accounts to verify student/parent metadata and triggered roles, admin role denial/allow behavior, and read-only fixture chat. The `test:qa:live` wrapper fails before Playwright when explicit opt-in or exactly allowlisted local keys are missing, and it rejects reports with zero executed tests, any skipped mandatory test, flaky tests, or failures. A direct Playwright invocation may display skips, but that result is **BLOCKED / NOT RUN**, never passed. Remote endpoints and unapproved modern or legacy API keys are rejected before client initialization, including in the live admin harness.
 
 `npm run test:e2e` still selects the historical broad Playwright suite. Some legacy tests assert removed fixture/preview behavior and are not the Phase 01 acceptance gate; use the two scoped QA commands above.
 
 ## Production protection
 
-- Test execution requires `LIVESCHOOL_ENV=test` or the explicit public test marker and accepts only the exact approved local Supabase endpoint.
+- Test execution requires `LIVESCHOOL_ENV=test` or the explicit public test marker and accepts only the exact approved local Supabase endpoint. `LIVESCHOOL_LIVE_TESTS=1` also activates these guards and never bypasses the marker requirement.
 - Management tokens and database credentials are prohibited in test mode. Supabase API keys must exactly match the explicit local-key allowlist, regardless of whether they use modern `sb_*` or legacy JWT formatting.
-- A local service-role key additionally requires `LIVESCHOOL_TEST_ALLOW_SERVICE_ROLE=1`; the scoped live config opts in only for its local test server.
+- A local service-role key additionally requires `LIVESCHOOL_TEST_ALLOW_SERVICE_ROLE=1`; both the live test runner and the scoped local test server require that explicit opt-in.
 - Legitimate non-test environment configuration is preserved. Test guards do not silently rewrite production settings.
 - `.env.example` contains no hosted credentials. No production migration, deployment, RLS change, push, merge, or preview-route promotion is part of Phase 01.
 

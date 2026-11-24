@@ -12,7 +12,7 @@ registerHooks({
 
 const { copyResponseCookies, redirectWithCookies } = await import("../../src/features/auth/proxy-response.ts");
 
-test("authentication redirects retain cookies refreshed by Supabase", () => {
+test("redirect helper retains cookies supplied by an authentication response", () => {
   const refreshed = NextResponse.next();
   refreshed.cookies.set("sb-refreshed-token", "new-token", {
     httpOnly: true,
@@ -35,7 +35,7 @@ test("authentication redirects retain cookies refreshed by Supabase", () => {
   });
 });
 
-test("site-lock responses can retain refreshed authentication cookies", () => {
+test("cookie copy helper can supply authentication cookies to a site-lock response", () => {
   const refreshed = NextResponse.next();
   refreshed.cookies.set("sb-refreshed-token", "new-token");
   const gate = new NextResponse("locked", { status: 401 });

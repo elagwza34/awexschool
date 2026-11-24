@@ -20,7 +20,7 @@ test("all restricted portal previews remain unavailable", async ({ request }) =>
   }
 });
 
-test("retired owner, report and activity routes remain absent", async ({ request }) => {
+test("retired owner routes remain absent", async ({ request }) => {
   for (const path of ["/owner", "/owner/permissions", "/owner/settings"]) {
     expect((await request.get(path)).status(), path).toBe(404);
   }

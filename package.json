@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/unit/*.test.mjs",
     "test:qa:preview": "npm run lint && npm run typecheck && npm test && playwright test --config=playwright.preview.config.ts",
-    "test:qa:live": "playwright test --config=playwright.live.config.ts",
+    "test:qa:live": "node scripts/live-test.mjs",
     "test:e2e": "playwright test"
   },
   "dependencies": {
