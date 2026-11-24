@@ -9,8 +9,8 @@ import { readPublishedCourse } from "@/features/catalog/live-catalog";
 import { LiveTeacherPhoto } from "@/components/live-teacher-photo";
 
 export async function generateMetadata({ params }: { params: Promise<{ courseId: string }> }) {
-  const course = await readPublishedCourse((await params).courseId);
-  return { title: course?.title ?? "مقرر غير موجود" };
+  const result = await readPublishedCourse((await params).courseId);
+  return { title: result.state === "ready" && result.data ? result.data.title : "مقرر غير موجود" };
 }
 
 export default async function CoursePage({ params, searchParams }: {
@@ -18,9 +18,17 @@ export default async function CoursePage({ params, searchParams }: {
   searchParams: Promise<{ enrollment?: string }>;
 }) {
   const [{ courseId }, { enrollment }, account] = await Promise.all([params, searchParams, getAccount()]);
-  const course = await readPublishedCourse(courseId);
+  const courseResult = await readPublishedCourse(courseId);
+  if (courseResult.state === "error") {
+    if (courseResult.kind === "configuration") notFound();
+    return <div className="container-shell py-8"><p role="alert" className="soft-card p-5 text-destructive">تعذّر تحميل المقرر حاليًا.</p></div>;
+  }
+  const course = courseResult.data;
   if (!course) notFound();
-  const existing = account && (await getCourseEnrollments()).find((row) => row.course_id === course.id);
+  const enrollmentResult = account ? await getCourseEnrollments() : null;
+  const existing = enrollmentResult?.state === "ready"
+    ? enrollmentResult.data.find((row) => row.course_id === course.id)
+    : undefined;
   const allowed = account?.roles.some((role) => role === "parent" || role === "student");
   const teacher = course.teacher_profiles as unknown as { user_id: string; full_name: string; portrait_path: string | null } | null;
 
@@ -38,12 +46,14 @@ export default async function CoursePage({ params, searchParams }: {
         <h2 className="text-lg font-bold">الالتحاق بالمقرر</h2>
         {enrollment === "failed" && <p role="alert" className="text-sm text-destructive">تعذّر حفظ الطلب. جرّب مرة تانية.</p>}
         {enrollment === "invalid" && <p role="alert" className="text-sm text-destructive">راجع اسم الطالب وأعد الإرسال.</p>}
+        {enrollment === "unavailable" && <p role="alert" className="text-sm text-destructive">تعذّر التحقق من المقرر حاليًا.</p>}
+        {enrollmentResult?.state === "error" && <p role="alert" className="text-sm text-destructive">تعذّر التحقق من حالة الالتحاق حاليًا.</p>}
         {existing ? <>
           <p role="status" className="rounded-lg bg-accent p-3 text-sm">
             {existing.status === "active" ? "التحاقك بالمقرر مؤكد." : existing.status === "declined" ? "لم يُقبل طلب الالتحاق." : "طلب الالتحاق قيد المراجعة."}
           </p>
           {existing.status === "active" && <Button asChild className="w-full"><Link href={`/courses/${course.id}/lessons`}>افتح الدروس</Link></Button>}
-        </> : !account ? <Button asChild className="w-full">
+        </> : enrollmentResult?.state === "error" ? null : !account ? <Button asChild className="w-full">
           <Link href={`/login?next=${encodeURIComponent(`/courses/${course.id}`)}`}>سجّل دخولك للالتحاق</Link>
         </Button> : allowed ? <form action={enrollInCourse.bind(null, course.id)} className="grid gap-4">
           {account.roles.includes("parent") && <label className="grid gap-2 text-sm font-semibold">اسم الطالب
