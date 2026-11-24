@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { authConfig, getAccount, ownerClient, sessionClient } from "./supabase-server";
 import { socialChannels, type SocialLinksConfig } from "./social-links";
+import { mutationOutcome } from "@/lib/mutation-result";
 
 const managedRoles = new Set(["student", "parent", "teacher", "support", "manager", "admin"]);
 const text = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
@@ -145,8 +146,9 @@ export async function changeDemoVisibility(form: FormData) {
   const enabled = text(form, "enabled");
   if (!["true", "false"].includes(enabled) || (enabled === "false" && form.get("confirmed") !== "on"))
     redirect("/account?message=invalid");
-  const { error } = await admin.from("site_settings").update({ demo_enabled: enabled === "true" }).eq("id", true);
-  redirect(error ? "/account?message=save-failed" : "/account?message=saved");
+  const result = await admin.from("site_settings").update({ demo_enabled: enabled === "true" }).eq("id", true)
+    .select("id").maybeSingle();
+  redirect(mutationOutcome(result) === "saved" ? "/account?message=saved" : "/account?message=save-failed");
 }
 
 export async function saveSocialLinks(form: FormData) {
@@ -167,8 +169,11 @@ export async function saveSocialLinks(form: FormData) {
     }
     links[id] = url.href;
   }
-  const { error } = await admin.from("site_settings").update({ social_links: links }).eq("id", true);
-  redirect(error ? "/admin/settings?social=failed#social-links" : "/admin/settings?social=saved#social-links");
+  const result = await admin.from("site_settings").update({ social_links: links }).eq("id", true)
+    .select("id").maybeSingle();
+  redirect(mutationOutcome(result) === "saved"
+    ? "/admin/settings?social=saved#social-links"
+    : "/admin/settings?social=failed#social-links");
 }
 
 export async function removeUser(form: FormData) {

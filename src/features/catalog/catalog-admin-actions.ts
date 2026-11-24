@@ -4,6 +4,8 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getAccount, ownerClient } from "@/features/auth/supabase-server";
+import { mutationOutcome } from "@/lib/mutation-result";
+import { readCoursePublication } from "./catalog-mutations";
 
 async function requireCatalogAdmin() {
   const account = await getAccount();
@@ -14,18 +16,24 @@ async function requireCatalogAdmin() {
 
 export async function publishCourse(form: FormData) {
   const client = await requireCatalogAdmin();
-  const title = String(form.get("title") ?? "").trim();
-  const description = String(form.get("description") ?? "").trim();
-  const track = String(form.get("track") ?? "");
-  if (title.length < 3 || title.length > 160 || description.length > 3000 || !["arabic", "languages"].includes(track)) {
-    redirect("/admin/catalog?notice=publish-failed");
+  const publication = readCoursePublication(form);
+  if (!publication) redirect("/admin/catalog?notice=publish-failed");
+  const { title, description, track, grade, subject } = publication;
+  const [gradeRow, subjectRow] = await Promise.all([
+    client.from("grades").select("id").eq("id", grade).maybeSingle(),
+    client.from("subjects").select("id").eq("id", subject).maybeSingle(),
+  ]);
+  if (gradeRow.error || subjectRow.error || !gradeRow.data || !subjectRow.data) {
+    redirect(`/admin/catalog?track=${track}&notice=publish-failed`);
   }
   const slug = randomUUID();
-  const { error } = await client.from("courses").insert({
+  const result = await client.from("courses").insert({
     slug, title, description, track, status: "published",
-    grade_id: String(form.get("grade") ?? ""), subject_id: String(form.get("subject") ?? ""),
-  });
-  redirect(error ? `/admin/catalog?track=${track}&notice=publish-failed` : `/admin/catalog?track=${track}&notice=published&published=${slug}`);
+    grade_id: grade, subject_id: subject,
+  }).select("id").single();
+  redirect(mutationOutcome(result) === "saved"
+    ? `/admin/catalog?track=${track}&notice=published&published=${slug}`
+    : `/admin/catalog?track=${track}&notice=publish-failed`);
 }
 
 export async function archiveCourse(course: string, track: string) {
@@ -44,8 +52,12 @@ export async function archiveCourse(course: string, track: string) {
 export async function reviewEnrollment(course: string, requester: string, form: FormData) {
   const client = await requireCatalogAdmin();
   const status = String(form.get("status") ?? "");
-  if (status !== "active" && status !== "declined") redirect("/admin/catalog?tab=enrollments&notice=invalid");
-  const { error } = await client.from("course_enrollments").update({ status })
-    .eq("course_id", course).eq("requester_id", requester).eq("status", "pending");
-  redirect(`/admin/catalog?tab=enrollments&notice=${error ? "failed" : "reviewed"}`);
+  const uuid = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
+  if ((status !== "active" && status !== "declined") || !uuid.test(course) || !uuid.test(requester)) {
+    redirect("/admin/catalog?tab=enrollments&notice=invalid");
+  }
+  const result = await client.from("course_enrollments").update({ status })
+    .eq("course_id", course).eq("requester_id", requester).eq("status", "pending")
+    .select("course_id,requester_id").maybeSingle();
+  redirect(`/admin/catalog?tab=enrollments&notice=${mutationOutcome(result) === "saved" ? "reviewed" : "failed"}`);
 }

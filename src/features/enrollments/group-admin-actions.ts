@@ -37,6 +37,6 @@ export async function saveLearningGroup(groupId: string | null, _previous: strin
     p_capacity: capacity, p_fee_minor: Math.round(Number(fee) * 100), p_weekday: weekday,
     p_time: time, p_active: form.get("active") === "on", p_students: students,
   });
-  if (error) return errors[error.message] ?? "تعذّر حفظ المجموعة. حاول مرة تانية.";
+  if (error || !data) return errors[error?.message ?? ""] ?? "تعذّر حفظ المجموعة. حاول مرة تانية.";
   redirect(`/admin/group-requests?saved=${data}`);
 }
