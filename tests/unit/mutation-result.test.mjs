@@ -8,8 +8,9 @@ test("a mutation with an error cannot report success even when data is present",
 });
 
 test("a successful query with no returned row is not a successful mutation", () => {
-  assert.equal(mutationOutcome({ data: null, error: null }), "not_found");
-  assert.equal(mutationOutcome({ data: [], error: null }), "not_found");
+  for (const data of [null, undefined, [], false, 0, ""]) {
+    assert.equal(mutationOutcome({ data, error: null }), "not_found");
+  }
 });
 
 test("a returned object or nonempty row confirms a successful mutation", () => {

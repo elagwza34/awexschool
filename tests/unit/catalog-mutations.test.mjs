@@ -110,6 +110,6 @@ test("the enrollment RPC locks course and enrollment state before activation", (
   assert.match(sql, /from public\.courses where id = p_course\s+for update/i);
   assert.match(sql, /from public\.course_enrollments[\s\S]*?for update/i);
   assert.match(sql, /enrollment\.status <> 'pending'/i);
-  assert.match(sql, /p_status = 'active'[\s\S]*?course_status (?:<>|=) 'published'/i);
+  assert.match(sql, /p_status = 'active'[\s\S]*?course_status <> 'published'/i);
   assert.match(sql, /grant execute[\s\S]*?to service_role/i);
 });

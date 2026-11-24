@@ -20,10 +20,11 @@ async function CoursesContent({ searchParams }: CoursesPageProps) {
   const courses = coursesResult.state === "ready" ? coursesResult.data : [];
   const unavailable = coursesResult.state === "error" || optionsResult.state === "error";
   const canShowEmpty = coursesResult.state === "ready" && optionsResult.state === "ready";
-  const [q, grade, subject, track] = ["q", "grade", "subject", "track"].map((key) => {
+  const [q, grade, subject, track, enrollment] = ["q", "grade", "subject", "track", "enrollment"].map((key) => {
     const value = query[key];
     return typeof value === "string" ? value : undefined;
   });
+  const enrollmentUnavailable = enrollment === "unavailable";
   const needle = (q ?? "").trim().toLocaleLowerCase("ar");
   const visible = courses.filter((course) => (!grade || course.grade_id === grade) &&
     (!subject || course.subject_id === subject) && (!track || course.track === track) &&
@@ -31,7 +32,10 @@ async function CoursesContent({ searchParams }: CoursesPageProps) {
   return <div className="container-shell py-8">
     <Breadcrumbs items={[{ label: "المقررات" }]} />
     <PageIntro title="المقررات الدراسية" description="تصفّح المقررات المنشورة وسجّل طلب التحاقك." />
-    {unavailable && <p role="alert" className="soft-card mb-5 p-5 text-destructive">تعذّر تحميل بيانات المقررات حاليًا.</p>}
+    {(unavailable || enrollmentUnavailable) && <div role="alert" className="soft-card mb-5 grid gap-2 p-5 text-destructive">
+      {enrollmentUnavailable && <p>تعذّر إرسال طلب الالتحاق حاليًا. حاول مرة أخرى.</p>}
+      {unavailable && <p>تعذّر تحميل بيانات المقررات حاليًا.</p>}
+    </div>}
     <form className="soft-card mb-5 grid items-end gap-3 p-4 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr_auto]">
       <label className="grid min-w-0 gap-2 text-sm font-semibold">ابحث عن مقرر
         <input className="field" name="q" defaultValue={q} maxLength={100} type="search" />

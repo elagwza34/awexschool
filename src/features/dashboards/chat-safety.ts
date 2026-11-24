@@ -11,6 +11,21 @@ export function canInvokeLiveChatAction() {
   return false;
 }
 
+export function selectFixtureChat<
+  T extends { id: string },
+  M extends { threadId: string },
+>(
+  contacts: T[],
+  messages: M[],
+  requestedId?: string,
+) {
+  const selected = contacts.find(({ id }) => id === requestedId) ?? contacts[0];
+  return {
+    selectedId: selected?.id ?? null,
+    messages: selected ? messages.filter(({ threadId }) => threadId === selected.id) : [],
+  };
+}
+
 export function canWriteDirectChat({
   readOnly,
   accountId,

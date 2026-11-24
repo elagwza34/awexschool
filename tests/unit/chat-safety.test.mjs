@@ -3,12 +3,48 @@ import test from "node:test";
 
 import {
   canWriteDirectChat,
+  selectFixtureChat,
   validateDirectChatMessage,
 } from "../../src/features/dashboards/chat-safety.ts";
 
 const accountId = "11111111-1111-4111-8111-111111111111";
 const contactId = "22222222-2222-4222-8222-222222222222";
 const attachmentKey = `${accountId}/33333333-3333-4333-8333-333333333333`;
+
+const contacts = [{ id: "visible-one" }, { id: "visible-two" }];
+const messages = [
+  { threadId: "visible-one", id: "message-one" },
+  { threadId: "visible-two", id: "message-two" },
+  { threadId: "hidden-thread", id: "message-hidden" },
+];
+
+test("fixture chat never exposes messages for an unknown requested thread", () => {
+  assert.deepEqual(selectFixtureChat(contacts, messages, "hidden-thread"), {
+    selectedId: "visible-one",
+    messages: [{ threadId: "visible-one", id: "message-one" }],
+  });
+});
+
+test("fixture chat returns only messages for a valid requested thread", () => {
+  assert.deepEqual(selectFixtureChat(contacts, messages, "visible-two"), {
+    selectedId: "visible-two",
+    messages: [{ threadId: "visible-two", id: "message-two" }],
+  });
+});
+
+test("fixture chat defaults to the first visible thread", () => {
+  assert.deepEqual(selectFixtureChat(contacts, messages), {
+    selectedId: "visible-one",
+    messages: [{ threadId: "visible-one", id: "message-one" }],
+  });
+});
+
+test("fixture chat exposes no thread when the role has no visible contacts", () => {
+  assert.deepEqual(selectFixtureChat([], messages, "hidden-thread"), {
+    selectedId: null,
+    messages: [],
+  });
+});
 
 test("read-only direct chat cannot initiate a write", () => {
   assert.equal(canWriteDirectChat({

@@ -36,7 +36,8 @@ function isApprovedTestUrl(value: string) {
 export function readSupabaseEnvironment(env: Environment = process.env): SupabaseEnvironment | null {
   const testSignaled = env.NODE_ENV === "test" ||
     env.LIVESCHOOL_ENV === "test" ||
-    env.NEXT_PUBLIC_LIVESCHOOL_ENV === "test";
+    env.NEXT_PUBLIC_LIVESCHOOL_ENV === "test" ||
+    env.LIVESCHOOL_LIVE_TESTS === "1";
   const url = env.NEXT_PUBLIC_SUPABASE_URL;
   const key = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   const secretKey = env.SUPABASE_SECRET_KEY?.trim() ? env.SUPABASE_SECRET_KEY : undefined;

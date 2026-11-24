@@ -46,6 +46,19 @@ test("requires an explicit marker when Node is running tests", () => {
   );
 });
 
+test("live-test opt-in alone cannot return remote Supabase configuration", () => {
+  assert.throws(
+    () => readSupabaseEnvironment({
+      NODE_ENV: "production",
+      LIVESCHOOL_LIVE_TESTS: "1",
+      NEXT_PUBLIC_SUPABASE_URL: "https://production.example.supabase.co",
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "remote-publishable-key",
+      SUPABASE_SECRET_KEY: "remote-secret-key",
+    }),
+    (error) => error instanceof UnsafeTestEnvironmentError && !/remote-(?:publishable|secret)-key/.test(error.message),
+  );
+});
+
 test("rejects a non-test marker during test execution", () => {
   assert.throws(
     () => readSupabaseEnvironment(environment({ LIVESCHOOL_ENV: "development" })),

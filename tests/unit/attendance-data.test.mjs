@@ -105,7 +105,7 @@ test("teacher attendance uses real scoped sessions, group members, and recorded 
   assert.deepEqual(client.calls[2].filters, [["eq", "session_id", sessionId]]);
 });
 
-test("teacher attendance falls back to the latest real session when a requested session is absent", async () => {
+test("teacher attendance never substitutes another session for an unavailable requested session", async () => {
   const client = attendanceClient();
   const result = await loadAttendanceData(client, {
     role: "teacher",
@@ -113,7 +113,8 @@ test("teacher attendance falls back to the latest real session when a requested 
     sessionId: "77777777-7777-4777-8777-777777777777",
     now,
   });
-  assert.equal(result.selected.id, otherSessionId);
+  assert.deepEqual(result, { state: "error" });
+  assert.deepEqual(client.calls.map(({ table }) => table), ["class_sessions"]);
 });
 
 test("teacher attendance reports an empty state only when no sessions exist", async () => {

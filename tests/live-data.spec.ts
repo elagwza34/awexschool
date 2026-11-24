@@ -15,3 +15,8 @@ test("unconfigured course detail remains unavailable instead of showing fixture 
   expect(response.status()).toBe(404);
   expect(await response.text()).not.toContain("أصدقاء الأرقام");
 });
+
+test("failed enrollment submissions return visible feedback on the catalog", async ({ page }) => {
+  await page.goto("/courses?enrollment=unavailable");
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("تعذّر إرسال طلب الالتحاق حاليًا.");
+});

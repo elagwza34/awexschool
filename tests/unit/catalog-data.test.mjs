@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createClient } from "@supabase/supabase-js";
 import {
   loadCatalogOptions,
   loadCourseEnrollments,
@@ -27,6 +28,20 @@ function clientWith(results) {
       return builder;
     },
   };
+}
+
+function sdkClient(fetch) {
+  return createClient("http://127.0.0.1:54321", "local-test-key", {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch },
+  });
+}
+
+function jsonResponse(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 const empty = { data: [], error: null };
@@ -64,14 +79,46 @@ test("course lookup validates identifiers before querying", async () => {
   assert.equal(client.calls.length, 0);
 });
 
-test("course lookup preserves real rows and reports query failures", async () => {
+test("course lookup preserves one real row returned by the installed SDK", async () => {
   const course = { id: "11111111-1111-4111-8111-111111111111", title: "Real course" };
-  assert.deepEqual(await loadPublishedCourse(clientWith({
-    courses: { data: course, error: null },
-  }), course.id), { state: "ready", data: course });
-  assert.deepEqual(await loadPublishedCourse(clientWith({
-    courses: { data: null, error: { code: "PGRST116" } },
-  }), "missing-course"), { state: "error", kind: "database" });
+  const requests = [];
+  const client = sdkClient(async (request) => {
+    requests.push(typeof request === "string" ? request : request.url);
+    return jsonResponse([course]);
+  });
+  assert.deepEqual(await loadPublishedCourse(client, "math-prep-1"), { state: "ready", data: course });
+  assert.match(requests[0], /slug=eq\.math-prep-1/);
+  assert.match(requests[0], /status=eq\.published/);
+});
+
+test("course lookup treats the SDK's successful zero-row maybeSingle result as missing", async () => {
+  const client = sdkClient(async () => jsonResponse([]));
+  assert.deepEqual(await loadPublishedCourse(client, "math-prep-1"), { state: "ready", data: null });
+});
+
+test("course lookup reports the SDK's PGRST116 multiple-row response as a database error", async () => {
+  const client = sdkClient(async () => jsonResponse({
+    code: "PGRST116",
+    message: "JSON object requested, multiple (or no) rows returned",
+    details: "The result contains 2 rows",
+    hint: null,
+  }, 406));
+  assert.deepEqual(await loadPublishedCourse(client, "math-prep-1"), { state: "error", kind: "database" });
+});
+
+test("course lookup reports an SDK permission response as a permission error", async () => {
+  const client = sdkClient(async () => jsonResponse({
+    code: "42501",
+    message: "permission denied for table courses",
+    details: null,
+    hint: null,
+  }, 403));
+  assert.deepEqual(await loadPublishedCourse(client, "math-prep-1"), { state: "error", kind: "permission" });
+});
+
+test("course lookup reports an SDK fetch failure as a network error", async () => {
+  const client = sdkClient(async () => { throw new TypeError("fetch failed"); });
+  assert.deepEqual(await loadPublishedCourse(client, "math-prep-1"), { state: "error", kind: "network" });
 });
 
 test("course enrollments never convert missing configuration or query errors into empty lists", async () => {

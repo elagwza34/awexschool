@@ -24,12 +24,12 @@ function localAdmin() {
   });
 }
 
-async function login(page: Page, email: string, password: string) {
+async function login(page: Page, email: string, password: string, destination: "/student" | "/admin") {
   await page.goto("/login");
   await page.getByLabel("البريد الإلكتروني").fill(email);
   await page.getByLabel("كلمة المرور", { exact: true }).fill(password);
   await page.getByRole("button", { name: "تسجيل الدخول" }).click();
-  await expect(page).toHaveURL(/\/account(?:[?#]|$)/);
+  await expect(page).toHaveURL(new RegExp(`${destination}(?:[?#]|$)`));
 }
 
 for (const kind of ["student", "parent"] as const) {
@@ -86,7 +86,7 @@ test("local role gates protect admin and fixture chat remains read-only", async 
     expect(assigned.error).toBeNull();
     expect(assigned.data).toBe(true);
 
-    await login(page, student.data.user!.email!, studentPassword);
+    await login(page, student.data.user!.email!, studentPassword, "/student");
     await page.goto("/admin");
     await expect(page).toHaveURL(/\/\?message=denied$/);
 
@@ -103,7 +103,7 @@ test("local role gates protect admin and fixture chat remains read-only", async 
     const adminContext = await browser.newContext({ baseURL });
     try {
       const adminPage = await adminContext.newPage();
-      await login(adminPage, administrator!.data.user!.email!, adminPassword);
+      await login(adminPage, administrator!.data.user!.email!, adminPassword, "/admin");
       await adminPage.goto("/admin");
       await expect(adminPage).toHaveURL(/\/admin$/);
     } finally {

@@ -65,7 +65,8 @@ export async function loadAttendanceData(client: SupabaseClient, {
       .order("starts_at", { ascending: false }).limit(50);
     if (error) return { state: "error" };
     const sessions = (data ?? []) as AttendanceSession[];
-    const selected = sessions.find(({ id }) => id === sessionId) ?? sessions[0];
+    const selected = sessionId ? sessions.find(({ id }) => id === sessionId) : sessions[0];
+    if (sessionId && !selected) return { state: "error" };
     if (!selected) return { state: "empty" };
     const [memberships, attendance] = await Promise.all([
       client.from("group_members").select("student_id,profiles(display_name)").eq("group_id", selected.group_id),

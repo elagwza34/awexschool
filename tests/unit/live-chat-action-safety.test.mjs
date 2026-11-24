@@ -6,7 +6,7 @@ import {
   validateDirectChatMessage,
 } from "../../src/features/dashboards/chat-safety.ts";
 
-test("direct server-action invocation stays unavailable until live chat is integrated", () => {
+test("direct server-action gate stays unavailable until live chat is integrated", () => {
   const validLiveMessage = validateDirectChatMessage({
     role: "student",
     administration: false,
