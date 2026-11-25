@@ -1,6 +1,6 @@
 ﻿import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getAccount, ownerClient } from "@/features/auth/supabase-server";
+import { getAccount, sessionClient } from "@/features/auth/supabase-server";
 import { getCourseEnrollments } from "@/features/catalog/enrollment-actions";
 import { readPublishedCourse } from "@/features/catalog/live-catalog";
 
@@ -20,7 +20,9 @@ export default async function CourseLessons({ params }: { params: Promise<{ cour
   const active = enrollmentResult?.state === "ready" &&
     enrollmentResult.data.some((row) => row.course_id === course.id && row.status === "active");
   if (!active) redirect(`/courses/${course.id}`);
-  const { data, error } = await ownerClient()!.from("course_units")
+  const client = await sessionClient();
+  if (!client) return <div className="container-shell py-8"><p role="alert" className="soft-card p-5 text-destructive">تعذّر تحميل الدروس حاليًا.</p></div>;
+  const { data, error } = await client.from("course_units")
     .select("id,title,position,lessons(id,title,body,position)").eq("course_id", course.id).order("position");
   return <div className="container-shell grid gap-5 py-8">
     <Link href={`/courses/${courseId}`} className="inline-flex min-h-11 items-center text-primary underline">الرجوع للمقرر</Link>

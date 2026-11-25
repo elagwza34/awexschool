@@ -55,7 +55,7 @@ export const isDemoEnabled = cache(async function () {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }) },
   });
-  const { data, error } = await client.from("site_settings").select("demo_enabled").eq("id", true).single();
+  const { data, error } = await client.from("site_settings").select("demo_enabled").single();
   return !error && data?.demo_enabled === true;
 });
 
@@ -66,6 +66,6 @@ export const getSocialLinks = cache(async function (): Promise<SocialLinksConfig
     auth: { persistSession: false, autoRefreshToken: false },
     global: { fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }) },
   });
-  const { data } = await client.from("site_settings").select("social_links").eq("id", true).maybeSingle();
+  const { data } = await client.from("site_settings").select("social_links").maybeSingle();
   return { ...defaultSocialLinks, ...data?.social_links };
 });

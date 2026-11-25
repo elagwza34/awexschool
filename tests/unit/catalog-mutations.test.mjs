@@ -88,7 +88,7 @@ test("enrollment activation delegates the atomic state check to the database", a
     status: "active",
   };
   assert.equal(await applyEnrollmentReview(client, review), "saved");
-  assert.deepEqual(calls, [["review_course_enrollment", {
+  assert.deepEqual(calls, [["review_course_enrollment_as_admin", {
     p_course: review.course,
     p_requester: review.requester,
     p_status: "active",
@@ -105,11 +105,14 @@ test("enrollment review distinguishes rejected transitions from database failure
   assert.equal(await applyEnrollmentReview({ rpc: async () => ({ data: null, error: { message: "failed" } }) }, review), "failed");
 });
 
-test("the enrollment RPC locks course and enrollment state before activation", () => {
-  const sql = readFileSync(new URL("../../supabase/migrations/20261124000000_atomic_enrollment_review.sql", import.meta.url), "utf8");
-  assert.match(sql, /from public\.courses where id = p_course\s+for update/i);
+test("the enrollment RPC locks authorized state before activation", () => {
+  const sql = readFileSync(new URL("../../01_FULL_DATABASE_MIGRATION.sql", import.meta.url), "utf8");
+  assert.match(sql, /create or replace function public\.review_course_enrollment_as_admin/i);
+  assert.match(sql, /actor_id uuid := \(select auth\.uid\(\)\)/i);
+  assert.match(sql, /from public\.courses(?:\s+c)?\s+where\s+(?:c\.)?id = p_course\s+for update/i);
   assert.match(sql, /from public\.course_enrollments[\s\S]*?for update/i);
   assert.match(sql, /enrollment\.status <> 'pending'/i);
   assert.match(sql, /p_status = 'active'[\s\S]*?course_status <> 'published'/i);
-  assert.match(sql, /grant execute[\s\S]*?to service_role/i);
+  assert.match(sql, /grant execute on function public\.review_course_enrollment_as_admin[\s\S]*?to authenticated/i);
+  assert.doesNotMatch(sql, /grant execute on function public\.review_course_enrollment_as_admin\([^;]*to service_role/i);
 });

@@ -7,13 +7,22 @@ export const cairoDate = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Afr
 export async function assignmentScope(client: NonNullable<ReturnType<typeof ownerClient>>, role: AssignmentRole, userId: string) {
   if (role === "admin") return { ids: null, students: null, error: false };
   if (role === "teacher") {
-    const result = await client.from("courses").select("id").eq("teacher_id", userId).eq("status", "published");
-    return { ids: result.data?.map(({ id }) => id) ?? [], students: null, error: !!result.error };
+    const [owned, groups] = await Promise.all([
+      client.from("courses").select("id").eq("teacher_id", userId).eq("status", "published"),
+      client.from("learning_groups").select("course_id,courses!inner(status)")
+        .eq("teacher_id", userId).eq("active", true).eq("courses.status", "published"),
+    ]);
+    const ids = [...new Set([
+      ...(owned.data?.map(({ id }) => id) ?? []),
+      ...(groups.data?.map(({ course_id }) => course_id) ?? []),
+    ])];
+    return { ids, students: null, error: !!(owned.error || groups.error) };
   }
   const guardians = role === "parent" ? await client.from("guardian_links").select("student_id").eq("guardian_id", userId) : null;
   const students = role === "student" ? [userId] : guardians?.data?.map(({ student_id }) => student_id) ?? [];
-  const result = students.length ? await client.from("course_enrollments")
-    .select("course_id,courses!inner(status)").in("requester_id", students)
+  const requesters = role === "parent" ? [userId, ...students] : students;
+  const result = requesters.length ? await client.from("course_enrollments")
+    .select("course_id,courses!inner(status)").in("requester_id", requesters)
     .eq("status", "active").eq("courses.status", "published") : null;
   return { ids: [...new Set(result?.data?.map(({ course_id }) => course_id) ?? [])], students, error: !!(result?.error || guardians?.error) };
 }

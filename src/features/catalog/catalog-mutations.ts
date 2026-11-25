@@ -25,7 +25,7 @@ export async function applyEnrollmentReview(
   client: SupabaseClient,
   review: NonNullable<ReturnType<typeof readEnrollmentReview>>,
 ): Promise<MutationOutcome> {
-  const { data, error } = await client.rpc("review_course_enrollment", {
+  const { data, error } = await client.rpc("review_course_enrollment_as_admin", {
     p_course: review.course,
     p_requester: review.requester,
     p_status: review.status,

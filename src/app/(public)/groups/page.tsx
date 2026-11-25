@@ -1,13 +1,13 @@
 ﻿import Link from "next/link";
 import { PageIntro } from "@/components/shared";
-import { ownerClient } from "@/features/auth/supabase-server";
+import { sessionClient } from "@/features/auth/supabase-server";
 import { loadPublicGroups } from "@/features/catalog/public-groups-data";
 
 export const metadata = { title: "المجموعات الدراسية" };
 const weekdays = ["الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"];
 
 export default async function GroupsPage() {
-  const result = await loadPublicGroups(ownerClient());
+  const result = await loadPublicGroups(await sessionClient());
   const groups = result.state === "ready" ? result.data : [];
   return <div className="container-shell py-8">
     <PageIntro title="المجموعات الدراسية" />

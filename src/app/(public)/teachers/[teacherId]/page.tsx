@@ -1,12 +1,13 @@
 ﻿import { notFound } from "next/navigation";
-import { ownerClient } from "@/features/auth/supabase-server";
+import { sessionClient } from "@/features/auth/supabase-server";
 import { Breadcrumbs } from "@/components/shared";
 import { LiveTeacherPhoto } from "@/components/live-teacher-photo";
 
 export default async function TeacherProfile({ params }: { params: Promise<{ teacherId: string }> }) {
   const { teacherId } = await params;
   if (!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(teacherId)) notFound();
-  const result = await ownerClient()?.from("teacher_profiles")
+  const client = await sessionClient();
+  const result = await client?.from("teacher_profiles")
     .select("full_name,qualification,bio,experience_years,portrait_path").eq("user_id", teacherId).maybeSingle();
   if (!result?.data) notFound();
   const teacher = result.data;

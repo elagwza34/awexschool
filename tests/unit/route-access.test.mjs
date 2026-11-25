@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { routeAccessRedirect } from "../../src/features/auth/route-access.ts";
+import * as routeAccess from "../../src/features/auth/route-access.ts";
+const { routeAccessRedirect, sessionVerificationMode } = routeAccess;
 
 test("guests are redirected from every live portal namespace to login with a safe next path", () => {
   for (const path of [
@@ -48,5 +49,17 @@ test("admin and manager routes allow only admin, manager, or owner roles", () =>
 test("non-admin live portals allow authenticated users to continue to page-level checks", () => {
   for (const path of ["/student", "/teacher", "/parent", "/support"]) {
     assert.equal(routeAccessRedirect(path, { authenticated: true, roles: ["student"] }), null, path);
+  }
+});
+
+test("proxy verifies identities only where it makes an access decision", () => {
+  for (const path of ["/login", "/register", "/student", "/teacher/sessions", "/parent/courses", "/support/activity", "/workspace/student/overview"]) {
+    assert.equal(sessionVerificationMode(path), "user", path);
+  }
+  for (const path of ["/admin", "/admin/catalog", "/manager", "/manager/team"]) {
+    assert.equal(sessionVerificationMode(path), "roles", path);
+  }
+  for (const path of ["/", "/courses", "/teachers", "/account", "/account/callback", "/reset-password", "/teachers/apply", "/dashboards"]) {
+    assert.equal(sessionVerificationMode(path), "none", path);
   }
 });

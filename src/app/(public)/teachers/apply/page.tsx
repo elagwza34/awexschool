@@ -1,6 +1,6 @@
 ﻿import Link from "next/link";
 import { FormMessage } from "@/features/auth/auth-card";
-import { ownerClient } from "@/features/auth/supabase-server";
+import { sessionClient } from "@/features/auth/supabase-server";
 import { LiveApplicationForm } from "@/features/teachers/live-application-form";
 
 export const metadata = { title: "انضم كمدرس" };
@@ -14,7 +14,7 @@ const fields = [
 ] as const;
 
 export default async function TeacherApplicationPage() {
-  const client = ownerClient();
+  const client = await sessionClient();
   const [subjects, grades] = client ? await Promise.all([
     client.from("subjects").select("id,name").order("name"),
     client.from("grades").select("id,name,stage_id,position").order("stage_id").order("position"),

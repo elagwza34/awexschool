@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 import { liveDashboardPaths } from "@/features/auth/dashboard-roles";
-import { routeAccessRedirect } from "@/features/auth/route-access";
+import { routeAccessRedirect, sessionVerificationMode, type SessionVerificationMode } from "@/features/auth/route-access";
 import { redirectWithCookies } from "@/features/auth/proxy-response";
 import { readSupabaseEnvironment } from "@/lib/environment";
 import {
@@ -170,7 +170,7 @@ async function settings(request: NextRequest) {
     <a href="/admin">العودة للوحة الإدارة</a>`);
 }
 
-async function continueRequest(request: NextRequest, loadRoles = false) {
+async function continueRequest(request: NextRequest, verification: SessionVerificationMode = "none") {
   const responseHeaders = { "Cache-Control": "private, no-store", "CDN-Cache-Control": "no-store" };
   let response = NextResponse.next({ request, headers: responseHeaders });
   const config = readSupabaseEnvironment();
@@ -189,10 +189,10 @@ async function continueRequest(request: NextRequest, loadRoles = false) {
     },
   });
   const { data: { session } } = await client.auth.getSession();
-  if (!session) return { response, authenticated: false, roles: [] as string[] };
+  if (!session || verification === "none") return { response, authenticated: false, roles: [] as string[] };
   const { data: { user } } = await client.auth.getUser();
   let roles: string[] = [];
-  if (user && loadRoles) {
+  if (user && verification === "roles") {
     const result = await client.from("account_roles").select("role_code").eq("user_id", user.id);
     roles = result.error ? [] : result.data.map(({ role_code }) => role_code);
   }
@@ -218,10 +218,10 @@ export async function proxy(request: NextRequest) {
       const destination = new URL("/account", request.url);
       destination.searchParams.set("message", "section-unavailable");
       destination.searchParams.set("portal", pathname.split("/")[1]);
-      return redirectWithCookies(request, destination.toString(), access.response);
+      return redirectWithCookies(request, `${destination.pathname}${destination.search}`, access.response);
     }
     if (pathname === "/login" || pathname === "/register") {
-      const access = await continueRequest(request);
+      const access = await continueRequest(request, "user");
       const destination = routeAccessRedirect(pathname, access);
       return destination ? redirectWithCookies(request, destination, access.response) : access.response;
     }
@@ -231,14 +231,14 @@ export async function proxy(request: NextRequest) {
 
     const lock = await getRequestLock(pathname);
     if (!lock || hasSiteSession(request.cookies.get(lockCookie(lock.scope))?.value, lock.key)) {
-      const access = await continueRequest(request, /^\/(?:admin|manager)(?:\/|$)/.test(pathname));
+      const access = await continueRequest(request, sessionVerificationMode(pathname));
       const destination = routeAccessRedirect(pathname, access);
       return destination ? redirectWithCookies(request, destination, access.response) : access.response;
     }
 
     // Account holders can use the catalog and teacher profiles while the landing page is locked.
     if (lock.scope === "*" && /^\/(?:courses|teachers)(?:\/|$)/.test(pathname) && !await getRequestLock(pathname, false)) {
-      const account = await continueRequest(request);
+      const account = await continueRequest(request, "user");
       if (account.authenticated) return account.response;
     }
 

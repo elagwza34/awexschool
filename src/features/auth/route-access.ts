@@ -8,6 +8,14 @@ export type RouteAccess = {
   roles: readonly string[];
 };
 
+export type SessionVerificationMode = "none" | "user" | "roles";
+
+export function sessionVerificationMode(pathname: string): SessionVerificationMode {
+  if (adminRoute.test(pathname)) return "roles";
+  if (portalRoute.test(pathname) || authRoute.test(pathname)) return "user";
+  return "none";
+}
+
 export function routeAccessRedirect(pathname: string, access: RouteAccess) {
   if (authRoute.test(pathname) && access.authenticated) return "/";
   if (!portalRoute.test(pathname)) return null;

@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getAccount, ownerClient } from "@/features/auth/supabase-server";
+import { getAccount, ownerClient, sessionClient } from "@/features/auth/supabase-server";
 import { mutationOutcome } from "@/lib/mutation-result";
 import { applyEnrollmentReview, readCoursePublication, readEnrollmentReview } from "./catalog-mutations";
 
@@ -40,6 +40,9 @@ export async function archiveCourse(course: string, track: string) {
   const client = await requireCatalogAdmin();
   const destination = `/admin/catalog?track=${track === "languages" ? "languages" : "arabic"}`;
   if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(course)) redirect(`${destination}&notice=archive-failed`);
+  const activeEnrollment = await client.from("course_enrollments").select("id")
+    .eq("course_id", course).eq("status", "active").maybeSingle();
+  if (activeEnrollment.error || activeEnrollment.data) redirect(`${destination}&notice=archive-failed`);
   const { data, error } = await client.from("courses").update({ status: "archived" })
     .eq("id", course).eq("status", "published").select("id").maybeSingle();
   if (error || !data) redirect(`${destination}&notice=archive-failed`);
@@ -50,7 +53,10 @@ export async function archiveCourse(course: string, track: string) {
 }
 
 export async function reviewEnrollment(course: string, requester: string, form: FormData) {
-  const client = await requireCatalogAdmin();
+  const account = await getAccount();
+  if (!account?.roles.some((role) => role === "owner" || role === "admin")) redirect("/account");
+  const client = await sessionClient(true);
+  if (!client) redirect("/account");
   const review = readEnrollmentReview(course, requester, form);
   if (!review) redirect("/admin/catalog?tab=enrollments&notice=invalid");
   const outcome = await applyEnrollmentReview(client, review);

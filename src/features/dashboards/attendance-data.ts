@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { MutationOutcome } from "../../lib/mutation-result.ts";
 
 export type AttendanceRole = "teacher" | "student" | "parent";
 export type AttendanceStatus = "present" | "absent" | "late";
@@ -18,6 +19,11 @@ type AttendanceMembership = {
 type AttendanceRecord = {
   student_id: string;
   status: string;
+};
+
+type RosterEntry = {
+  student_id: string;
+  display_name: string;
 };
 
 type StudentAttendanceRecord = {
@@ -48,6 +54,21 @@ export function isUuid(value: string) {
   return /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(value);
 }
 
+export async function applyAttendanceRecord(
+  client: SupabaseClient,
+  sessionId: string,
+  studentId: string,
+  status: AttendanceStatus,
+): Promise<MutationOutcome> {
+  const { data, error } = await client.rpc("record_session_attendance", {
+    p_session: sessionId,
+    p_student: studentId,
+    p_status: status,
+  });
+  if (error) return "failed";
+  return data === true ? "saved" : "not_found";
+}
+
 export async function loadAttendanceData(client: SupabaseClient, {
   role,
   userId,
@@ -68,16 +89,24 @@ export async function loadAttendanceData(client: SupabaseClient, {
     const selected = sessionId ? sessions.find(({ id }) => id === sessionId) : sessions[0];
     if (sessionId && !selected) return { state: "error" };
     if (!selected) return { state: "empty" };
-    const [memberships, attendance] = await Promise.all([
-      client.from("group_members").select("student_id,profiles(display_name)").eq("group_id", selected.group_id),
+    const snapshot = await client.from("session_roster_snapshots").select("session_id")
+      .eq("session_id", selected.id).maybeSingle();
+    if (snapshot.error || !snapshot.data) return { state: "error" };
+    const [entries, attendance] = await Promise.all([
+      client.from("session_roster_entries").select("student_id,display_name")
+        .eq("session_id", selected.id).order("student_id", { ascending: true }),
       client.from("session_attendance").select("student_id,status").eq("session_id", selected.id),
     ]);
-    if (memberships.error || attendance.error) return { state: "error" };
+    if (entries.error || attendance.error) return { state: "error" };
+    const memberships = ((entries.data ?? []) as RosterEntry[]).map(({ student_id, display_name }) => ({
+      student_id,
+      profiles: { display_name },
+    }));
     return {
       state: "ready",
       sessions,
       selected,
-      memberships: (memberships.data ?? []) as unknown as AttendanceMembership[],
+      memberships,
       recorded: new Map(((attendance.data ?? []) as AttendanceRecord[]).map(({ student_id, status }) => [student_id, status])),
     };
   }

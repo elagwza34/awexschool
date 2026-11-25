@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  applyAttendanceRecord,
   isAttendanceStatus,
   isUuid,
   loadAttendanceData,
@@ -17,6 +18,7 @@ const sessions = [
   { id: otherSessionId, group_id: groupId, title: "أحدث حصة", starts_at: "2026-11-24T10:00:00.000Z" },
   { id: sessionId, group_id: groupId, title: "حصة محددة", starts_at: "2026-11-23T10:00:00.000Z" },
 ];
+const rosterEntries = [{ student_id: studentId, display_name: "طالب حقيقي", enrolled_at: null }];
 const memberships = [{ student_id: studentId, profiles: { display_name: "طالب حقيقي" } }];
 const records = [{
   session_id: sessionId,
@@ -62,6 +64,9 @@ function createClient(responses) {
           call.limit = value;
           return query;
         },
+        maybeSingle() {
+          return query;
+        },
         then(resolve, reject) {
           const response = responses[table];
           return Promise.resolve(typeof response === "function" ? response(call) : response).then(resolve, reject);
@@ -75,14 +80,15 @@ function createClient(responses) {
 function attendanceClient(overrides = {}) {
   return createClient({
     class_sessions: { data: sessions, error: null },
-    group_members: { data: memberships, error: null },
+    session_roster_snapshots: { data: { session_id: sessionId }, error: null },
+    session_roster_entries: { data: rosterEntries, error: null },
     session_attendance: { data: [{ student_id: studentId, status: "present" }], error: null },
     guardian_links: { data: [{ student_id: studentId }, { student_id: childId }], error: null },
     ...overrides,
   });
 }
 
-test("teacher attendance uses real scoped sessions, group members, and recorded statuses", async () => {
+test("teacher attendance uses scoped sessions, frozen roster entries, and recorded statuses", async () => {
   const client = attendanceClient();
   const result = await loadAttendanceData(client, { role: "teacher", userId: teacherId, sessionId, now });
 
@@ -93,7 +99,9 @@ test("teacher attendance uses real scoped sessions, group members, and recorded 
     memberships,
     recorded: new Map([[studentId, "present"]]),
   });
-  assert.deepEqual(client.calls.map(({ table }) => table), ["class_sessions", "group_members", "session_attendance"]);
+  assert.deepEqual(client.calls.map(({ table }) => table), [
+    "class_sessions", "session_roster_snapshots", "session_roster_entries", "session_attendance",
+  ]);
   assert.deepEqual(client.calls[0].filters, [
     ["eq", "teacher_id", teacherId],
     ["lte", "starts_at", now.toISOString()],
@@ -101,8 +109,10 @@ test("teacher attendance uses real scoped sessions, group members, and recorded 
   ]);
   assert.deepEqual(client.calls[0].orders, [["starts_at", { ascending: false }]]);
   assert.equal(client.calls[0].limit, 50);
-  assert.deepEqual(client.calls[1].filters, [["eq", "group_id", groupId]]);
+  assert.deepEqual(client.calls[1].filters, [["eq", "session_id", sessionId]]);
   assert.deepEqual(client.calls[2].filters, [["eq", "session_id", sessionId]]);
+  assert.deepEqual(client.calls[2].orders, [["student_id", { ascending: true }]]);
+  assert.deepEqual(client.calls[3].filters, [["eq", "session_id", sessionId]]);
 });
 
 test("teacher attendance never substitutes another session for an unavailable requested session", async () => {
@@ -126,12 +136,19 @@ test("teacher attendance reports an empty state only when no sessions exist", as
 test("teacher attendance reports query errors without rendering fictional records", async () => {
   for (const [table, response] of [
     ["class_sessions", { data: null, error: { message: "database unavailable" } }],
-    ["group_members", { data: null, error: { message: "permission denied" } }],
+    ["session_roster_snapshots", { data: null, error: { message: "permission denied" } }],
+    ["session_roster_entries", { data: null, error: { message: "network failure" } }],
     ["session_attendance", { data: null, error: { message: "network failure" } }],
   ]) {
     const client = attendanceClient({ [table]: response });
     assert.deepEqual(await loadAttendanceData(client, { role: "teacher", userId: teacherId, now }), { state: "error" });
   }
+});
+
+test("teacher attendance fails closed when a historical session has no roster snapshot", async () => {
+  const client = attendanceClient({ session_roster_snapshots: { data: null, error: null } });
+  assert.deepEqual(await loadAttendanceData(client, { role: "teacher", userId: teacherId, now }), { state: "error" });
+  assert.deepEqual(client.calls.map(({ table }) => table), ["class_sessions", "session_roster_snapshots"]);
 });
 
 test("student attendance reads only the authenticated student's real records", async () => {
@@ -187,4 +204,25 @@ test("attendance accepts real UUID identifiers and rejects fixture identifiers",
 test("attendance accepts only supported status values", () => {
   for (const value of ["present", "absent", "late"]) assert.equal(isAttendanceStatus(value), true);
   for (const value of ["", "unknown", "PRESENT", "present "]) assert.equal(isAttendanceStatus(value), false);
+});
+
+test("attendance writes delegate authorization and state changes to the JWT-aware RPC", async () => {
+  const calls = [];
+  const client = {
+    async rpc(name, args) {
+      calls.push([name, args]);
+      return { data: true, error: null };
+    },
+  };
+  assert.equal(await applyAttendanceRecord(client, sessionId, studentId, "late"), "saved");
+  assert.deepEqual(calls, [["record_session_attendance", {
+    p_session: sessionId,
+    p_student: studentId,
+    p_status: "late",
+  }]]);
+});
+
+test("attendance writes fail closed unless the database confirms the transition", async () => {
+  assert.equal(await applyAttendanceRecord({ rpc: async () => ({ data: false, error: null }) }, sessionId, studentId, "late"), "not_found");
+  assert.equal(await applyAttendanceRecord({ rpc: async () => ({ data: null, error: { message: "offline" } }) }, sessionId, studentId, "late"), "failed");
 });

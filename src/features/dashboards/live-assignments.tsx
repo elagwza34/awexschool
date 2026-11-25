@@ -26,7 +26,8 @@ export async function LiveAssignments({ role, reviews = false, searchParams }: {
     .select("assignment_id,student_id,response,feedback,profiles(display_name)").in("assignment_id", ids)
     .order("submitted_at", { ascending: false }).limit(200);
   if (scope.students?.length) submissionQuery = submissionQuery.in("student_id", scope.students);
-  const submissionResult = ids.length && (reviews || role === "student" || role === "parent") ? await submissionQuery : null;
+  const canReadSubmissions = reviews || role === "student" || (role === "parent" && Boolean(scope.students?.length));
+  const submissionResult = ids.length && canReadSubmissions ? await submissionQuery : null;
   const submissions = submissionResult?.data ?? [];
   const failed = scope.error || assignmentResult?.error || courseResult?.error || submissionResult?.error;
 

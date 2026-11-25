@@ -9,19 +9,28 @@ export async function TeacherCourses({ overview = false }: { overview?: boolean 
   const client = ownerClient();
   if (!account?.roles.includes("teacher") || !client) redirect("/account");
 
-  const [profileResult, coursesResult] = await Promise.all([
+  const [profileResult, ownedCourses, groupCourses] = await Promise.all([
     client.from("teacher_profiles").select("full_name,qualification,portrait_path")
       .eq("user_id", account.user.id).maybeSingle(),
     client.from("courses").select("id,title,description").eq("teacher_id", account.user.id)
       .eq("status", "published").order("title"),
+    client.from("learning_groups").select("course_id,courses!inner(id,title,description)")
+      .eq("teacher_id", account.user.id).eq("active", true).eq("courses.status", "published"),
   ]);
-  if (profileResult.error || coursesResult.error) {
+  if (profileResult.error || ownedCourses.error || groupCourses.error) {
     return <main id="main-content" className="dashboard-width pt-5 pb-10">
       <p role="alert" className="soft-card p-5 text-destructive">تعذّر تحميل بيانات المقررات.</p>
     </main>;
   }
   const profile = profileResult.data;
-  const courses = coursesResult.data ?? [];
+  const groupCourseRows = groupCourses.data?.flatMap(({ courses: course }) => {
+    const record = Array.isArray(course) ? course[0] : course;
+    return record ? [record] : [];
+  }) ?? [];
+  const courses = [...new Map([
+    ...(ownedCourses.data ?? []),
+    ...groupCourseRows,
+  ].map((course) => [course.id, course])).values()].sort((a, b) => a.title.localeCompare(b.title));
   const CourseListHeading = overview ? "h2" : "h1";
   const name = profile?.full_name ?? account.name;
   const courseIds = courses.map(({ id }) => id);

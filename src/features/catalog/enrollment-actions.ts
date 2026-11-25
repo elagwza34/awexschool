@@ -18,7 +18,9 @@ export async function enrollInCourse(id: string, form: FormData) {
   const learnerName = parent ? String(form.get("learner") ?? "").trim() : account.name.trim();
   if (learnerName.length < 2 || learnerName.length > 100) redirect(`${destination}?enrollment=invalid`);
 
-  const { error } = await ownerClient()!.from("course_enrollments").upsert({
+  const client = ownerClient();
+  if (!client) redirect(`${destination}?enrollment=failed`);
+  const { error } = await client.from("course_enrollments").upsert({
     requester_id: account.user.id, course_id: course.id, learner_name: learnerName,
   }, { onConflict: "requester_id,course_id", ignoreDuplicates: true });
   redirect(error ? `${destination}?enrollment=failed` : destination);

@@ -32,6 +32,7 @@ test("preview QA builds inside the scrubbed Playwright server environment", () =
     "npm run lint && npm run typecheck && npm test && playwright test --config=playwright.preview.config.ts",
   );
   assert.equal(previewConfig.webServer.command, "npm run build:test && npm run start -- --port 3100");
+  assert.equal(previewConfig.webServer.timeout, 180_000);
   assert.equal(typeof packageJson.scripts["build:test"], "string");
   assert.equal(previewConfig.webServer.env.LIVESCHOOL_ENV, "test");
   assert.equal(previewConfig.webServer.env.NEXT_PUBLIC_LIVESCHOOL_ENV, "test");

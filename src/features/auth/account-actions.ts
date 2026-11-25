@@ -6,6 +6,7 @@ import { authConfig, getAccount, ownerClient, sessionClient } from "./supabase-s
 import { socialChannels, type SocialLinksConfig } from "./social-links";
 import { readRegistration, signupMetadata } from "./registration";
 import { mutationOutcome } from "@/lib/mutation-result";
+import { safeLoginNextPath } from "./auth-redirect";
 
 const managedRoles = new Set(["student", "parent", "teacher", "support", "manager", "admin"]);
 const text = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
@@ -16,7 +17,7 @@ export async function signIn(form: FormData) {
   const client = await sessionClient(true);
   if (!client) redirect("/login?message=unavailable");
   const requested = text(form, "next");
-  const next = /^\/courses\/[a-f0-9-]{36}$/.test(requested) ? requested : "/account?from=login";
+  const next = safeLoginNextPath(requested);
   const result = await client.auth.signInWithPassword({
     email: text(form, "email").toLowerCase(), password: String(form.get("password") ?? ""),
   });
