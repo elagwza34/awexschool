@@ -5,6 +5,8 @@ import test from "node:test";
 const courseId = "11111111-1111-4111-8111-111111111111";
 globalThis.__archiveHasActive = false;
 globalThis.__archiveUpdates = 0;
+globalThis.__archiveEnrollmentProjection = null;
+globalThis.__archiveProjectionError = false;
 
 registerHooks({
   resolve(specifier, context, nextResolve) {
@@ -22,11 +24,20 @@ registerHooks({
           export function ownerClient() {
             return { from(table) {
               const builder = {
-                select() { return builder; },
+                select(columns) {
+                  if (table === 'course_enrollments') {
+                    globalThis.__archiveEnrollmentProjection = columns;
+                    globalThis.__archiveProjectionError = columns !== 'requester_id';
+                  }
+                  return builder;
+                },
                 update() { if (table === 'courses') globalThis.__archiveUpdates += 1; return builder; },
                 eq() { return builder; },
                 maybeSingle() {
-                  const data = table === 'course_enrollments' && globalThis.__archiveHasActive ? { id: '${courseId}' } : table === 'courses' ? { id: '${courseId}' } : null;
+                  if (table === 'course_enrollments' && globalThis.__archiveProjectionError) {
+                    return Promise.resolve({ data: null, error: { message: 'column does not exist' } });
+                  }
+                  const data = table === 'course_enrollments' && globalThis.__archiveHasActive ? { requester_id: '${courseId}' } : table === 'courses' ? { id: '${courseId}' } : null;
                   return Promise.resolve({ data, error: null });
                 },
               };
@@ -58,6 +69,7 @@ test("course archival is blocked while active enrollments exist", async () => {
     /notice=archive-failed/,
   );
   assert.equal(globalThis.__archiveUpdates, 0);
+  assert.equal(globalThis.__archiveEnrollmentProjection, "requester_id");
 });
 
 test("course archival remains available without active enrollments", async () => {
@@ -69,4 +81,5 @@ test("course archival remains available without active enrollments", async () =>
     /notice=archived/,
   );
   assert.equal(globalThis.__archiveUpdates, 1);
+  assert.equal(globalThis.__archiveEnrollmentProjection, "requester_id");
 });

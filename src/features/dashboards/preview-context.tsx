@@ -8,7 +8,7 @@ import { usePermissions } from "./permissions-context";
 import type { Permission } from "./permissions";
 import { attachmentError } from "@/features/chat/attachment";
 import { groupChatPermission, isGroupChatMember } from "@/features/chat/groups";
-import { previewStudentId, threadsForRole } from "./chat-data";
+import { previewStudentId } from "./chat-data";
 import {
   studentProfileFixture,
   type StudentProfileDraft,

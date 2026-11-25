@@ -6,6 +6,10 @@ export type SupabaseEnvironment = {
 
 type Environment = Record<string, string | undefined>;
 
+export function isPreviewFixtureEnvironment(env: Environment = process.env) {
+  return env.NEXT_PUBLIC_LIVESCHOOL_ENV === "test" || env.LIVESCHOOL_ENV === "test";
+}
+
 const approvedTestUrl = "http://127.0.0.1:54321";
 const prohibitedTestVariables = [
   "SUPABASE_ACCESS_TOKEN",

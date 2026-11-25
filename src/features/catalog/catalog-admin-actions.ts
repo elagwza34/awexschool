@@ -40,7 +40,7 @@ export async function archiveCourse(course: string, track: string) {
   const client = await requireCatalogAdmin();
   const destination = `/admin/catalog?track=${track === "languages" ? "languages" : "arabic"}`;
   if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(course)) redirect(`${destination}&notice=archive-failed`);
-  const activeEnrollment = await client.from("course_enrollments").select("id")
+  const activeEnrollment = await client.from("course_enrollments").select("requester_id")
     .eq("course_id", course).eq("status", "active").maybeSingle();
   if (activeEnrollment.error || activeEnrollment.data) redirect(`${destination}&notice=archive-failed`);
   const { data, error } = await client.from("courses").update({ status: "archived" })

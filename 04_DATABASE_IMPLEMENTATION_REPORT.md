@@ -1,9 +1,11 @@
 # LiveSchool Database Audit and Unified SQL Migration Report
 
 Date: 2026-11-25
-Workspace: `D:\Projects-code\liveschool-phase-01`
-Branch: `remediation/phase-01-core-stabilization`
-Scope: full source-tree and database-contract audit, production-diagnostic reconciliation, and a controlled SQL package. No agent production database access, deployment, push, merge, or Phase 02 work was performed; the operator manually executed the supplied diagnostics and SQL.
+Workspace: `D:\Projects-code\liveschool-integration`
+Integration branch: `integration/phase-01-core-stabilization`
+Remediation commit: `959fc51fa03fc7994af9891000a605da596de3da`
+Integration merge commit: `c03baa4e82fce89d30b154bd97e49df925897abb`
+Scope: full source-tree and database-contract audit, production-diagnostic reconciliation, controlled local integration, and a review-only Phase 01.7 SQL proposal. The operator manually executed the supplied production diagnostics and the successful `20261124010000` migration. The authorized local merge changed only the integration worktree; no agent production database access, deployment, push, merge into original `main`, or Phase 02 work was performed.
 
 ## 1. Executive summary
 
@@ -578,7 +580,7 @@ After the operator's 19/19 result, local review corrected two verifier defects w
 - Migration history had always passed; it now enforces the recorded unified version and reconciled terminal state.
 - Attendance verification had checked event coverage but not current-row consistency; it now compares status, marker, and timestamp with the latest append-only event.
 
-Both corrections have failing-then-passing package regressions. The current database-package suite passes 39/39 and the full unit suite passes 150/150. These are repository/static-contract results only; production execution is classified separately in section 12.10.
+Both corrections have failing-then-passing package regressions. The final integration database-package suite passes 39/39 and the full unit suite passes 174/174, including 20 static Phase 01.7 proposal contracts. These are repository/static-contract results only; production execution is classified separately in section 12.10.
 
 The targeted read-only execution requested for this revision has now been completed by the operator. The required evidence was:
 
@@ -736,44 +738,53 @@ The SQL package has automated static contract tests in `tests/unit/database-pack
 
 These are source-text assertions. They do not execute PostgreSQL, prove RLS behavior, or replace synthetic JWT and concurrency tests.
 
-Fresh local verification on 2026-11-25:
+Fresh local verification in the integration worktree on 2026-11-25:
 
 | Command | Result |
 | --- | --- |
-| `npm test` | 150 passed, 0 failed, 0 skipped |
+| `npm test` | 174 passed, 0 failed, 0 skipped |
 | `node --test tests/unit/database-package.test.mjs` | 39 passed, 0 failed |
+| `node --test tests/unit/remediation-proposal.test.mjs` | 20 passed, 0 failed |
+| `node --test tests/unit/protected-preview-reconciliation.test.mjs` | 4 passed, 0 failed |
 | `npm run typecheck` | Passed, exit code 0 |
-| `npm run lint` | Exit code 0; 0 errors and 1 pre-existing warning in `src/features/dashboards/preview-context.tsx:11` |
+| `npm run lint` | Passed, exit code 0; zero errors and zero warnings |
 | `npx playwright test --config=playwright.preview.config.ts` | 17 passed, 0 failed; the scrubbed `build:test` web-server prerequisite also passed |
-| Scrubbed `npm run build:test` | Passed with the explicit local-only test environment; 11 static pages generated |
-| `npm run build` | Next.js 16.4.6 webpack production build passed; compiled in 14.7s, TypeScript in 2.6s, 11 static pages generated |
+| Scrubbed `npm run build:test` | Passed with an inherited-variable-free local-only test environment; 11 static pages generated |
+| `npm run build` | Next.js 16.4.6 webpack production build passed; 11 static pages generated |
+| `git diff --check` | Passed, exit code 0 |
 
-Application unit tests cover the synchronized enrollment and attendance calls, frozen-roster loading, input validation, mutation outcomes, public-client boundaries, assignment scope, settings grants, owner bootstrap, parent submission privacy, fail-closed client configuration, course archival, and QA isolation. Root and canonical migration files are byte-identical with SHA-256 `91bbaba89108e490157aa1bcf36c73730c1d18507b5218e3373c599677fbcac2`; `git diff --check` passes. A fresh high-confidence credential-pattern scan covered all 47 current changed/untracked files and found no private keys, JWTs, cloud access keys, GitHub tokens, or Supabase secret/publishable keys. The original repository remains on `main` at `77661f42ef1fc6a8261b7bb32410a5d9fa9b3445`; its 517-file manifest still hashes exactly to `23c637b8b0656388f453b202e7fb1d9038843a049d35f7e6aa55ee38923c8682`.
+Application unit tests cover the synchronized enrollment and attendance calls, frozen-roster loading, input validation, mutation outcomes, public-client boundaries, assignment scope, settings grants, owner bootstrap, parent submission privacy, fail-closed client configuration, course archival, protected preview reconciliation, QA isolation, and the static contracts in section 19. The archive regression first failed against the invalid `id` projection and then passed after the production query changed to `requester_id`.
 
-No approved local PostgreSQL runtime, Docker runtime, or staging project is available. The first-run insertion path of `05_MIGRATION_HISTORY_RECONCILIATION.sql` and synthetic JWT/RLS/concurrency tests therefore remain runtime-unverified; the production `already_recorded` path, post-reconciliation verifier pass, and unified-migration outcome are separately classified as production-observed.
+The integration merge completed without conflicts at `c03baa4e82fce89d30b154bd97e49df925897abb`. The nine protected originals are preserved byte-for-byte in `D:/Projects-code/liveschool-original-backup-20261125`. The protected preview behavior was reconciled through explicit fixture modules and `isPreviewFixtureEnvironment()`: only `NEXT_PUBLIC_LIVESCHOOL_ENV=test` or `LIVESCHOOL_ENV=test` enables fixture fallback, `NODE_ENV=test` alone does not, ready live data always wins, production failures remain errors, and attendance fixture IDs cannot initiate writes. The syntactically invalid original attendance component was not copied wholesale; its preserved sessions, members, and records were moved into a read-only preview fixture module.
+
+Windows checkout normalization initially converted SQL/MJS files to CRLF and broke newline-sensitive database-package checks. `.gitattributes` now enforces LF for `*.sql` and `*.mjs`; all tracked SQL/MJS paths were normalized without staged content changes. Root and canonical migrations remain byte-identical with SHA-256 `91bbaba89108e490157aa1bcf36c73730c1d18507b5218e3373c599677fbcac2`. `git diff --check` passes. A fresh high-confidence credential-pattern scan covered all 13 intended changed/untracked integration paths and found no private keys, JWTs, cloud access keys, GitHub tokens, or Supabase secret/publishable keys. The original repository remains on `main` at `77661f42ef1fc6a8261b7bb32410a5d9fa9b3445`; its 517-file manifest still hashes exactly to `23c637b8b0656388f453b202e7fb1d9038843a049d35f7e6aa55ee38923c8682`, and all nine protected backup hashes still match.
+
+No approved local PostgreSQL runtime, Docker runtime, or staging project is available. The first-run insertion path of `05_MIGRATION_HISTORY_RECONCILIATION.sql`, PostgreSQL parsing/execution of the Phase 01.7 proposal, and synthetic JWT/RLS/concurrency tests therefore remain runtime-unverified; the production `already_recorded` path, post-reconciliation verifier pass, and unified-migration outcome are separately classified as production-observed.
 
 ## 17. Residual findings
 
-The following remain open and are not represented as solved by the migration:
+The following remain open and are not represented as solved by the applied `20261124010000` migration. Section 19 contains the review-only Phase 01.7 proposal; preparing that proposal does not resolve these risks.
 
-- Course archival uses an application-side active-enrollment precheck that is not atomic with the archive update; a database-owned concurrency guard requires separate schema approval.
-- Public teacher intake lacks CAPTCHA/rate limiting and verified email ownership.
+- Course archival uses an application-side active-enrollment precheck that is not atomic with the archive update. The invalid `id` projection is corrected, but the database-owned concurrency guard is proposed and not applied.
+- Public teacher intake lacks CAPTCHA/rate limiting and verified email ownership. The proposed authenticated intake and challenge model is not applied and its provider requires separate approval.
 - Parent/guardian provisioning has no live application workflow.
-- The production-observed active enrollment lacks historical reviewer metadata; it is preserved without inventing a past review decision.
-- Enrollment identity still uses `requester_id` plus free-text `learner_name`; a guardian-requested enrollment cannot be authoritatively mapped to a particular child because the enrollment row has no student foreign key.
-- Published lessons are anonymously readable under the verified canonical RLS, while the application lesson route enforces an enrollment gate. The database contract is intentionally more permissive than the UI gate and needs an explicit product-policy decision before any schema change.
-- Group membership does not require an active course enrollment; the verifier reports `members_without_active_enrollment` as a residual metric.
-- Reserved/paid join requests do not consume group capacity.
+- The production-observed active enrollment lacks historical reviewer metadata; it is preserved without inventing a past review decision. The proposed separate acknowledgment path is not applied.
+- Enrollment identity still uses `requester_id` plus free-text `learner_name`; a guardian-requested enrollment cannot be authoritatively mapped to a particular child because the applied enrollment table has no student foreign key.
+- Published lessons are anonymously readable under the verified canonical RLS, while the application lesson route enforces an enrollment gate. The proposed strict lesson-body policy is not applied and requires explicit product approval.
+- Group membership does not require an active course enrollment; the verifier reports `members_without_active_enrollment` as a residual metric. The proposed database guards are not applied.
+- Reserved/paid join requests do not consume group capacity. The proposed reservation-accounting guards and revoked future-workflow functions are not applied.
+- Current service-role enrollment/teacher-intake writes and caller-supplied `p_actor` signatures remain until a coordinated application cutover accompanies the proposed database changes.
 - Online sessions and calendar behavior remain fixture/simulation-only.
 - Notifications, support intake/replies, payment workflows, and advanced assessments remain inactive or incomplete.
 - No generated database types exist.
 - Production migration history is reconciled, the current verifier revision passed 19/19 with zero errors, and all four current catalog fingerprints exactly match the baseline. This evidence gap is closed.
-- Synthetic JWT, concurrency, and live database tests remain runtime-unverified.
+- Synthetic JWT, concurrency, PostgreSQL parsing/execution, and live database tests remain runtime-unverified.
 - The local environment cannot execute PostgreSQL migrations without separately approved setup.
+- Seven moderate npm dependency vulnerabilities were reported by `npm ci`; no dependency remediation or `npm audit fix` was authorized or performed.
 
-## 18. Final Phase 01.6 status
+## 18. Controlled integration status
 
-**BLOCKED FOR FINAL DEPLOYMENT SIGN-OFF; DATABASE EVIDENCE COMPLETE AND READY FOR APPROVAL-GATED INTEGRATION.** The current production verifier passed 19/19, all four catalog fingerprints exactly match the baseline, migration history and attendance/event consistency are confirmed, and every available local gate passes. Final sign-off still requires explicit acceptance or completion of the runtime-unverified database matrix and the remaining product/concurrency risks. No commit, merge, push, deployment, production write, or disabled-feature activation was performed.
+**LOCAL INTEGRATION PREPARED; NOT APPROVED FOR DEPLOYMENT OR SQL EXECUTION.** The production verifier passed 19/19, all four catalog fingerprints exactly match the baseline, migration history and attendance/event consistency are confirmed, and the available local gates pass. The isolated remediation commit and local integration worktree are complete. The nine-risk Phase 01.7 plan and SQL candidate remain review-only and runtime-unverified. No merge into original `main`, push, deployment, production write, or disabled-feature activation was performed.
 
 ### 18.1 Verified evidence
 
@@ -783,165 +794,56 @@ The following remain open and are not represented as solved by the migration:
 - Production-observed history reconciliation: `already_recorded`, 16 records, latest `20261124010000`, unchanged baseline fingerprints, no schema SQL executed, and no production application data modified.
 - Repository-verified application/database corrections with RED-to-GREEN coverage, including parent submission privacy, null-client fail-closed behavior, owner-email validation, RLS-bearing public reads, enrollment-aware course archival, verifier history enforcement, and attendance/event consistency.
 - Independent whole-branch review completed; all four findings were verified and either fixed or explicitly deferred with their residual risk recorded.
-- Fresh local evidence: 150/150 unit tests, 39/39 database-package tests, 17/17 preview browser tests, TypeScript passed, lint zero errors with one known warning, scrubbed test build passed, and production build passed.
-- Root and canonical migrations are byte-identical. The original repository remains at `77661f42ef1fc6a8261b7bb32410a5d9fa9b3445`, and its 517-file manifest still matches `23c637b8b0656388f453b202e7fb1d9038843a049d35f7e6aa55ee38923c8682`.
-- Remediation branch `remediation/phase-01-core-stabilization` is at `5d59736828cb1b65adb7293b7ea95b12ccc57f24`, with 12 commits ahead of `main` and 47 current modified/untracked integration payload paths. The payload is uncommitted and was scanned for credential patterns with zero high-confidence hits.
+- Authorized isolated remediation commit `959fc51fa03fc7994af9891000a605da596de3da` and conflict-free local integration merge `c03baa4e82fce89d30b154bd97e49df925897abb` exist only on the remediation and integration branches.
+- Protected-file reconciliation preserved preview functionality through explicit fixture modules and environment gating, retained fail-closed live-data errors, and provided read-only attendance previews. Four focused regressions pass.
+- The invalid archive enrollment projection was reproduced with failing tests and corrected to `requester_id`; both archive regressions pass. The separate atomic archival race remains open.
+- Windows LF normalization is enforced for SQL/MJS files. Root and canonical migrations remain byte-identical with SHA-256 `91bbaba89108e490157aa1bcf36c73730c1d18507b5218e3373c599677fbcac2`.
+- Fresh local evidence: 174/174 unit tests, 39/39 database-package tests, 20/20 Phase 01.7 static SQL contracts, 17/17 preview browser tests, TypeScript passed, lint zero errors and zero warnings, scrubbed test build passed, production build passed, and `git diff --check` passed.
+- The original repository remains on `main` at `77661f42ef1fc6a8261b7bb32410a5d9fa9b3445`; its 517-file manifest still matches `23c637b8b0656388f453b202e7fb1d9038843a049d35f7e6aa55ee38923c8682`, and all nine protected backup hashes still match.
+- A high-confidence credential-pattern scan covered all intended integration payload paths with zero findings.
 
 ### 18.2 Remaining blockers
 
-1. **Runtime-unverified database matrix:** real JWT/RLS, multi-role authorization, concurrency, roster capture, and live authenticated workflows require an approved disposable PostgreSQL/Supabase environment. They are not represented as passed. Either authorize an isolated environment or explicitly accept this residual for the intended release.
-2. **History first-run branch:** production exercised `already_recorded`; the insertion branch remains runtime-unverified. This is a metadata-only residual and does not justify rerunning the successful schema migration.
-3. **Course archive race:** the application precheck is not atomic with archival. Accept this narrow admin-only residual with an operational restriction, or approve a separate database-owned guard.
-4. **Product-policy residuals:** guardian-to-child enrollment identity, published-lesson RLS versus the application enrollment gate, membership without active enrollment, capacity reservation behavior, and the legacy active enrollment without review metadata require explicit acceptance or separately approved remediation.
-5. **Public teacher intake:** CAPTCHA/rate limiting and verified email ownership remain absent. Accept the abuse exposure or approve narrowly scoped hardening before public promotion.
-6. **Original-worktree overlap and approvals:** the original `main` worktree still contains the three modified and six untracked protected files. Two modified paths overlap remediation changes, so integration must preserve and reconcile them. Commit, merge, push, and deployment each require explicit approval.
+1. **Runtime-unverified database matrix:** real JWT/RLS, multi-role authorization, concurrency, roster capture, and live authenticated workflows require an approved disposable PostgreSQL/Supabase environment. They are not represented as passed. No risk has been accepted on the operator's behalf.
+2. **SQL parsing and execution:** `06_PHASE_01_7_REMEDIATION_PROPOSAL.sql` has 20 passing static contract tests and focused manual review, but no PostgreSQL parser or runtime execution. It is not an applied migration.
+3. **History first-run branch:** production exercised `already_recorded`; the insertion branch remains runtime-unverified. This metadata-only residual does not justify rerunning the successful schema migration.
+4. **Course archive race:** the application precheck is not atomic with archival. The corrected projection restores the application check, while the review-only proposal contains the database-owned guard.
+5. **Product/data-integrity residuals:** guardian-to-child enrollment identity, published-lesson RLS versus the application enrollment gate, membership without active enrollment, capacity reservation behavior, and legacy enrollment review metadata remain unresolved in production. Section 19 records the proposed solutions and acceptance criteria.
+6. **Public teacher intake:** CAPTCHA/rate limiting and verified email ownership remain absent. The proposed authenticated intake and challenge model requires product/provider approval and coordinated application changes.
+7. **Application cutover:** direct service-role writes and caller-supplied actor signatures in the current application do not match the proposed SQL contracts. The proposal must not be executed before the corresponding application changes are reviewed, tested, and coordinated.
+8. **Approvals:** original `main` merge, push, production SQL execution, and deployment remain unapproved. The original `main` worktree still contains the three modified and six untracked protected files; the external backup and manifest prove preservation, not operator approval to discard or merge them.
+9. **Dependency vulnerabilities:** seven moderate npm vulnerabilities were reported at dependency installation; no automatic remediation was performed.
+10. **History reconciliation first-run:** no local database runtime exists to exercise insertion. Production's `already_recorded` result is sufficient for the current observed state and must not be rerun without a concrete drift signal.
 
 ### 18.3 Recommended next sequence
 
-1. Record explicit acceptance or remediation ownership for the six residuals in section 18.2. Do not create synthetic production records to substitute for the missing runtime matrix.
-2. Approve the isolated commit and clean integration-worktree steps in section 18.4. This does not approve a merge into the original `main`, a push, or deployment.
-3. Run the complete gate set in the clean integration worktree. If any command fails, stop and correct it before main integration.
-4. If runtime JWT/RLS/concurrency assurance is required before release, approve a disposable Supabase/PostgreSQL environment and run the matrix in section 14.4 there. Otherwise document the operator's risk acceptance.
-5. Reconcile the original worktree's overlapping files without discarding either work product, then request separate approval for the final `main` merge.
-6. Only after integration and risk acceptance, request separate deployment approval and follow section 18.5. No further production verifier run or database migration is currently required.
+1. Review section 19 and `06_PHASE_01_7_REMEDIATION_PROPOSAL.sql`. Approve or revise the proposed strict lesson policy, guardian identity model, and authenticated teacher-intake behavior; do not waive them implicitly.
+2. Approve the exact disposable PostgreSQL 17.11/Supabase environment setup before any provisioning. Use synthetic accounts and data only; never create synthetic production records.
+3. After environment approval, parse and execute the candidate transaction in isolation, resolve any PostgreSQL defects, and run the real-JWT RLS and two-connection concurrency matrices in section 19.
+4. Review the resulting evidence and preflight refusals. Then approve the coordinated application cutover and a separately scheduled production SQL window. Do not rerun `20261124010000`, the successful verifier, or history reconciliation without a new concrete drift signal.
+5. Review the final local integration commit and request separate approval before any merge into original `main`. Any push or deployment requires its own explicit approval.
 
-### 18.4 Exact controlled integration instructions
+### 18.4 Completed controlled integration evidence
 
-These commands are instructions only. Execute them only after separate approval to commit and integrate. Do not use stash, reset, restore, clean, force-push, or any command that discards the original work.
+The approved local preparation was performed without changing original `main`:
 
-**Step 1 — recheck and commit the isolated payload.**
+1. **Isolated remediation commit:** `959fc51fa03fc7994af9891000a605da596de3da` on `remediation/phase-01-core-stabilization`, containing 47 files with 7,353 insertions and 525 deletions. The remediation worktree is clean.
+2. **Protected backup:** all three modified and six untracked originals were copied to `D:/Projects-code/liveschool-original-backup-20261125` and verified byte-for-byte. The three Python patch scripts were never executed.
+3. **Original manifest:** the sorted 517-file path/content hash remains `23c637b8b0656388f453b202e7fb1d9038843a049d35f7e6aa55ee38923c8682`; original HEAD remains `77661f42ef1fc6a8261b7bb32410a5d9fa9b3445` on `main`.
+4. **Clean integration worktree:** `D:/Projects-code/liveschool-integration` was created from original `main` on `integration/phase-01-core-stabilization`. The local `--no-ff` integration merge is `c03baa4e82fce89d30b154bd97e49df925897abb`; no merge conflicts occurred.
+5. **Overlap reconciliation:** live-data error states and real query results remain primary. Protected catalog and attendance preview data now lives in explicit fixture modules, is enabled only by a test-specific environment flag, is visibly labeled in preview mode, and cannot authorize fixture-ID writes.
+6. **Windows normalization:** `.gitattributes` enforces LF for SQL and MJS files. The 52 tracked SQL/MJS paths were normalized with no staged content change, restoring canonical migration byte identity and newline-sensitive tests.
+7. **Application correction:** `archiveCourse()` now selects `requester_id` from `course_enrollments`, not the nonexistent `id` column. Two RED-to-GREEN regressions pin the real PostgREST projection contract.
+8. **Verification:** the complete local gate set in section 16 passes after reconciliation. The final integration payload is reviewed for secrets, whitespace, scope, disabled-workflow containment, and review-only SQL status before the authorized local integration commit.
 
-From `D:/Projects-code/liveschool-phase-01`:
-
-```bash
-git status --short
-git diff --check
-git diff --cached --check
-git add -- \
-  "playwright.preview.config.ts" \
-  "src/app/(public)/courses/[courseId]/lessons/page.tsx" \
-  "src/app/(public)/groups/page.tsx" \
-  "src/app/(public)/teachers/[teacherId]/page.tsx" \
-  "src/app/(public)/teachers/apply/page.tsx" \
-  "src/app/(public)/teachers/page.tsx" \
-  "src/app/account/callback/route.ts" \
-  "src/app/api/chat-attachment/route.ts" \
-  "src/features/auth/account-actions.ts" \
-  "src/features/auth/auth-redirect.ts" \
-  "src/features/auth/proxy-response.ts" \
-  "src/features/auth/route-access.ts" \
-  "src/features/auth/supabase-server.ts" \
-  "src/features/catalog/catalog-admin-actions.ts" \
-  "src/features/catalog/catalog-mutations.ts" \
-  "src/features/catalog/enrollment-actions.ts" \
-  "src/features/catalog/live-catalog.ts" \
-  "src/features/catalog/teacher-courses.tsx" \
-  "src/features/dashboards/attendance-data.ts" \
-  "src/features/dashboards/live-assignment-access.ts" \
-  "src/features/dashboards/live-assignments.tsx" \
-  "src/features/dashboards/live-attendance-actions.ts" \
-  "src/proxy.ts" \
-  "supabase/migrations/20261123123000_add_chat_thread_insert_policies.sql" \
-  "supabase/migrations/20261123130000_restore_direct_chat.sql" \
-  "supabase/migrations/20261123140000_fix_chat_rls_participant_check.sql" \
-  "supabase/migrations/20261124000000_atomic_enrollment_review.sql" \
-  "supabase/migrations/20261124010000_unified_database_reconciliation.sql" \
-  "tests/unit/assignment-access.test.mjs" \
-  "tests/unit/attendance-data.test.mjs" \
-  "tests/unit/callback-owner-guard.test.mjs" \
-  "tests/unit/catalog-archive.test.mjs" \
-  "tests/unit/catalog-mutations.test.mjs" \
-  "tests/unit/course-lessons-client.test.mjs" \
-  "tests/unit/database-package.test.mjs" \
-  "tests/unit/enrollment-configuration.test.mjs" \
-  "tests/unit/live-assignments-privacy.test.mjs" \
-  "tests/unit/proxy-response.test.mjs" \
-  "tests/unit/public-catalog-client.test.mjs" \
-  "tests/unit/qa-isolation.test.mjs" \
-  "tests/unit/route-access.test.mjs" \
-  "tests/unit/settings-read.test.mjs" \
-  "01_FULL_DATABASE_MIGRATION.sql" \
-  "02_DATABASE_VERIFICATION.sql" \
-  "03_DATABASE_ROLLBACK.sql" \
-  "04_DATABASE_IMPLEMENTATION_REPORT.md" \
-  "05_MIGRATION_HISTORY_RECONCILIATION.sql"
-git diff --cached --check
-git status --short
-git commit -m "$(cat <<'EOF'
-fix: complete Phase 01.6 database integration hardening
-EOF
-)"
-git status --short
-```
-
-The final `git status --short` must be empty before integration. If any unexpected path appears, stop and review it; do not broaden staging.
-
-**Step 2 — preserve the original nine protected paths outside the repository.**
-
-From `D:/Projects-code/liveschool`, before any merge:
-
-```bash
-mkdir -p "D:/Projects-code/liveschool-original-backup-20261125"
-cp --parents \
-  "src/features/catalog/mock-data.ts" \
-  "src/features/catalog/my-courses.tsx" \
-  "src/features/dashboards/live-attendance.tsx" \
-  "src/features/catalog/mock-courses.ts" \
-  "src/features/catalog/mock-enrollments.ts" \
-  "src/features/dashboards/mock-users.ts" \
-  "write_attendance.py" \
-  "write_attendance_part1.py" \
-  "write_attendance_part2.py" \
-  "D:/Projects-code/liveschool-original-backup-20261125/"
-```
-
-Recompute the original 517-file manifest and confirm it still equals `23c637b8b0656388f453b202e7fb1d9038843a049d35f7e6aa55ee38923c8682`. Never execute the three Python files.
-
-**Step 3 — create a clean integration worktree without changing the original worktree.**
-
-```bash
-git -C "D:/Projects-code/liveschool" worktree add \
-  "D:/Projects-code/liveschool-integration" \
-  -b integration/phase-01-core-stabilization main
-git -C "D:/Projects-code/liveschool-integration" merge --no-ff \
-  remediation/phase-01-core-stabilization \
-  -m "merge: integrate Phase 01.6 remediation"
-git -C "D:/Projects-code/liveschool-integration" status --short
-git -C "D:/Projects-code/liveschool-integration" log -1 --oneline
-```
-
-Install locked dependencies and run the same gates in the clean integration worktree:
-
-```bash
-npm ci
-npm test
-npm run typecheck
-npm run lint
-npx playwright test --config=playwright.preview.config.ts
-npm run build
-git diff --check
-```
-
-All commands must pass; lint must report zero errors and only the known warning. Stop on any merge conflict or failure and resolve it without discarding either work product.
-
-**Step 4 — integrate into the original `main` only after overlap reconciliation.**
-
-The original worktree must retain its protected files until the operator has separately committed or otherwise reconciled their intended changes, especially `src/features/catalog/my-courses.tsx` and `src/features/dashboards/live-attendance.tsx`. Do not use destructive commands to make the merge fit. Once no uncommitted overlap remains and merge approval is explicit, run from `D:/Projects-code/liveschool`:
-
-```bash
-git status --short
-git merge --no-ff integration/phase-01-core-stabilization
-git status --short
-git log -1 --oneline
-```
-
-Confirm the external nine-file backup remains byte-identical to the pre-integration originals. Any push or remote operation requires separate explicit approval.
+No stash, reset, restore, clean, force-push, merge into original `main`, remote operation, or deployment was used. The pre-existing detached temporary worktree was not modified.
 
 ### 18.5 Deployment requirements
 
-- Accept or resolve every remaining blocker in section 18.2 before production sign-off; the verifier and fingerprint blockers are closed.
-- Deploy only the reviewed integrated commit; no deployment command is authorized by this report.
-- Do not rerun either database migration or history reconciliation. The successful schema migration is complete and history is reconciled.
+- Resolve or explicitly disposition every remaining blocker in section 18.2 before production sign-off; the production verifier and fingerprint evidence gaps are closed.
+- Review and approve the Phase 01.7 proposal and its coordinated application changes before any SQL execution. The proposal is not a deployment artifact until separately approved and isolated-tested.
+- Deploy only a reviewed application commit. No deployment command is authorized by this report.
+- Do not rerun either applied database migration or history reconciliation. The successful schema migration is complete and history is reconciled.
 - Keep Supabase credentials server-only, confirm the deployment points to the verified project, and rebuild after any public environment-variable change.
 - Keep direct chat writes, attachments, notifications, payments, meeting providers, Realtime, and other disabled or preview-only features disabled.
 - Perform non-mutating post-deployment smoke checks for public catalog/groups, login and registration rendering, restricted-route redirects/404s, and `/api/chat-attachment` returning 404. Do not create synthetic production records.
@@ -950,4 +852,164 @@ Confirm the external nine-file backup remains byte-identical to the pre-integrat
 
 ### 18.6 Release decision
 
-**Not approved for production deployment.** Database evidence is complete and the branch is locally verified, but runtime-unverified database acceptance, remaining product/concurrency risk disposition, original-worktree overlap reconciliation, and explicit commit/merge/deployment approvals remain mandatory. The recommended next action is controlled integration in a clean worktree, not another production migration or verifier run.
+**Not approved for production deployment or Phase 01.7 SQL execution.** Local integration preparation is complete and locally verified. PostgreSQL parsing/execution, real-JWT RLS and concurrency assurance, product-policy approval, coordinated application cutover, original `main` merge, and any push or deployment remain separate approval gates. No unresolved risk is accepted or waived by this report.
+
+## 19. Nine-risk remediation plan
+
+**Status:** review-only plan. No item below is accepted, waived, implemented in production, or represented as runtime-tested. The consolidated SQL candidate is `06_PHASE_01_7_REMEDIATION_PROPOSAL.sql`; it is not an applied migration and must not be run until the application rollout, isolated test evidence, and operator approval are complete.
+
+### 19.1 Common controls and sequencing
+
+- Use one disposable PostgreSQL 17.11/Supabase environment with Auth and PostgREST. Production must not receive synthetic users, JWTs, reservations, attendance, or concurrency probes.
+- Use real user JWTs for every ordinary-user authorization test. The service role may seed and inspect synthetic state, but must not impersonate a student, guardian, teacher, manager, support user, administrator, or owner.
+- Keep `search_path = ''` on every new or replaced `SECURITY DEFINER` function, schema-qualify every relation, revoke public execution, and grant only the required role.
+- Run schema preflight and final invariant assertions in the same transaction as any future approved migration. Existing invalid data must produce a refusal and a count, never an automatic delete or invented backfill.
+- Deploy application and database changes in one approved maintenance sequence. Functions whose signatures lose caller-supplied actor parameters require the matching application deployment; do not expose a window in which old and new authorization contracts are mixed.
+- Keep group join/payment workflows, notifications, attachments, Realtime, online sessions, and other disabled features disabled. Database guards may be installed without granting live workflow execution.
+- After isolated verification, request separate approval for production SQL execution. Do not rerun `20261124010000`, the successful verifier, or history reconciliation without a new concrete drift signal.
+
+### 19.2 JWT and RLS authorization testing
+
+**Root cause:** the applied schema has repository-reviewed policies and JWT-aware enrollment/attendance RPCs, but no approved local PostgreSQL/Supabase runtime exists. Static SQL assertions cannot prove actual `anon`, `authenticated`, `auth.uid()`, column-grant, or PostgREST behavior.
+
+**Severity:** Critical release-assurance gap.
+
+**Proposed solution:** create a role-by-resource authorization matrix in the disposable environment. Sign in synthetic users through Supabase Auth and call both the application RPCs and direct PostgREST endpoints. Cover anonymous, student, parent, teacher, manager, support, admin, and owner actors; include inactive profiles, unlinked guardians, wrong-course actors, and tampered JWT claims. Assert allowed row sets and denied writes, not merely HTTP status codes. Include the direct lesson-body bypass, enrollment review, attendance, group chat, teacher onboarding, public catalog, and column-level teacher/settings exposure.
+
+**Affected files:** proposed `tests/database/rls-authorization.test.mjs`, `tests/database/fixtures/synthetic-users.mjs`, `tests/database/README.md`; canonical and proposed SQL; `src/features/auth/supabase-server.ts`; enrollment, attendance, group-chat, teacher-onboarding, and public-catalog modules named in the matrix.
+
+**Database requirements:** canonical migration plus the approved incremental proposal in the disposable environment; RLS enabled on every application table; explicit least-privilege grants; real Auth users and JWTs; deterministic synthetic seed and cleanup. No production database requirement.
+
+**Acceptance criteria:** every expected allow returns exactly the expected synthetic rows; every expected deny returns zero rows or the documented permission error; no unauthorized insert/update/delete succeeds; service-role-only functions remain non-executable by ordinary roles; anonymous lesson bodies are denied under the proposed strict policy; results are saved as a machine-readable matrix with zero unexplained discrepancies.
+
+### 19.3 Database concurrency testing
+
+**Root cause:** several workflows depend on locks and transitions, but the current evidence is static or production-observed only. No two-connection test has exercised review/archive, group-capacity, or conflicting attendance transitions.
+
+**Severity:** Critical release-assurance gap.
+
+**Proposed solution:** run bounded two-connection and multi-connection tests with barriers, real user JWTs, transaction rollback, and explicit lock/statement timeouts. Exercise duplicate enrollment review, review versus archive, final-seat reservation/approval, concurrent membership changes, and conflicting attendance updates. Record commit/rollback outcome, final row state, event count, elapsed time, and any deadlock or timeout. Do not use service-role credentials to simulate ordinary-user concurrency.
+
+**Affected files:** proposed `tests/database/concurrency.test.mjs` and scenario modules; `public.review_course_enrollment_as_admin`, proposed archive guard, proposed group reservation/approval RPCs, and `public.record_session_attendance`; corresponding server actions.
+
+**Database requirements:** disposable PostgreSQL/Supabase only; synthetic actors and resources; the approved guard functions/triggers; PostgreSQL lock visibility appropriate to the tested isolation level. No production writes.
+
+**Acceptance criteria:** review/archive always ends in either `archived` with no active enrollment or `published` with the reviewed enrollment; group membership plus live holds never exceeds capacity; attendance has a serialized append-only event history and current state equals the last event; duplicate review produces one state transition; no unexpected deadlock, timeout, lost update, or duplicate event occurs in the agreed contention scenarios.
+
+### 19.4 Course archival race conditions
+
+**Root cause:** `archiveCourse()` performs an active-enrollment query and a separate course update. A concurrent enrollment activation can commit between them. The local integration also exposed a separate projection defect: the precheck selected nonexistent `course_enrollments.id`; this application defect is now corrected to `requester_id` with RED-to-GREEN regression coverage. The projection fix does not make archival atomic.
+
+**Severity:** High.
+
+**Proposed solution:** retain the application precheck for a fast user-facing failure, but enforce the invariant in PostgreSQL. A `BEFORE UPDATE` trigger on `courses.status` must lock the course row and reject archival when an active enrollment exists. Enrollment review already locks the course before the enrollment, giving both paths the same course-first lock order. The trigger must be security-definer with an empty search path and must not be directly executable.
+
+**Affected files:** `src/features/catalog/catalog-admin-actions.ts`; `tests/unit/catalog-archive.test.mjs`; proposed archive function/trigger in `06_PHASE_01_7_REMEDIATION_PROPOSAL.sql`; proposed concurrency test.
+
+**Database requirements:** `liveschool_internal.prevent_course_archive_with_active_enrollments()` and a row-level trigger on `public.courses`; existing restrictive enrollment/course foreign keys; active-enrollment index. No existing row backfill.
+
+**Acceptance criteria:** archival with any active enrollment fails without changing course status; archival without active enrollment succeeds; review-versus-archive contention produces only the two valid terminal states in section 19.3; direct service-role or SQL updates cannot bypass the trigger; the invalid `id` projection cannot regress.
+
+### 19.5 Guardian enrollment identity
+
+**Root cause:** `course_enrollments` is keyed by `(requester_id, course_id)` and stores only free-text `learner_name`. A parent can name any child; there is no `student_id`, guardian-link proof, or uniqueness rule for one active enrollment per actual learner.
+
+**Severity:** Critical data-integrity and privacy risk.
+
+**Proposed solution:** add nullable `student_id` with a restrictive profile foreign key. Existing rows remain unchanged with `student_id = null`, explicitly meaning unresolved legacy identity. Add a JWT-bound `request_course_enrollment` RPC that derives `requester_id` and verified display name from `auth.uid()`, accepts a student self-request or a parent request for an active linked student, rejects unlinked/inactive actors, and serializes same-course requests. Add a partial unique index for active `(student_id, course_id)` rows. Update enrollment reads, lesson authorization, group membership checks, and admin display to use the effective student identity. Revoke direct service-role enrollment INSERT after the coordinated application cutover.
+
+**Affected files:** `src/features/catalog/enrollment-actions.ts`, `catalog-data.ts`, `my-courses.tsx`; course detail/enrollment UI; `src/app/(public)/courses/[courseId]/lessons/page.tsx`; `src/app/(portals)/admin/catalog/page.tsx`; proposed enrollment RPC, policies, index, and grants in the SQL proposal; enrollment and RLS tests.
+
+**Database requirements:** `course_enrollments.student_id`, restrictive FK, identity-validation trigger/RPC, active-identity unique index, expanded SELECT policy for student/linked guardian, and execution/table privilege changes. Existing legacy rows must not be automatically mapped to a student.
+
+**Acceptance criteria:** a student can request only their own active identity; a parent can request only an active `guardian_links` student; submitted names cannot override profile identity; unlinked, inactive, wrong-role, and anonymous calls fail; two active enrollments for the same student/course cannot exist; legacy null identities remain null and visible as unresolved; all downstream access uses the authoritative student where present.
+
+### 19.6 Published lesson access permissions
+
+**Root cause:** the application lesson route requires an active enrollment, but canonical RLS and grants allow `anon` and `authenticated` to read every lesson body in a published course. Direct PostgREST access bypasses the UI gate.
+
+**Severity:** High confidentiality risk.
+
+**Proposed solution:** adopt an explicit strict lesson-body policy: published course metadata and units may remain available for public discovery, but lesson rows/bodies require authentication and course authorization. Recommended authorized actors are the enrolled student, a linked guardian for an authoritative student enrollment, the assigned course teacher, and active admin/owner. Add one security-definer helper, `liveschool_internal.can_read_course_lessons(course_id)`, and use it for the lesson SELECT policy. Revoke anonymous `lessons` SELECT and grant authenticated SELECT only. The consolidated proposal deliberately leaves public unit/course metadata policies unchanged. Update the application route to use the same authorization contract rather than maintaining a second, narrower enrollment-only rule.
+
+**Affected files:** `src/app/(public)/courses/[courseId]/lessons/page.tsx`; `src/features/catalog/live-catalog.ts` if public unit queries are retained; proposed helper and lesson policy in the SQL proposal; RLS tests.
+
+**Database requirements:** helper function, replacement lesson policy, anonymous lesson grant revocation, authenticated lesson grant, and explicit execute grant for the helper. Public course and unit metadata policies remain unchanged.
+
+**Acceptance criteria:** anonymous and unenrolled authenticated direct reads return no lesson rows; enrolled students, linked guardians, assigned teachers, and active admins/owners receive exactly their authorized course content; users cannot read another course by changing IDs; archived-course content is denied; application navigation and direct PostgREST behavior agree.
+
+### 19.7 Group membership and enrollment consistency
+
+**Root cause:** `save_learning_group()` validates active student accounts but does not require an active enrollment in the group's course. `group_members` has no database guard, so direct or future writes can create inconsistent membership.
+
+**Severity:** High.
+
+**Proposed solution:** add `liveschool_internal.has_active_course_enrollment(student_id, course_id)` using authoritative `student_id` where present and the existing self-requester identity only for legacy rows. Require it in the JWT-bound group-save RPC and in a trigger on `group_members` INSERT/student update. A group course change must revalidate every current member under the group lock. Preflight must report and refuse existing violations rather than deleting them.
+
+**Affected files:** `src/features/enrollments/group-admin-actions.ts`; `src/features/enrollments/registration.ts`; proposed group-save replacement, helper, and membership/course-change triggers in the SQL proposal; group and enrollment tests.
+
+**Database requirements:** enrollment-aware helper, membership validation trigger, group course-change validation trigger, and coordinated replacement of `save_learning_group()` with an `auth.uid()`-bound signature. No automatic membership cleanup.
+
+**Acceptance criteria:** no new member can be inserted without active enrollment in the group's course; inactive or unrelated students are rejected; changing a group's course fails while any member lacks the new course enrollment; legacy ambiguous identities cannot be used to infer eligibility; existing violations cause a safe preflight refusal and remain unchanged.
+
+### 19.8 Group capacity reservations
+
+**Root cause:** live group saving counts only `group_members`. It ignores `group_join_requests` in `reserved` or `paid` state, even though the preview model already treats unexpired reservations and paid requests as held seats. The open-request unique index also treats expired reservations as open until their status is changed.
+
+**Severity:** High overselling and fairness risk.
+
+**Proposed solution:** under a consistent group-row lock, define occupied seats as current members plus unexpired `reserved` requests and `paid` requests that are not already members. Add capacity guards for group capacity changes, membership inserts, and request status/expiry changes. Provide JWT-bound reserve, expire, and approve RPCs; approval must validate active enrollment and a succeeded payment before atomically inserting membership and finalizing the request. Expire stale reservations before a replacement reservation to avoid uniqueness conflicts. Create the workflow functions with execution revoked until the separately approved live group-join/payment workflow is enabled.
+
+**Affected files:** `src/features/enrollments/registration.ts`; future live group-join/admin actions; proposed capacity helper, triggers, and revoked RPCs in the SQL proposal; capacity and concurrency tests.
+
+**Database requirements:** group-lock capacity function, request/membership/capacity triggers, safe expiry logic, reservation/approval RPCs, and preflight checks for existing overcapacity or duplicate open holds. No payment-provider activation.
+
+**Acceptance criteria:** members plus live holds never exceed capacity under concurrent requests; expired reservations release seats; paid requests continue to hold a seat until a valid terminal transition; a member is never double-counted; approval cannot succeed without active enrollment and succeeded synthetic payment evidence; final-seat contention has one winner; no live workflow execute grant is added by this proposal.
+
+### 19.9 Legacy enrollment review metadata
+
+**Root cause:** production-observed history contains an active enrollment with null `reviewed_by` and `reviewed_at`. The current table cannot distinguish a deliberately reviewed row from a legacy row whose review provenance is unavailable. Filling those fields now would fabricate history.
+
+**Severity:** Medium audit-integrity risk.
+
+**Proposed solution:** preserve both null fields. Add an append-only enrollment review-event table and a read-only audit view that labels non-pending rows with null metadata as `legacy_unreviewed`. New reviews write an event in the same transaction as the existing transition. Add an admin/owner JWT-bound acknowledgment RPC that records the current actor, time, and optional note without modifying the original enrollment review fields. Do not auto-acknowledge or backfill the legacy row.
+
+**Affected files:** `src/app/(portals)/admin/catalog/page.tsx`; `src/features/catalog/catalog-mutations.ts`; proposed event table, audit view, review-event write, and acknowledgment RPC in the SQL proposal; report and audit tests.
+
+**Database requirements:** append-only event table, immutable trigger, audit view, acknowledgment RPC, least-privilege admin read/execute grants. No update to existing `reviewed_by` or `reviewed_at`.
+
+**Acceptance criteria:** the legacy row's fields remain null; the audit view explicitly reports `legacy_unreviewed`; a current administrator can record a separate acknowledgment with their real JWT identity; ordinary users cannot read or write audit events; new reviews create exactly one event; no historical reviewer or timestamp is invented.
+
+### 19.10 Public teacher-intake abuse prevention
+
+**Root cause:** the public server action uses the service role to insert `teacher_applications` without authentication, CAPTCHA, rate limiting, or verified email ownership. Public tracking reads by UUID alone. Teacher onboarding and group administration also accept caller-supplied actor UUIDs in service-role-only RPCs; server checks exist, but the database actor is not bound to `auth.uid()`.
+
+**Severity:** High abuse, impersonation, and privilege-escalation risk.
+
+**Proposed solution:** require an authenticated, active account with a confirmed email for new intake; add nullable `requester_id`, derive it from `auth.uid()`, and require the submitted email to match the Auth account. Verify a provider CAPTCHA token server-side before insertion and enforce database-backed per-user and trusted-IP-hash rate limits. Existing applications remain legacy with null `requester_id`; their tracking fallback may require both reference and matching email, while new applications are visible only to their authenticated requester. Replace direct public tracking reads with a restricted RPC. Replace caller-supplied `p_actor` in teacher onboarding and group saving with `auth.uid()`, invoke them through the administrator's session client, and add a JWT-bound teacher-application review RPC. CAPTCHA provider selection, keys, trusted-proxy configuration, and any email-provider setup require separate explicit approval.
+
+**Affected files:** `src/app/(public)/teachers/apply/page.tsx`; `src/features/teachers/live-application-form.tsx`; `src/features/teachers/application-actions.ts`; `src/app/(public)/teachers/track/page.tsx`; `src/features/teachers/teacher-onboarding-actions.ts`; `src/features/enrollments/group-admin-actions.ts`; proposed intake/tracking/review/onboarding/group RPCs, rate-limit table, columns, policies, and grants in the SQL proposal; abuse and authorization tests.
+
+**Database requirements:** nullable `requester_id` FK, verified-email/identity RPC, rate-limit table with hashed keys, restricted tracking RPC, JWT-bound onboarding/review/group functions, replacement policies/grants, and removal of direct service-role intake INSERT. Existing rows are preserved. No paid service or provider is provisioned by this plan.
+
+**Acceptance criteria:** anonymous, inactive, unconfirmed-email, mismatched-email, invalid-CAPTCHA, and rate-limited submissions fail; a verified owner can submit and track only their own new application; another user cannot read it by UUID or email; legacy tracking requires both correct reference and email and is rate-limited; onboarding/group administration succeeds only for the JWT's active admin/owner; a supplied actor UUID cannot substitute for `auth.uid()`; all abuse tests run only with synthetic accounts.
+
+### 19.11 Required approvals and release gate
+
+1. Approve the strict lesson-access policy and authenticated teacher-intake model, including the exact CAPTCHA/rate-limit setup.
+2. Approve creation of a disposable PostgreSQL/Supabase environment. No remote staging provisioning is authorized yet.
+3. Review `06_PHASE_01_7_REMEDIATION_PROPOSAL.sql` and the coordinated application changes; approve implementation only after the isolated JWT/RLS and concurrency matrix is green.
+4. Review any preflight refusal caused by existing inconsistent memberships, overcapacity, duplicate active identities, or unresolved legacy rows. Do not authorize automatic deletion or fabricated backfills.
+5. Request separate approval for production SQL execution, application deployment, main merge, and any push. None is granted by this report.
+
+### 19.12 Consolidated proposal status and application cutover
+
+`06_PHASE_01_7_REMEDIATION_PROPOSAL.sql` is one transactional, review-only incremental candidate. Its header says `REVIEW ONLY — DO NOT EXECUTE` and states that it is not an applied migration. It contains preflight refusals, transaction-local timeouts, schema-qualified security-definer functions with empty search paths, least-privilege grants, and final assertions before `COMMIT`.
+
+The candidate adds nullable authoritative identities without backfilling legacy rows, an active-identity unique index, enrollment review events and acknowledgment, authenticated/enrollment-aware lesson access, active-enrollment group guards, live-hold capacity accounting, one-time intake challenges and database throttling, and JWT-bound privileged RPC signatures. It explicitly drops the permissive legacy requester SELECT policy and revokes remaining column-level service-role update access. The disabled group reservation/approval/expiry routines remain non-executable. The proposal does not create publications, Storage buckets, direct-chat tables, notifications tables, or payment-provider workflows.
+
+Twenty static tests in `tests/unit/remediation-proposal.test.mjs` pass. Focused manual review additionally corrected helper execute privileges, column-level revocation, exact payment and reviewer checks, approved-request preflight, legacy-policy bypasses, NULL status handling, exact identity-column assertions, the complete security-definer contract, and relation-specific trigger assertions. These checks do not prove PostgreSQL syntax, trigger execution, RLS behavior, or concurrency safety.
+
+A coordinated application cutover is mandatory. `src/features/enrollments/enrollment-actions.ts` must stop direct service-role enrollment inserts and call the JWT-bound request RPC with an authorized student identity. `src/features/enrollments/group-admin-actions.ts` and `src/features/teachers/teacher-onboarding-actions.ts` must remove `p_actor` and invoke the replacement RPCs through the actor's session client. Public teacher submission/tracking must stop direct service-role reads/writes and use the challenge-bound RPCs; administrator application review must use the JWT-bound review RPC instead of direct service-role status updates. Existing callers will otherwise fail or bypass the proposed restrictions.
+
+The proposal must remain unexecuted until an approved disposable PostgreSQL 17.11/Supabase environment parses and runs it, the real-JWT and concurrency matrices pass, the coordinated application diff is reviewed, preflight refusals are resolved without data fabrication, and the operator separately approves a production execution window.

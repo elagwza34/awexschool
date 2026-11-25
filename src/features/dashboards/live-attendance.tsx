@@ -2,8 +2,10 @@
 import { redirect } from "next/navigation";
 import { AuthSubmit } from "@/features/auth/form-controls";
 import { getAccount, ownerClient } from "@/features/auth/supabase-server";
+import { isPreviewFixtureEnvironment } from "@/lib/environment";
 import { recordPortalAttendance } from "./live-attendance-actions";
 import { loadAttendanceData, type AttendanceRole } from "./attendance-data";
+import { attendancePreviewMembers, attendancePreviewRecords, attendancePreviewSessions } from "./attendance-fixtures";
 
 const statuses = { present: "حاضر", absent: "غائب", late: "متأخر" };
 const date = new Intl.DateTimeFormat("ar-EG", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Cairo" });
@@ -24,7 +26,28 @@ export async function LiveAttendance({ role, searchParams }: {
   });
   let body;
   if (result.state === "error") {
-    body = <p role="alert" className="soft-card p-4">تعذّر تحميل الحضور.</p>;
+    const preview = isPreviewFixtureEnvironment();
+    const selected = params.session
+      ? attendancePreviewSessions.find(({ id }) => id === params.session)
+      : attendancePreviewSessions[0];
+    const recorded = new Map(attendancePreviewRecords.map(({ student_id, status }) => [student_id, status]));
+    body = preview && role === "teacher" && selected ? <div className="space-y-3">
+      <p role="status" className="soft-card p-4">بيانات تجريبية للمعاينة فقط.</p>
+      <nav aria-label="الحصص" className="soft-card max-h-96 space-y-1 overflow-y-auto p-3">
+        {attendancePreviewSessions.map((item) => <Link key={item.id} href={`/teacher/attendance?session=${item.id}`}
+          aria-current={item.id === selected.id ? "page" : undefined}
+          className="grid min-h-11 gap-1 rounded-lg p-3 hover:bg-accent aria-[current=page]:bg-accent">
+          <span className="font-semibold">{item.title}</span><span className="text-sm text-muted-foreground">{date.format(new Date(item.starts_at))}</span>
+        </Link>)}
+      </nav>
+      <section className="soft-card space-y-3 p-4">
+        <h2 className="text-lg font-bold">{selected.title}</h2>
+        {attendancePreviewMembers.map((member) => <div key={member.student_id} className="grid gap-1 border-t pt-3">
+          <p className="font-semibold">{member.profiles.display_name}</p>
+          <p className="text-sm text-muted-foreground">{labelFor(recorded.get(member.student_id) as keyof typeof statuses)}</p>
+        </div>)}
+      </section>
+    </div> : <p role="alert" className="soft-card p-4">تعذّر تحميل الحضور.</p>;
   } else if (result.state === "empty") {
     body = <p className="soft-card p-4">{role === "teacher" ? "مفيش حصص سابقة متاحة لتسجيل الحضور." : "مفيش سجلات حضور متاحة حاليًا."}</p>;
   } else if ("sessions" in result) {
