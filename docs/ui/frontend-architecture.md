@@ -1,5 +1,7 @@
 # Frontend architecture — UI-01 / UI-02
 
+> Historical UI-only architecture. The current application also includes Supabase Auth/PostgreSQL/Storage, server actions, `src/proxy.ts`, protected live portals, and scoped QA projects. Statements below about absent Supabase or public mock portals describe the earlier delivery. See the root [README](../../README.md) for current runtime and security boundaries.
+
 ## Initial project audit
 
 The workspace contained only `docs/phase-0.1/` and its eight Markdown review files. No framework, application source, package manifest, lockfile, routing, components, styles, build configuration, or local AGENTS.md existed. The supplied conversation AGENTS instructions applied. Existing review documents were preserved without edits.

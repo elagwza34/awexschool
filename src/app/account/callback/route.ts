@@ -12,9 +12,10 @@ export async function GET(request: Request) {
     return NextResponse.redirect(destination);
   }
   const { data, error } = await client.auth.exchangeCodeForSession(code);
+  const accountEmail = data.user?.email?.trim().toLowerCase();
+  const ownerEmail = process.env.LIVESCHOOL_OWNER_EMAIL?.trim().toLowerCase();
   if (error) destination.searchParams.set("message", "callback");
-  else if (data.user.email_confirmed_at &&
-    data.user.email?.toLowerCase() === process.env.LIVESCHOOL_OWNER_EMAIL?.trim().toLowerCase()) {
+  else if (data.user && data.user.email_confirmed_at && accountEmail && ownerEmail && accountEmail === ownerEmail) {
     const admin = ownerClient();
     const response = await fetch(new URL("/auth/v1/settings", config.url), { headers: { apikey: config.key }, cache: "no-store" }).catch(() => null);
     const settings = response?.ok ? await response.json().catch(() => null) : null;

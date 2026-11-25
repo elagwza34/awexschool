@@ -1,5 +1,7 @@
 # Public route inventory
 
+> Historical frontend-only route inventory. Live portal access is now filtered by `src/proxy.ts` and `src/features/auth/dashboard-roles.ts`; legacy previews are not public account routes. Public catalog/groups readers use Supabase when configured. See the root [README](../../README.md) for current route and authentication behavior.
+
 All routes are frontend views with local fixtures. Dynamic route params are validated; unknown IDs return 404. Known fixture details are pre-rendered where search parameters are unnecessary. Search/filter pages render using local data on the Next.js server and client; no backend API is implemented.
 
 | Route                         | Purpose                                            | Example / behavior                                                                     |
@@ -69,9 +71,9 @@ Admin horizontal navigation adds `/admin/reports`, `/admin/schedule` and `/admin
 
 Staff roles use `/admin/team`, `/manager`, `/manager/requests`, `/manager/team`, `/manager/activity`, `/support`, `/support/requests` and `/support/activity`. See [Staff role previews](staff-roles.md).
 
-Current removal: the Platform Activity and Latest Updates sections and shortcuts were removed. `/admin/reports`, `/admin/activity`, `/student/activity` and `/parent/activity` now return 404. Earlier route tables describe historical additions; these four routes are no longer available. Progress views and staff audit activity remain separate existing features.
+Current removal: the Platform Activity and Latest Updates sections and shortcuts were removed. `/admin/reports`, `/admin/activity`, `/student/activity` and `/parent/activity` are restricted previews and return HTTP 307 to `/account` with `message=section-unavailable` and the role `portal` parameter. Only retired `/owner`, `/owner/permissions`, and `/owner/settings` routes return 404. Earlier route tables describe historical additions; progress views and staff audit activity remain separate existing features.
 
-Public logic follow-up: `/pricing` was restored as an illustrative pricing preview and `/faq` is available with keyboard-accessible question disclosures. See [Logic fixes](logic-fixes.md).
+Public logic follow-up: `/pricing` currently redirects to `/courses`, and `/faq` is available with keyboard-accessible question disclosures. See [Logic fixes](logic-fixes.md).
 
 Enrollment foundation adds `/admin/enrollments` and `/teacher/groups`, and recognizes the known `/parent/courses/malak` fixture path while enforcing parent links in the preview UI. See [Enrollment foundation](enrollment-foundation.md).
 

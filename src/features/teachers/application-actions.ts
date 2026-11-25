@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getAccount, ownerClient } from "@/features/auth/supabase-server";
+import { mutationOutcome } from "@/lib/mutation-result";
 
 const field = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
 
@@ -46,8 +47,10 @@ export async function reviewTeacherApplication(id: string, form: FormData) {
   const client = ownerClient();
   if (!client || !account?.roles.some((role) => role === "owner" || role === "admin")) redirect("/account");
   const status = field(form, "status");
+  if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(id)) redirect("/admin/teacher-applications?status=failed");
   if (status === "accepted") redirect(`/admin/teachers?application=${encodeURIComponent(id)}`);
   if (status !== "rejected") redirect("/admin/teacher-applications");
-  const result = await client.from("teacher_applications").update({ status }).eq("id", id).eq("status", "pending");
-  redirect(result.error ? "/admin/teacher-applications?status=failed" : "/admin/teacher-applications");
+  const result = await client.from("teacher_applications").update({ status }).eq("id", id).eq("status", "pending")
+    .select("id").maybeSingle();
+  redirect(mutationOutcome(result) === "saved" ? "/admin/teacher-applications" : "/admin/teacher-applications?status=failed");
 }

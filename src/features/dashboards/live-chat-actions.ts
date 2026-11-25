@@ -2,17 +2,25 @@
 
 import { getAccount, sessionClient } from "@/features/auth/supabase-server";
 import type { ChatRole } from "./chat-workspace";
+import { canInvokeLiveChatAction, validateDirectChatMessage } from "./chat-safety";
 
 export async function sendPortalMessage(
   role: ChatRole, administration: boolean, contact: string, draft: string,
   attachment: { key: string; name: string } | null,
 ) {
-  const body = typeof draft === "string" ? draft.trim() : "";
-  if ((!body && !attachment) || body.length > 2000) return { ok: false };
-
+  if (!canInvokeLiveChatAction()) return { ok: false };
   const [account, client] = await Promise.all([getAccount(), sessionClient(true)]);
   if (!account || !client) return { ok: false };
+  if (!validateDirectChatMessage({
+    role,
+    administration,
+    accountId: account.user.id,
+    contactId: contact,
+    body: draft,
+    attachment,
+  })) return { ok: false };
 
+  const body = draft.trim();
   const { error } = await client.rpc("send_direct_chat", {
     p_role: role,
     p_admin: administration,

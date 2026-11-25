@@ -1,21 +1,17 @@
-# Linked student–teacher chat preview
+# Direct and group chat boundaries
 
-The owner requested chat between a student and their associated teacher. The existing frontend-only scope is retained. `/student/chat` is the seventh horizontal student navigation link, **الشات**; `/teacher/chat` is available as **شات الطلاب** in teacher navigation.
+## Current direct-chat UI
 
-## Membership and behavior
+`/student/chat`, `/teacher/chat`, and the role administration-chat routes render `LiveChat` with fixture contacts and messages. This UI is intentionally **read-only**: the composer, attachment upload, recording, and submit controls are absent, and a visible status explains that sending is unavailable. Fixture account and thread identifiers are rejected by `canWriteDirectChat` and by the server message validator before Storage or RPC calls. A real attachment path must belong to the authenticated UUID account.
 
-`chat-data.ts` builds one thread per student/teacher pair from the existing sample enrollments and each course's teacher assignment. The sample student can contact Ahmed Hassan, Mariam Adel and Omar Salem, who teach the student's three courses; unrelated teacher Nour Ibrahim is absent. The sample teacher is Ahmed Hassan and sees only the two sample students enrolled in his assigned courses. A thread can cover multiple courses shared by the same pair.
+`ChatWorkspace` still contains the reusable live write path, and Supabase migrations define direct-chat tables, RPCs, Storage, and RLS. Their existence does not mean the fixture UI is connected to live conversations. `sendPortalMessage` currently denies every direct invocation before account or database access; Phase 03 must replace that denial with an authenticated server-issued capability and direct-action regression coverage. Complete live-chat integration remains deferred, and Phase 01 did not alter production RLS.
 
-Membership uses fixed IDs/enrollment fixtures, not editable names, grade or specialization fields. The preview send function checks that the selected thread belongs to the active sample role before accepting a message. This limits UI behavior; it is not backend authorization or a security boundary. All fixtures/messages remain client-side demonstration data.
+## Group-chat preview
 
-The shared `ChatWorkspace` provides contact search, selected conversation, course context/link, seeded messages, message composer, empty states and local feedback. Enter adds a message, Shift+Enter adds a line, whitespace-only messages are disabled and messages are limited to 2,000 characters. Text is rendered as ordinary React text, not HTML. Timestamps display in Africa/Cairo. Mobile opens the conversation after contact selection and provides a return-to-conversations button; larger screens show contacts and conversation together.
+Group-chat workspace messages and attachments use browser-local `PortalPreviewProvider` state. They do not invoke Supabase mutations. Reloading or leaving the preview layout resets that state. This preview is not evidence of live group persistence or authorization.
 
-Messages live in Supabase PostgreSQL database (`chat_threads`, `chat_messages`, `chat_participants` tables). Switching between student and teacher previews with portal links/role selection shows the same shared thread. Reloading or leaving the portal layout resets preview state. Separate tabs/browsers/devices are not connected in preview mode. No automatic teacher reply, online presence, actual delivery/read receipt, push/email notification is offered.
+## Verification scope
 
-Messages are stored in Supabase PostgreSQL with Row Level Security (RLS) policies enforcing participant-based access control. Authentication is handled via Supabase Auth. Message sending and reading are performed through SECURITY DEFINER RPC functions (`read_direct_chat`, `send_direct_chat`) that enforce authorization. Attachments are stored in Supabase Storage (`chat-attachments` bucket). The interface is a working chat system for authenticated users with role-based access control.
+Phase 01 unit tests cover client write gating, fixture identifier rejection, message validation, authenticated attachment-path ownership, the unconditional action gate, and fixture-thread selection containment. Source review separately verified that `sendPortalMessage` returns before account or database access; there is no direct Server Action invocation unit test. The separate live Playwright project includes an authenticated fixture-chat read-only check, but it is **BLOCKED / NOT RUN** without a disposable local Supabase instance. Historical broad-suite chat results and screenshots described earlier frontend-only behavior and are not current live-chat verification.
 
-## Verification
-
-ESLint, strict TypeScript, production build and all **42 Playwright scenarios passed**. Checks cover linked contacts, omission of unrelated teachers, two-direction preview messaging, thread isolation, search, whitespace handling, keyboard behavior, local-only effects, reload reset, mobile contact/back navigation and responsive/accessibility review at 375/768/1440px. The chat flow made no POST/external requests or browser-storage writes. All 139 fixture page URLs remain covered by route checks.
-
-Captures: [student chat](previews/student-chat.png), [teacher chat](previews/teacher-chat.png), [mobile contacts](previews/student-chat-contacts-mobile.png), [mobile conversation](previews/student-chat-mobile.png). Real service integration, physical device and human screen-reader checks remain outside scope.
+See the root [README](../../README.md) for the scoped QA commands and local-only environment requirements.

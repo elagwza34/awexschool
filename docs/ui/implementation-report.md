@@ -1,6 +1,6 @@
 # UI implementation report — UI-01 / UI-02
 
-> Historical UI-01/UI-02 delivery report. The owner subsequently requested dashboard previews; they are now implemented as a separate frontend-only addition. Statements below about absent dashboards describe the original delivery. See [current dashboard preview scope and verification](dashboard-previews.md).
+> Historical UI-01/UI-02 delivery report. The owner subsequently requested dashboard previews and later Supabase-backed account portals. Statements below about absent dashboards, Supabase, or real authentication describe the original delivery, not the current application. See the root [README](../../README.md) and [historical dashboard preview scope](dashboard-previews.md).
 
 **Status:** UI-01 and UI-02 complete as a frontend-only prototype. No later phase authorized.
 

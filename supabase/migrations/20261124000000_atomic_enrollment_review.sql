@@ -1,0 +1,2 @@
+-- Compatibility no-op: superseded by 20261124010000_unified_database_reconciliation
+-- The JWT-aware review function is defined by the canonical reconciliation migration.

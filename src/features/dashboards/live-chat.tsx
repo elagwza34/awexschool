@@ -1,5 +1,6 @@
 import { ChatWorkspace, type ChatData, type ChatRole, type ChatContact } from "./chat-workspace";
 import { chatThreads, chatMessageFixtures, previewStudentId, previewTeacherId } from "./chat-data";
+import { selectFixtureChat } from "./chat-safety";
 
 export async function LiveChat({ role, section, searchParams }: {
   role: ChatRole;
@@ -7,7 +8,7 @@ export async function LiveChat({ role, section, searchParams }: {
   searchParams: Promise<{ contact?: string; user?: string }>;
 }) {
   const params = await searchParams;
-  const contact = params.contact ?? params.user;
+  const requestedContact = params.contact ?? params.user;
   const path = `/${role}/${section}`;
   const accountId = previewStudentId;
 
@@ -30,11 +31,12 @@ export async function LiveChat({ role, section, searchParams }: {
       unreadCount: 0,
     }));
 
-  // جلب الرسائل للخيط المحدد أو افتراضي
-  const selectedThreadId = contact || contacts[0]?.id || null;
-  const messages: ChatData["messages"] = chatMessageFixtures.filter((m) => 
-    selectedThreadId ? m.threadId === selectedThreadId : true
-  ).map((m) => ({
+  const { selectedId: selectedThreadId, messages: selectedMessages } = selectFixtureChat(
+    contacts,
+    chatMessageFixtures,
+    requestedContact,
+  );
+  const messages: ChatData["messages"] = selectedMessages.map((m) => ({
     id: m.id,
     body: m.text,
     created_at: m.sentAt,
@@ -54,7 +56,7 @@ export async function LiveChat({ role, section, searchParams }: {
       <h1 className="text-2xl font-bold">
         {administration ? "شات الإدارة" : role === "teacher" ? "شات الطلاب" : "الشات"}
       </h1>
-      <ChatWorkspace role={role} administration={administration} data={data} path={path} accountId={accountId} />
+      <ChatWorkspace role={role} administration={administration} data={data} path={path} accountId={accountId} readOnly />
     </main>
   );
 }

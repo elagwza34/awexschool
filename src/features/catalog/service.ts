@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase";
+import { createClient, readPublicSupabaseEnvironment } from "@/lib/supabase";
 import { getGrade, getSubject, getTeacher } from "./mock-data";
 import { languageCourses } from "./language-courses";
 import type { CatalogQuery, Course, Grade, Stage, Subject, Teacher } from "./types";
@@ -12,10 +12,7 @@ export const normalizeArabic = (value: string) =>
     .replace(/ى/g, "ي")
     .trim();
 
-const hasSupabase = Boolean(
-  process.env.NEXT_PUBLIC_SUPABASE_URL &&
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-);
+const hasSupabase = Boolean(readPublicSupabaseEnvironment());
 
 function filterCourses(courses: Course[], { query = "", grade, subject, track }: CatalogQuery) {
   const needle = normalizeArabic(query);

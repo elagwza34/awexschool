@@ -1,12 +1,13 @@
 import Link from "next/link";
-import { ownerClient } from "@/features/auth/supabase-server";
+import { sessionClient } from "@/features/auth/supabase-server";
 import { PageIntro } from "@/components/shared";
 import { LiveTeacherPhoto } from "@/components/live-teacher-photo";
 
 export const metadata = { title: "المدرسين" };
 
 export default async function TeachersPage() {
-  const response = await ownerClient()?.from("teacher_profiles").select("user_id,full_name,qualification,bio,portrait_path").order("full_name");
+  const client = await sessionClient();
+  const response = await client?.from("teacher_profiles").select("user_id,full_name,qualification,bio,portrait_path").order("full_name");
   return <div className="container-shell py-8">
     <PageIntro title="المدرسين" />
     <Link href="/teachers/apply" className="mb-4 inline-flex min-h-11 items-center font-bold text-primary underline">انضم كمدرس</Link>

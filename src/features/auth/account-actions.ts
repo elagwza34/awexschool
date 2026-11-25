@@ -4,6 +4,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { authConfig, getAccount, ownerClient, sessionClient } from "./supabase-server";
 import { socialChannels, type SocialLinksConfig } from "./social-links";
+import { readRegistration, signupMetadata } from "./registration";
+import { mutationOutcome } from "@/lib/mutation-result";
+import { safeLoginNextPath } from "./auth-redirect";
 
 const managedRoles = new Set(["student", "parent", "teacher", "support", "manager", "admin"]);
 const text = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
@@ -14,7 +17,7 @@ export async function signIn(form: FormData) {
   const client = await sessionClient(true);
   if (!client) redirect("/login?message=unavailable");
   const requested = text(form, "next");
-  const next = /^\/courses\/[a-f0-9-]{36}$/.test(requested) ? requested : "/account?from=login";
+  const next = safeLoginNextPath(requested);
   const result = await client.auth.signInWithPassword({
     email: text(form, "email").toLowerCase(), password: String(form.get("password") ?? ""),
   });
@@ -26,18 +29,12 @@ export async function signUp(form: FormData) {
   const client = await sessionClient(true);
   const origin = process.env.LIVESCHOOL_WEB_ORIGIN;
   if (!client || !origin) redirect("/register?message=unavailable");
-  const displayName = text(form, "name");
-  const email = text(form, "email").toLowerCase();
-  const password = String(form.get("password") ?? "");
-  const kind = text(form, "kind");
-  const phone = text(form, "phone");
-  if (displayName.length < 2 || displayName.length > 100 || !validEmail(email) ||
-    !validPassword(password) || password !== String(form.get("confirmPassword") ?? "") ||
-    (phone && !/^\+?[0-9 ()-]{8,25}$/.test(phone)) || !["student", "parent"].includes(kind))
-    redirect("/register?message=invalid");
+  const registration = readRegistration(form);
+  if (!registration) redirect("/register?message=invalid");
+  const { email, password } = registration;
   const { error } = await client.auth.signUp({
     email, password,
-    options: { emailRedirectTo: new URL("/account/callback", origin).toString(), data: { display_name: displayName, account_kind: kind, ...(phone && { contact_phone: phone }) } },
+    options: { emailRedirectTo: new URL("/account/callback", origin).toString(), data: signupMetadata(registration) },
   });
   if (error) {
     console.warn("Signup request failed", { code: error.code, status: error.status });
@@ -145,8 +142,9 @@ export async function changeDemoVisibility(form: FormData) {
   const enabled = text(form, "enabled");
   if (!["true", "false"].includes(enabled) || (enabled === "false" && form.get("confirmed") !== "on"))
     redirect("/account?message=invalid");
-  const { error } = await admin.from("site_settings").update({ demo_enabled: enabled === "true" }).eq("id", true);
-  redirect(error ? "/account?message=save-failed" : "/account?message=saved");
+  const result = await admin.from("site_settings").update({ demo_enabled: enabled === "true" }).eq("id", true)
+    .select("id").maybeSingle();
+  redirect(mutationOutcome(result) === "saved" ? "/account?message=saved" : "/account?message=save-failed");
 }
 
 export async function saveSocialLinks(form: FormData) {
@@ -167,8 +165,11 @@ export async function saveSocialLinks(form: FormData) {
     }
     links[id] = url.href;
   }
-  const { error } = await admin.from("site_settings").update({ social_links: links }).eq("id", true);
-  redirect(error ? "/admin/settings?social=failed#social-links" : "/admin/settings?social=saved#social-links");
+  const result = await admin.from("site_settings").update({ social_links: links }).eq("id", true)
+    .select("id").maybeSingle();
+  redirect(mutationOutcome(result) === "saved"
+    ? "/admin/settings?social=saved#social-links"
+    : "/admin/settings?social=failed#social-links");
 }
 
 export async function removeUser(form: FormData) {

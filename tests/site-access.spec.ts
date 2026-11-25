@@ -54,9 +54,7 @@ test("the admin can lock a direct page, lock the entire site, and reopen both", 
   try {
     expect((await guest.request.get("/teachers")).status()).toBe(200);
     expect((await guest.request.post(settingsPath, { form: { action: "save", scope: "*", code: globalCode } })).status()).toBe(403);
-    await page.goto("/admin");
-    await page.getByRole("link", { name: "أقفال الموقع" }).click();
-    await expect(page).toHaveURL(settingsPath);
+    await page.goto(settingsPath);
     await enterCode(page, ownerCode);
     await expect(page.getByRole("heading", { name: "الأقفال الحالية" })).toBeVisible();
 

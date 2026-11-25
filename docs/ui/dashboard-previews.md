@@ -1,5 +1,7 @@
 # Dashboard previews — liveschool
 
+> Historical preview delivery notes. Current `/student`, `/teacher`, `/parent`, `/admin`, `/manager`, and `/support` roots are live account routes, not public mock views. `/dashboards` remains a chooser only. See the root [README](../../README.md) for the current allowlist, preview restrictions, and Supabase boundaries.
+
 Subsequent teacher/admin enhancements add profile, classes, separate user/content sections and simulated meeting setup. See [management scope and verification](teacher-admin-management.md) for the current routes and interaction boundaries.
 
 The owner subsequently requested the dashboards after reviewing the public frontend. This authorizes the four role previews below; it does not authorize backend integration or production behavior. The existing Supabase architecture is preserved without connections or configuration changes.

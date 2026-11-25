@@ -23,6 +23,7 @@ import {
   type StoredChatFile,
 } from "@/features/chat/attachment";
 import { sendPortalMessage } from "./live-chat-actions";
+import { canWriteDirectChat } from "./chat-safety";
 
 export type ChatRole = "admin" | "student" | "teacher" | "parent";
 
@@ -56,12 +57,14 @@ export function ChatWorkspace({
   data,
   path,
   accountId,
+  readOnly = false,
 }: {
   role: ChatRole;
   administration: boolean;
   data: ChatData;
   path: string;
   accountId: string;
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const { contacts, selectedId, messages } = data;
@@ -77,7 +80,8 @@ export function ChatWorkspace({
   const [failedMessage, setFailedMessage] = useState<{ draft: string; attachment: File | undefined } | null>(null);
   const [changingContact, changeContact] = useTransition();
   const [sending, sendMessage] = useTransition();
-  const canSend = !changingContact && !sending && !recording && Boolean(draft.trim() || attachment);
+  const writable = canWriteDirectChat({ readOnly, accountId, contactId: selectedId });
+  const canSend = writable && !changingContact && !sending && !recording && Boolean(draft.trim() || attachment);
   const logRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -93,7 +97,7 @@ export function ChatWorkspace({
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [selectedId, messages.length, mobileOpen]);
   const send = () => {
-    if (!selected || !canSend) return;
+    if (!selected || !writable || !canSend) return;
     sendMessage(async () => {
       setError("");
       setStatus("");
@@ -417,6 +421,7 @@ export function ChatWorkspace({
                   </div>
                 )}
               </div>
+              {writable ? (
               <form
                 ref={formRef}
                 className="border-t bg-white p-4"
@@ -498,6 +503,11 @@ export function ChatWorkspace({
                   </p>
                 )}
               </form>
+              ) : (
+                <div role="status" className="border-t bg-white p-4 text-sm leading-7 text-muted-foreground">
+                  الشات للعرض فقط حاليًا؛ الإرسال والمرفقات غير متاحين.
+                </div>
+              )}
             </>
           ) : (
             <p className="p-7 text-center text-sm text-muted-foreground">
