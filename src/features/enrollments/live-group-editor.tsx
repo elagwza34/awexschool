@@ -9,16 +9,30 @@ import { saveLearningGroup } from "./group-admin-actions";
 
 const groupWeekdays = ["الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"];
 type Option = { id: string; name: string };
+export type StudentOption = Option & { courseIds: string[] };
 export type EditableGroup = {
   id: string; name: string; course_id: string; teacher_id: string; capacity: number;
   fee_minor: number; weekday: number; starts_at_local: string; active: boolean;
 };
 
+export function studentsForCourse(students: StudentOption[], courseId: string) {
+  return courseId ? students.filter(({ courseIds }) => courseIds.includes(courseId)) : [];
+}
+
+export function invalidStudentSelections(students: StudentOption[], courseId: string, selectedIds: ReadonlySet<string>) {
+  const eligibleIds = new Set(studentsForCourse(students, courseId).map(({ id }) => id));
+  return [...selectedIds].filter((id) => !eligibleIds.has(id));
+}
+
 export function LiveGroupEditor({ group, courses, teachers, students, memberCount }: {
-  group?: EditableGroup; courses: Option[]; teachers: Option[]; students: Option[]; memberCount: number;
+  group?: EditableGroup; courses: Option[]; teachers: Option[]; students: StudentOption[]; memberCount: number;
 }) {
   const [error, submit, pending] = useActionState(saveLearningGroup.bind(null, group?.id ?? null), "");
   const [search, setSearch] = useState("");
+  const [courseId, setCourseId] = useState(group?.course_id ?? "");
+  const [selectedStudents, setSelectedStudents] = useState<Set<string>>(() => new Set());
+  const [selectionError, setSelectionError] = useState("");
+  const availableStudents = studentsForCourse(students, courseId);
   const router = useRouter();
   const title = group ? "تعديل المجموعة وإضافة طلاب" : "إنشاء مجموعة";
   return (
@@ -31,10 +45,17 @@ export function LiveGroupEditor({ group, courses, teachers, students, memberCoun
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>حدّد المقرر والمدرس وموعد الحصة، واختار الطلاب اللي هتضيفهم.</DialogDescription>
         </DialogHeader>
-        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        {(error || selectionError) && <p role="alert" className="text-sm text-destructive">{error || selectionError}</p>}
         <form className="grid gap-4" onSubmit={(event) => {
           event.preventDefault();
+          if (invalidStudentSelections(students, courseId, selectedStudents).length) {
+            setSelectionError("طالب من المختارين مش ملتحق فعليًا بالمقرر أو حسابه مش نشط. راجع اختيار الطلاب.");
+            return;
+          }
           const form = new FormData(event.currentTarget);
+          form.delete("students");
+          for (const studentId of selectedStudents) form.append("students", studentId);
+          setSelectionError("");
           startTransition(() => submit(form));
         }}>
           <label className="grid gap-2 text-sm font-semibold">اسم المجموعة
@@ -43,7 +64,12 @@ export function LiveGroupEditor({ group, courses, teachers, students, memberCoun
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-2 text-sm font-semibold">
               <label htmlFor="learning-group-course">المقرر</label>
-              <select className="field" id="learning-group-course" name="course" defaultValue={group?.course_id ?? ""} required>
+              <select className="field" id="learning-group-course" name="course" value={courseId} onChange={(event) => {
+                setCourseId(event.target.value);
+                setSelectedStudents(new Set());
+                setSelectionError("");
+                setSearch("");
+              }} required>
                 <option value="" disabled>اختار المقرر</option>
                 {courses.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
               </select>
@@ -75,18 +101,25 @@ export function LiveGroupEditor({ group, courses, teachers, students, memberCoun
           <fieldset className="grid gap-2 rounded-lg border p-3">
             <legend className="px-1 text-sm font-bold">إضافة طلاب</legend>
             {group && <p className="text-sm text-muted-foreground">الطلاب المسجّلون حاليًا: {memberCount}</p>}
-            {students.length ? <>
+            {!courseId ? <p className="text-sm text-muted-foreground">اختار المقرر لعرض الطلاب الملتحقين به.</p> : availableStudents.length ? <>
               <input aria-label="ابحث باسم الطالب" className="field" type="search" placeholder="ابحث باسم الطالب"
                 value={search} onChange={(event) => setSearch(event.target.value)} />
               <div className="max-h-44 overflow-y-auto">
-                {students.map(({ id, name }) => (
+                {availableStudents.map(({ id, name }) => (
                   <label key={id} hidden={!name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())}
                     className="min-h-11 items-center gap-2 rounded px-2 text-sm [&:not([hidden])]:flex">
-                    <input type="checkbox" name="students" value={id} className="size-4 shrink-0 accent-primary" /> {name}
+                    <input type="checkbox" name="students" value={id} checked={selectedStudents.has(id)} onChange={(event) => {
+                      setSelectionError("");
+                      setSelectedStudents((current) => {
+                        const next = new Set(current);
+                        if (event.target.checked) next.add(id); else next.delete(id);
+                        return next;
+                      });
+                    }} className="size-4 shrink-0 accent-primary" /> {name}
                   </label>
                 ))}
               </div>
-            </> : <p className="text-sm text-muted-foreground">مفيش طلاب متاحين للإضافة.</p>}
+            </> : <p className="text-sm text-muted-foreground">مفيش طلاب متاحين للإضافة في المقرر ده.</p>}
           </fieldset>
           <label className="flex min-h-11 items-center gap-2 text-sm font-semibold">
             <input type="checkbox" name="active" defaultChecked={group?.active ?? false} className="size-4 accent-primary" />

@@ -1,9 +1,19 @@
 ﻿"use server";
 
 import { redirect } from "next/navigation";
-import { getAccount, ownerClient, sessionClient } from "@/features/auth/supabase-server";
+import { getAccount, sessionClient } from "@/features/auth/supabase-server";
 import { readPublishedCourse } from "./live-catalog";
-import { loadCourseEnrollments } from "./catalog-data";
+import { loadCourseEnrollments, loadEnrollmentLearners } from "./catalog-data";
+
+const uuid = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
+
+function enrollmentErrorNotice(error: unknown) {
+  const message = error instanceof Error ? error.message
+    : typeof error === "object" && error !== null && "message" in error ? String(error.message) : "";
+  if (message.includes("enrollment_learner_conflict")) return "conflict";
+  if (message.includes("enrollment_identity_unresolved")) return "identity";
+  return "failed";
+}
 
 export async function enrollInCourse(id: string, form: FormData) {
   const courseResult = await readPublishedCourse(id);
@@ -15,17 +25,34 @@ export async function enrollInCourse(id: string, form: FormData) {
   if (!account) redirect(`/login?next=${encodeURIComponent(destination)}`);
   const parent = account.roles.includes("parent");
   if (!parent && !account.roles.includes("student")) redirect(`${destination}?enrollment=role`);
-  const learnerName = parent ? String(form.get("learner") ?? "").trim() : account.name.trim();
-  if (learnerName.length < 2 || learnerName.length > 100) redirect(`${destination}?enrollment=invalid`);
 
-  const client = ownerClient();
+  const client = await sessionClient(true);
   if (!client) redirect(`${destination}?enrollment=failed`);
-  const { error } = await client.from("course_enrollments").upsert({
-    requester_id: account.user.id, course_id: course.id, learner_name: learnerName,
-  }, { onConflict: "requester_id,course_id", ignoreDuplicates: true });
-  redirect(error ? `${destination}?enrollment=failed` : destination);
+  let studentId: string | null = null;
+  if (parent) {
+    const selected = String(form.get("student") ?? "").trim();
+    if (!uuid.test(selected)) redirect(`${destination}?enrollment=invalid`);
+    const learners = await loadEnrollmentLearners(client, account.user.id);
+    if (learners.state === "error") redirect(`${destination}?enrollment=failed`);
+    if (!learners.data.some(({ student_id }) => student_id === selected)) redirect(`${destination}?enrollment=invalid`);
+    studentId = selected;
+  }
+
+  const { data, error } = await client.rpc("request_course_enrollment", {
+    p_course: course.id,
+    p_student: studentId,
+  });
+  if (error) redirect(`${destination}?enrollment=${enrollmentErrorNotice(error)}`);
+  if (data !== true && data !== false) redirect(`${destination}?enrollment=failed`);
+  redirect(destination);
 }
 
 export async function getCourseEnrollments() {
   return loadCourseEnrollments(await sessionClient());
+}
+
+export async function getEnrollmentLearners() {
+  const account = await getAccount();
+  if (!account) return { state: "error", kind: "configuration" } as const;
+  return loadEnrollmentLearners(await sessionClient(), account.user.id);
 }

@@ -60,5 +60,6 @@ export async function reviewEnrollment(course: string, requester: string, form: 
   const review = readEnrollmentReview(course, requester, form);
   if (!review) redirect("/admin/catalog?tab=enrollments&notice=invalid");
   const outcome = await applyEnrollmentReview(client, review);
-  redirect(`/admin/catalog?tab=enrollments&notice=${outcome === "saved" ? "reviewed" : "failed"}`);
+  const notice = outcome === "saved" ? "reviewed" : outcome === "identity_unresolved" ? "identity-unresolved" : "failed";
+  redirect(`/admin/catalog?tab=enrollments&notice=${notice}`);
 }

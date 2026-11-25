@@ -18,11 +18,12 @@ export async function assignmentScope(client: NonNullable<ReturnType<typeof owne
     ])];
     return { ids, students: null, error: !!(owned.error || groups.error) };
   }
-  const guardians = role === "parent" ? await client.from("guardian_links").select("student_id").eq("guardian_id", userId) : null;
+  const guardians = role === "parent" ? await client.from("guardian_links")
+    .select("student_id,profiles!guardian_links_student_id_fkey(status)")
+    .eq("guardian_id", userId).eq("profiles.status", "active") : null;
   const students = role === "student" ? [userId] : guardians?.data?.map(({ student_id }) => student_id) ?? [];
-  const requesters = role === "parent" ? [userId, ...students] : students;
-  const result = requesters.length ? await client.from("course_enrollments")
-    .select("course_id,courses!inner(status)").in("requester_id", requesters)
+  const result = students.length ? await client.from("course_enrollments")
+    .select("course_id,courses!inner(status)").in("student_id", students)
     .eq("status", "active").eq("courses.status", "published") : null;
   return { ids: [...new Set(result?.data?.map(({ course_id }) => course_id) ?? [])], students, error: !!(result?.error || guardians?.error) };
 }

@@ -21,15 +21,24 @@ export function readEnrollmentReview(course: string, requester: string, form: Fo
   return { course, requester, status };
 }
 
+export type EnrollmentReviewOutcome = MutationOutcome | "identity_unresolved";
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message
+    : typeof error === "object" && error !== null && "message" in error ? String(error.message) : "";
+}
+
 export async function applyEnrollmentReview(
   client: SupabaseClient,
   review: NonNullable<ReturnType<typeof readEnrollmentReview>>,
-): Promise<MutationOutcome> {
+): Promise<EnrollmentReviewOutcome> {
   const { data, error } = await client.rpc("review_course_enrollment_as_admin", {
     p_course: review.course,
     p_requester: review.requester,
     p_status: review.status,
   });
-  if (error) return "failed";
+  if (error) {
+    return errorMessage(error).includes("enrollment_identity_unresolved") ? "identity_unresolved" : "failed";
+  }
   return data === true ? "saved" : "not_found";
 }

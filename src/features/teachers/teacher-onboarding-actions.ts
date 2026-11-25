@@ -1,11 +1,15 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { getAccount, ownerClient } from "@/features/auth/supabase-server";
+import { ownerClient, sessionClient } from "@/features/auth/supabase-server";
+import { readTeacherSessionAccount } from "./teacher-session";
+
+const uuid = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
+const compensationRequired = "تعذّر تأكيد اكتمال العملية. راجع دليل الحسابات قبل إعادة المحاولة.";
 
 export async function onboardTeacher(applicationId: string | null, _previous: string, form: FormData): Promise<string> {
-  const account = await getAccount();
-  const client = ownerClient();
+  const client = await sessionClient(true);
+  const account = client ? await readTeacherSessionAccount(client) : null;
   if (!client || !account?.roles.some((role) => role === "admin" || role === "owner")) redirect("/account");
   const field = (name: string) => String(form.get(name) ?? "").trim();
   const email = field("email").toLowerCase();
@@ -29,22 +33,19 @@ export async function onboardTeacher(applicationId: string | null, _previous: st
       (profile.portrait && !/^\/teachers\/[a-z0-9-]+\.webp$/.test(profile.portrait))) {
     return "راجع البيانات المطلوبة والصفوف المختارة وكلمة المرور. رابط الفيديو لازم يكون HTTPS.";
   }
-  if (applicationId) {
-    if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(applicationId)) return "طلب التقديم غير متاح.";
-    const { data } = await client.from("teacher_applications").select("email,status,teacher_user_id")
-      .eq("id", applicationId).maybeSingle();
-    if (!data || data.email.toLowerCase() !== email || data.status === "rejected" || data.teacher_user_id) {
-      return "طلب التقديم اتراجع بالفعل أو البريد غير مطابق.";
-    }
-  }
+  if (applicationId && !uuid.test(applicationId)) return "طلب التقديم غير متاح.";
   const [subject, validGrades] = await Promise.all([
     client.from("subjects").select("id").eq("id", profile.subject).maybeSingle(),
     client.from("grades").select("id").in("id", grades),
   ]);
   if (!subject.data || validGrades.data?.length !== grades.length) return "اختار مادة وصفوف موجودة في القائمة.";
 
-  const { data, error } = await client.auth.admin.createUser({
-    email, password, email_confirm: true, user_metadata: { display_name: profile.displayName },
+  const owner = ownerClient();
+  if (!owner) return "إنشاء حساب المدرس غير متاح حاليًا.";
+  const { data, error } = await owner.auth.admin.createUser({
+    email, password, email_confirm: true,
+    user_metadata: { display_name: profile.displayName },
+    app_metadata: { liveschool_role: "student" },
   });
   if (error || !data.user) {
     return error?.code === "email_exists" || error?.code === "user_already_exists"
@@ -53,16 +54,14 @@ export async function onboardTeacher(applicationId: string | null, _previous: st
   const userId = data.user.id;
   const destination = `/admin/teachers?message=added&created=${userId}`;
   const result = await client.rpc("complete_teacher_onboarding", {
-    p_actor: account.user.id, p_user: userId, p_application: applicationId, p_profile: profile,
+    p_user: userId, p_application: applicationId, p_profile: profile,
   });
   if (result.error) {
     const verified = await client.from("teacher_profiles").select("user_id").eq("user_id", userId).maybeSingle();
     if (verified.data) redirect(destination);
-    if (verified.error || !result.status || result.status >= 500) {
-      return "تعذّر تأكيد اكتمال العملية. راجع دليل الحسابات قبل إعادة المحاولة.";
-    }
-    const cleanup = await client.auth.admin.deleteUser(userId);
-    return cleanup.error ? "راجع دليل الحسابات قبل إعادة المحاولة." : "تعذّر حفظ ملف المدرس. حاول مرة تانية.";
+    if (verified.error || !result.status || result.status >= 500) return compensationRequired;
+    const cleanup = await owner.auth.admin.deleteUser(userId);
+    return cleanup.error ? compensationRequired : "تعذّر حفظ ملف المدرس. حاول مرة تانية.";
   }
   redirect(destination);
 }

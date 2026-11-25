@@ -66,12 +66,15 @@ test("group membership and capacity include active enrollment and live holds", (
 });
 
 test("teacher intake uses one time server verified challenges and restricted tracking", () => {
+  const track = functionBody("public", "track_teacher_application");
   assert.match(proposal, /create table if not exists public\.teacher_intake_challenges/i);
   assert.match(proposal, /create or replace function public\.submit_teacher_application/i);
   assert.match(proposal, /create or replace function public\.track_teacher_application/i);
   assert.match(proposal, /consumed_at is null/i);
   assert.match(proposal, /email_confirmed_at/i);
   assert.match(proposal, /revoke insert, update on public\.teacher_applications from service_role/i);
+  assert.match(track, /challenge\.actor_id is distinct from actor_id/i);
+  assert.match(track, /raise exception 'teacher_tracking_challenge_invalid' using errcode = '42501'/i);
 });
 
 test("legacy review provenance is preserved and acknowledged separately", () => {
@@ -122,7 +125,7 @@ test("group requests revalidate enrollment and exact succeeded payment evidence"
 test("enrollment requests surface unresolved legacy identity collisions", () => {
   const request = functionBody("public", "request_course_enrollment");
   assert.match(request, /enrollment_identity_unresolved/i);
-  assert.match(request, /exception\s+when unique_violation then\s+return false;/i);
+  assert.match(request, /when unique_violation then[\s\S]*?enrollment_identity_unresolved[\s\S]*?enrollment_learner_conflict[\s\S]*?return false;/i);
 });
 
 test("final assertions preserve null legacy identities and enable new table RLS", () => {
@@ -167,4 +170,75 @@ test("teacher review rejects null status and final assertions verify complete se
   assert.match(proposal, /\('public', 'course_enrollments', 'enrollment_review_audit', 'BEFORE', 23, 'liveschool_internal\.enforce_enrollment_review_audit\(\)'\)/i);
   assert.match(proposal, /t\.tgenabled = 'O'/i);
   assert.match(proposal, /t\.tgfoid = to_regprocedure\(expected\.function_signature\)/i);
+});
+
+test("enrollment preflight uses effective learner identity and rejects a conflicting child", () => {
+  const request = functionBody("public", "request_course_enrollment");
+  assert.match(request, /e\.student_id = learner_id\s+or \(e\.student_id is null and e\.requester_id = learner_id\)/i);
+  assert.match(request, /enrollment_learner_conflict/i);
+  assert.match(request, /enrollment_identity_unresolved/i);
+});
+
+test("group preflight is locked and revalidated after all triggers exist", () => {
+  assert.match(proposal, /lock table public\.courses,\s*public\.course_enrollments,\s*public\.learning_groups,\s*public\.group_members,\s*public\.group_join_requests,\s*public\.group_payments,[\s\S]*?in share row exclusive mode/i);
+  assert.match(proposal, /do \$post_trigger_invariants\$[\s\S]*?remediation_post_trigger_members_without_active_enrollment/i);
+  assert.match(proposal, /do \$post_trigger_invariants\$[\s\S]*?remediation_post_trigger_group_requests_invalid/i);
+});
+
+test("paid group requests cannot regress and expiry is immutable after payment", () => {
+  const requestGuard = functionBody("liveschool_internal", "prepare_group_request_write");
+  assert.match(requestGuard, /old\.status = 'reserved' and new\.status in \('expired', 'paid', 'rejected'\)/i);
+  assert.match(requestGuard, /old\.status = 'paid' and new\.status in \('approved', 'rejected'\)/i);
+  assert.match(requestGuard, /old\.status in \('paid', 'approved'\)[\s\S]*?new\.expires_at is distinct from old\.expires_at/i);
+});
+
+test("terminal group reservation cleanup does not require current eligibility", () => {
+  const requestGuard = functionBody("liveschool_internal", "prepare_group_request_write");
+  assert.match(requestGuard, /if tg_op = 'INSERT' or new\.status in \('paid', 'approved'\) then/i);
+  assert.match(requestGuard, /group_student_enrollment_required/i);
+});
+
+test("legacy requesters retain narrowly scoped visibility of unresolved rows", () => {
+  assert.match(proposal, /create policy "Requesters can read their unresolved legacy enrollments" on public\.course_enrollments[\s\S]*?using \(student_id is null and requester_id = \(select auth\.uid\(\)\)\);/i);
+});
+
+test("preflight verifies all 33 baseline tables and records preservation fingerprints", () => {
+  assert.match(proposal, /expected_tables text\[\] := array\[/i);
+  for (const table of ["profiles", "roles", "permissions", "account_roles", "role_permissions", "guardian_links", "stages", "grades", "subjects", "teacher_profiles", "courses", "course_units", "lessons", "learning_groups", "group_members", "group_join_requests", "group_payments", "class_sessions", "teacher_earnings", "teacher_applications", "support_requests", "support_replies", "chat_threads", "chat_participants", "chat_messages", "site_settings", "course_enrollments", "course_assignments", "course_assignment_submissions", "session_attendance", "session_roster_snapshots", "session_roster_entries", "session_attendance_events"]) {
+    assert.ok(proposal.includes(`'${table}'`), `missing baseline table assertion: ${table}`);
+  }
+  assert.match(proposal, /liveschool\.remediation\.baseline_fingerprint/i);
+  assert.match(proposal, /liveschool\.remediation\.auth_users_count/i);
+  assert.match(proposal, /liveschool\.remediation\.migration_history_count/i);
+  assert.match(proposal, /remediation_final_baseline_changed/i);
+  assert.match(proposal, /remediation_final_auth_accounts_changed/i);
+  assert.match(proposal, /remediation_final_migration_history_changed/i);
+});
+
+test("group preflight requires active student profiles and roles", () => {
+  assert.match(proposal, /left join public\.profiles p on p\.user_id = gm\.student_id\s+left join public\.account_roles ar on ar\.user_id = gm\.student_id\s+and ar\.role_code = 'student'[\s\S]*?p\.user_id is null or p\.status <> 'active'/i);
+  assert.match(proposal, /left join public\.profiles p on p\.user_id = r\.student_id\s+left join public\.account_roles ar on ar\.user_id = r\.student_id\s+and ar\.role_code = 'student'[\s\S]*?p\.user_id is null or p\.status <> 'active'/i);
+});
+
+test("reviewed audit events require non-null transition fields", () => {
+  assert.match(proposal, /event_type = 'reviewed' and previous_status is not null and new_status is not null/i);
+});
+
+test("lesson authorization includes teachers already assigned through learning groups", () => {
+  const lessons = functionBody("liveschool_internal", "can_read_course_lessons");
+  assert.match(lessons, /from public\.learning_groups lg\s+where lg\.course_id = p_course_id\s+and lg\.teacher_id = actor_id/i);
+});
+
+test("teacher intake and tracking are limited to active student or parent requesters", () => {
+  const submit = functionBody("public", "submit_teacher_application");
+  const track = functionBody("public", "track_teacher_application");
+  assert.match(submit, /has_active_role\(actor_id, array\['student', 'parent'\]\)/i);
+  assert.match(track, /has_active_role\(actor_id, array\['student', 'parent'\]\)/i);
+  assert.doesNotMatch(submit, /array\['admin', 'owner', 'manager'/i);
+  assert.doesNotMatch(track, /array\['admin', 'owner', 'manager'/i);
+});
+
+test("group saves revalidate active student roles for existing members", () => {
+  const save = functionBody("public", "save_learning_group");
+  assert.match(save, /not liveschool_internal\.has_active_role\(gm\.student_id, array\['student'\]\)\s+or not liveschool_internal\.has_active_course_enrollment\(gm\.student_id, p_course\)/i);
 });

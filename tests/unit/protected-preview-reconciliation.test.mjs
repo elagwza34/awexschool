@@ -68,7 +68,10 @@ registerHooks({
         url: `data:text/javascript,export async function getCourseEnrollments() {
           return globalThis.__previewCatalogState === 'error'
             ? { state: 'error', kind: 'database' }
-            : { state: 'ready', data: [{ course_id: 'real-course', learner_name: 'Real Learner', status: 'active' }] };
+            : { state: 'ready', data: [
+                { course_id: 'real-course', requester_id: 'parent-1', student_id: 'student-1', learner_name: 'Stale Learner', student: { display_name: 'Authoritative Learner' }, status: 'active' },
+                { course_id: 'legacy-course', requester_id: 'parent-1', student_id: null, learner_name: 'Legacy Learner', student: null, status: 'pending' },
+              ] };
         }`,
         shortCircuit: true,
       };
@@ -78,7 +81,10 @@ registerHooks({
         url: `data:text/javascript,export async function listPublishedCourses() {
           return globalThis.__previewCatalogState === 'error'
             ? { state: 'error', kind: 'database' }
-            : { state: 'ready', data: [{ id: 'real-course', title: 'Real Course' }] };
+            : { state: 'ready', data: [
+                { id: 'real-course', title: 'Real Course' },
+                { id: 'legacy-course', title: 'Legacy Course' },
+              ] };
         }`,
         shortCircuit: true,
       };
@@ -136,11 +142,14 @@ test("protected course fallback remains available only for explicit previews", a
   assert.match(textOf(preview), /الرياضيات للصف الثاني الثانوي/);
 });
 
-test("ready course data never uses protected preview fixtures", async () => {
+test("ready course data uses authoritative learner names and retains legacy rows", async () => {
   globalThis.__previewCatalogState = "ready";
   const element = await withPreviewEnvironment("test", () => MyCourses({ role: "student" }));
-  assert.match(textOf(element), /Real Learner/);
+  assert.match(textOf(element), /Authoritative Learner/);
+  assert.match(textOf(element), /Legacy Learner/);
   assert.match(textOf(element), /Real Course/);
+  assert.match(textOf(element), /Legacy Course/);
+  assert.doesNotMatch(textOf(element), /Stale Learner/);
   assert.doesNotMatch(textOf(element), /يوسف أحمد/);
 });
 

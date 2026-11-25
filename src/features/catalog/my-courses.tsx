@@ -28,11 +28,13 @@ export async function MyCourses({ role, overview = false }: { role: "student" | 
       { label: "الطلبات المرفوضة", value: requestsResult.state === "ready" || (preview && requestsResult.state === "error") ? requests.filter(({ status }) => status === "declined").length : null },
     ]} />}
     <Link href="/courses" className="inline-flex min-h-11 items-center font-semibold text-primary underline">تصفّح المقررات</Link>
-    {requests.length ? <ul className="grid gap-3">{requests.map(({ course_id, learner_name, status }) => (
-      <li key={course_id} className="soft-card p-4">
-        {titles.has(course_id) && <Link href={`/courses/${course_id}`} className="font-bold text-primary underline">{titles.get(course_id)}</Link>}
-        <p>{learner_name} · {status === "active" ? "التحاق مؤكد" : status === "declined" ? "الطلب مرفوض" : "قيد المراجعة"}</p>
-      </li>
-    ))}</ul> : requestsResult.state === "ready" && <p className="text-muted-foreground">لسه ما سجلتش في أي مقرر.</p>}
+    {requests.length ? <ul className="grid gap-3">{requests.map((request) => {
+      const learnerName = "student" in request ? request.student?.display_name ?? request.learner_name : request.learner_name;
+      const learnerKey = "requester_id" in request ? request.requester_id ?? request.student_id ?? "legacy" : request.id;
+      return <li key={`${learnerKey}-${request.course_id}`} className="soft-card p-4">
+        {titles.has(request.course_id) && <Link href={`/courses/${request.course_id}`} className="font-bold text-primary underline">{titles.get(request.course_id)}</Link>}
+        <p>{learnerName} · {request.status === "active" ? "التحاق مؤكد" : request.status === "declined" ? "الطلب مرفوض" : "قيد المراجعة"}</p>
+      </li>;
+    })}</ul> : requestsResult.state === "ready" && <p className="text-muted-foreground">لسه ما سجلتش في أي مقرر.</p>}
   </main>;
 }

@@ -105,6 +105,17 @@ test("enrollment review distinguishes rejected transitions from database failure
   assert.equal(await applyEnrollmentReview({ rpc: async () => ({ data: null, error: { message: "failed" } }) }, review), "failed");
 });
 
+test("enrollment review reports unresolved legacy identity separately", async () => {
+  const review = {
+    course: "11111111-1111-4111-8111-111111111111",
+    requester: "22222222-2222-4222-8222-222222222222",
+    status: "active",
+  };
+  assert.equal(await applyEnrollmentReview({
+    rpc: async () => ({ data: null, error: { message: "enrollment_identity_unresolved" } }),
+  }, review), "identity_unresolved");
+});
+
 test("the enrollment RPC locks authorized state before activation", () => {
   const sql = readFileSync(new URL("../../01_FULL_DATABASE_MIGRATION.sql", import.meta.url), "utf8");
   assert.match(sql, /create or replace function public\.review_course_enrollment_as_admin/i);

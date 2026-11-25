@@ -1,7 +1,6 @@
 ﻿import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getAccount, sessionClient } from "@/features/auth/supabase-server";
-import { getCourseEnrollments } from "@/features/catalog/enrollment-actions";
 import { readPublishedCourse } from "@/features/catalog/live-catalog";
 
 export default async function CourseLessons({ params }: { params: Promise<{ courseId: string }> }) {
@@ -13,15 +12,14 @@ export default async function CourseLessons({ params }: { params: Promise<{ cour
   }
   const course = courseResult.data;
   if (!course) notFound();
-  const enrollmentResult = account ? await getCourseEnrollments() : null;
-  if (enrollmentResult?.state === "error") {
-    return <div className="container-shell py-8"><p role="alert" className="soft-card p-5 text-destructive">تعذّر التحقق من الالتحاق حاليًا.</p></div>;
-  }
-  const active = enrollmentResult?.state === "ready" &&
-    enrollmentResult.data.some((row) => row.course_id === course.id && row.status === "active");
-  if (!active) redirect(`/courses/${course.id}`);
+  if (!account) redirect(`/courses/${course.id}`);
   const client = await sessionClient();
   if (!client) return <div className="container-shell py-8"><p role="alert" className="soft-card p-5 text-destructive">تعذّر تحميل الدروس حاليًا.</p></div>;
+  const { data: canRead, error: accessError } = await client.rpc("can_read_course_lessons", { p_course_id: course.id });
+  if (accessError || canRead !== true) {
+    if (!accessError && canRead === false) redirect(`/courses/${course.id}`);
+    return <div className="container-shell py-8"><p role="alert" className="soft-card p-5 text-destructive">تعذّر التحقق من صلاحية الدروس حاليًا.</p></div>;
+  }
   const { data, error } = await client.from("course_units")
     .select("id,title,position,lessons(id,title,body,position)").eq("course_id", course.id).order("position");
   return <div className="container-shell grid gap-5 py-8">

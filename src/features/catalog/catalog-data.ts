@@ -1,6 +1,24 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { configurationFailure, dataFailure, dataReady } from "../../lib/data-result.ts";
 
+export interface EnrollmentLearner {
+  student_id: string;
+  profiles: { display_name: string; status: string };
+}
+
+export interface CourseEnrollment {
+  course_id: string;
+  requester_id: string;
+  student_id: string | null;
+  learner_name: string | null;
+  status: string;
+  student: { display_name: string } | null;
+}
+
+function singleRelation<T>(relation: T | T[] | null | undefined): T | null {
+  return Array.isArray(relation) ? relation[0] ?? null : relation ?? null;
+}
+
 export const catalogFields = "id,title,description,track,grade_id,subject_id,grades(name),subjects(name),teacher_profiles(user_id,full_name,portrait_path)";
 
 export async function loadCatalogOptions(client: SupabaseClient | null) {
@@ -29,9 +47,26 @@ export async function loadPublishedCourse(client: SupabaseClient | null, id: str
   return error ? dataFailure(error) : dataReady(data);
 }
 
+export async function loadEnrollmentLearners(client: SupabaseClient | null, guardianId: string) {
+  if (!client) return configurationFailure();
+  const { data, error } = await client.from("guardian_links")
+    .select("student_id,profiles!guardian_links_student_id_fkey(display_name,status)")
+    .eq("guardian_id", guardianId).eq("profiles.status", "active");
+  const learners = (data ?? []).map(({ student_id, profiles }) => ({
+    student_id,
+    profiles: singleRelation(profiles),
+  })).filter((learner): learner is EnrollmentLearner => learner.profiles !== null);
+  return error ? dataFailure(error) : dataReady(learners);
+}
+
 export async function loadCourseEnrollments(client: SupabaseClient | null) {
   if (!client) return configurationFailure();
   const { data, error } = await client.from("course_enrollments")
-    .select("course_id,learner_name,status").order("created_at", { ascending: false });
-  return error ? dataFailure(error) : dataReady(data ?? []);
+    .select("course_id,requester_id,student_id,learner_name,status,student:profiles!course_enrollments_student_id_fkey(display_name)")
+    .order("created_at", { ascending: false });
+  const enrollments: CourseEnrollment[] = (data ?? []).map((row) => ({
+    ...row,
+    student: singleRelation(row.student),
+  }));
+  return error ? dataFailure(error) : dataReady(enrollments);
 }

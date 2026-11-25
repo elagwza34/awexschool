@@ -20,7 +20,8 @@ export default async function CatalogAdmin({ searchParams }: { searchParams: Pro
   const [grades, subjects, requests, courses, archived] = await Promise.all([
     showCourses ? client.from("grades").select("id,name").order("stage_id").order("position") : null,
     showCourses ? client.from("subjects").select("id,name").order("name") : null,
-    showEnrollments ? client.from("course_enrollments").select("course_id, requester_id, learner_name")
+    showEnrollments ? client.from("course_enrollments")
+      .select("course_id, requester_id, student_id, learner_name, student:profiles!course_enrollments_student_id_fkey(display_name)")
       .eq("status", "pending").order("created_at").limit(50) : null,
     showCourses ? client.from("courses").select("id,title,description,grade_id,track").eq("status", "published").eq("track", activeTrack).order("title") : null,
     showArchive ? client.from("courses").select("id,title,description,track").eq("status", "archived").order("title") : null,
@@ -83,6 +84,7 @@ export default async function CatalogAdmin({ searchParams }: { searchParams: Pro
         </nav>
         {notice && notice !== "publish-failed" && <p role="status" className="rounded-lg bg-accent p-3">
           {notice === "published" ? "تم نشر المقرر." : notice === "reviewed" ? "تمت مراجعة الطلب." :
+            notice === "identity-unresolved" ? "هوية الطالب في طلب الالتحاق القديم غير محسومة، ولا يمكن قبوله." :
             notice === "archived" ? "اتنقل المقرر لتبويب مقررات مؤرشفة." :
             notice === "archive-failed" ? "تعذّرت أرشفة المقرر. حدّث الصفحة وحاول مرة تانية." :
             "تعذّر الحفظ. راجع البيانات وحاول مرة تانية."}
@@ -141,13 +143,23 @@ export default async function CatalogAdmin({ searchParams }: { searchParams: Pro
         </section>}
         {showEnrollments && <section id="enrollment-requests" className="space-y-3" aria-labelledby="enrollment-requests-title">
           <h2 id="enrollment-requests-title" className="text-lg font-bold">طلبات الالتحاق قيد المراجعة</h2>
-          {requests?.error ? <p role="alert">تعذّر تحميل طلبات الالتحاق.</p> : requests?.data?.length ? requests.data.map((request) => <article key={`${request.course_id}-${request.requester_id}`} className="soft-card flex flex-wrap items-center justify-between gap-3 p-4">
-            <p>{request.learner_name} · <Link className="underline" href={`/courses/${request.course_id}`}>عرض المقرر</Link></p>
-            <form action={reviewEnrollment.bind(null, request.course_id, request.requester_id)} className="flex gap-2">
-              <button className="min-h-11 rounded-lg bg-primary px-4 text-primary-foreground" name="status" value="active">قبول</button>
-              <button className="min-h-11 rounded-lg border px-4" name="status" value="declined">رفض</button>
-            </form>
-          </article>) : <p className="text-muted-foreground">مفيش طلبات قيد المراجعة.</p>}
+          {requests?.error ? <p role="alert">تعذّر تحميل طلبات الالتحاق.</p> : requests?.data?.length ? requests.data.map((request) => {
+            const student = Array.isArray(request.student) ? request.student[0] : request.student;
+            const learnerName = student?.display_name ?? request.learner_name;
+            const legacyNoticeId = `legacy-identity-${request.course_id}-${request.requester_id}`;
+            return <article key={`${request.course_id}-${request.requester_id}`} className="soft-card flex flex-wrap items-center justify-between gap-3 p-4">
+              <div>
+                <p>{learnerName} · <Link className="underline" href={`/courses/${request.course_id}`}>عرض المقرر</Link></p>
+                {request.student_id === null && <p id={legacyNoticeId} className="mt-1 text-sm text-destructive">هوية الطالب في هذا الطلب القديم غير محسومة.</p>}
+              </div>
+              <form action={reviewEnrollment.bind(null, request.course_id, request.requester_id)} className="flex gap-2">
+                <button className="min-h-11 rounded-lg bg-primary px-4 text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                  name="status" value="active" disabled={request.student_id === null}
+                  aria-describedby={request.student_id === null ? legacyNoticeId : undefined}>قبول</button>
+                <button className="min-h-11 rounded-lg border px-4" name="status" value="declined">رفض</button>
+              </form>
+            </article>;
+          }) : <p className="text-muted-foreground">مفيش طلبات قيد المراجعة.</p>}
         </section>}
       </main>
   );

@@ -10,30 +10,88 @@ begin;
 set local lock_timeout = '5s';
 set local statement_timeout = '90s';
 
+-- Hold a deterministic course-first write fence while preflight and DDL execute.
+lock table public.courses, public.course_enrollments, public.learning_groups,
+  public.group_members, public.group_join_requests, public.group_payments,
+  public.teacher_applications, public.lessons, public.course_units,
+  auth.users, supabase_migrations.schema_migrations
+  in share row exclusive mode;
+
 -- Preflight: refuse unknown baseline objects or existing integrity violations.
 do $preflight$
 declare
+  expected_tables text[] := array[
+    'profiles', 'roles', 'permissions', 'account_roles', 'role_permissions', 'guardian_links',
+    'stages', 'grades', 'subjects', 'teacher_profiles', 'courses', 'course_units', 'lessons',
+    'learning_groups', 'group_members', 'group_join_requests', 'group_payments', 'class_sessions',
+    'teacher_earnings', 'teacher_applications', 'support_requests', 'support_replies',
+    'chat_threads', 'chat_participants', 'chat_messages', 'site_settings', 'course_enrollments',
+    'course_assignments', 'course_assignment_submissions', 'session_attendance',
+    'session_roster_snapshots', 'session_roster_entries', 'session_attendance_events'
+  ];
+  missing_tables text[];
+  expected_table text;
+  table_hash text;
+  baseline_fingerprint text := '';
+  auth_fingerprint text;
+  auth_count bigint;
+  history_count bigint;
+  history_fingerprint text;
   invalid_members bigint;
   overcapacity_groups bigint;
   invalid_requests bigint;
+  has_student_identity boolean;
+  expected record;
 begin
   if current_setting('server_version_num')::integer < 170000 then
     raise exception 'remediation_requires_postgresql_17';
   end if;
 
-  if to_regclass('auth.users') is null
-     or to_regclass('public.profiles') is null
-     or to_regclass('public.account_roles') is null
-     or to_regclass('public.guardian_links') is null
-     or to_regclass('public.courses') is null
-     or to_regclass('public.course_enrollments') is null
-     or to_regclass('public.learning_groups') is null
-     or to_regclass('public.group_members') is null
-     or to_regclass('public.group_join_requests') is null
-     or to_regclass('public.group_payments') is null
-     or to_regclass('public.teacher_applications') is null
-     or to_regclass('public.lessons') is null then
-    raise exception 'remediation_baseline_missing';
+  select coalesce(array_agg(missing.table_name order by missing.table_name), '{}'::text[])
+  into missing_tables
+  from unnest(expected_tables) as missing(table_name)
+  where to_regclass(format('public.%I', missing.table_name)) is null;
+  if cardinality(missing_tables) > 0 or to_regclass('auth.users') is null
+     or to_regclass('supabase_migrations.schema_migrations') is null then
+    raise exception 'remediation_baseline_missing: %', array_to_string(missing_tables, ', ');
+  end if;
+
+  for expected in
+    select * from (values
+      ('public.save_learning_group(uuid,uuid,uuid,uuid,text,integer,bigint,integer,time without time zone,boolean,uuid[])'),
+      ('public.complete_teacher_onboarding(uuid,uuid,uuid,jsonb)'),
+      ('public.review_course_enrollment_as_admin(uuid,uuid,text)'),
+      ('public.record_session_attendance(uuid,uuid,text)'),
+      ('liveschool_internal.capture_session_roster_on_insert()')
+    ) as contract(signature)
+  loop
+    if to_regprocedure(expected.signature) is null then
+      raise exception 'remediation_baseline_function_missing: %', expected.signature;
+    end if;
+  end loop;
+
+  if not exists (
+    select 1 from pg_trigger t
+    join pg_class c on c.oid = t.tgrelid
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relname = 'class_sessions'
+      and t.tgname = 'session_roster_capture' and t.tgenabled = 'O'
+      and t.tgfoid = to_regprocedure('liveschool_internal.capture_session_roster_on_insert()')::oid
+  ) then
+    raise exception 'remediation_baseline_roster_trigger_missing';
+  end if;
+
+  if not has_table_privilege('service_role', 'public.teacher_applications', 'INSERT')
+     or not has_column_privilege('service_role', 'public.teacher_applications', 'status', 'UPDATE')
+     or not has_table_privilege('service_role', 'public.course_enrollments', 'INSERT')
+     or not has_table_privilege('authenticated', 'public.lessons', 'SELECT') then
+    raise exception 'remediation_baseline_grants_missing';
+  end if;
+
+  if not exists (
+    select 1 from supabase_migrations.schema_migrations where version = '20261124010000'
+  ) then
+    raise exception 'remediation_baseline_migration_history_missing';
   end if;
 
   if to_regclass('public.direct_chat_threads') is not null
@@ -41,16 +99,31 @@ begin
     raise exception 'remediation_unexpected_direct_chat_schema';
   end if;
 
-  select count(*) into invalid_members
-  from public.group_members gm
-  join public.learning_groups g on g.id = gm.group_id
-  where not exists (
-    select 1
-    from public.course_enrollments e
-    where e.course_id = g.course_id
-      and e.status = 'active'
-      and e.requester_id = gm.student_id
+  has_student_identity := exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'course_enrollments'
+      and column_name = 'student_id'
   );
+  execute format($preflight_members$
+    select count(*)
+    from public.group_members gm
+    join public.learning_groups g on g.id = gm.group_id
+    left join public.profiles p on p.user_id = gm.student_id
+    left join public.account_roles ar on ar.user_id = gm.student_id and ar.role_code = 'student'
+    where p.user_id is null or p.status <> 'active' or ar.user_id is null or not exists (
+      select 1
+      from public.course_enrollments e
+      where e.course_id = g.course_id
+        and e.status = 'active'
+        and (
+          %s = gm.student_id
+          or (%s is null and e.requester_id = gm.student_id)
+        )
+    )
+  $preflight_members$,
+    case when has_student_identity then 'e.student_id' else 'null::uuid' end,
+    case when has_student_identity then 'e.student_id' else 'null::uuid' end
+  ) into invalid_members;
   if invalid_members > 0 then
     raise exception 'remediation_members_without_active_enrollment: %', invalid_members
       using errcode = '23514';
@@ -77,45 +150,94 @@ begin
       using errcode = '23514';
   end if;
 
-  select count(*) into invalid_requests
-  from public.group_join_requests r
-  join public.learning_groups g on g.id = r.group_id
-  where (
-    r.status in ('reserved', 'paid', 'approved')
-    and not exists (
-      select 1 from public.course_enrollments e
-      where e.course_id = g.course_id and e.status = 'active' and e.requester_id = r.student_id
-    )
-  ) or (
-    r.status in ('paid', 'approved')
-    and not exists (
-      select 1 from public.group_payments gp
-      where gp.request_id = r.id and gp.status = 'succeeded'
-        and gp.amount_minor = r.fee_minor and gp.currency = 'EGP'
-    )
-  ) or (
-    r.status = 'approved'
-    and (
-      not exists (
-        select 1 from public.group_members gm
-        where gm.group_id = r.group_id and gm.student_id = r.student_id
+  execute format($preflight_requests$
+    select count(*)
+    from public.group_join_requests r
+    join public.learning_groups g on g.id = r.group_id
+    left join public.profiles p on p.user_id = r.student_id
+    left join public.account_roles ar on ar.user_id = r.student_id and ar.role_code = 'student'
+    where (
+      r.status in ('reserved', 'paid', 'approved')
+      and (
+        p.user_id is null or p.status <> 'active' or ar.user_id is null
+        or not exists (
+          select 1 from public.course_enrollments e
+          where e.course_id = g.course_id and e.status = 'active'
+            and (
+              %s = r.student_id
+              or (%s is null and e.requester_id = r.student_id)
+            )
+        )
       )
-      or r.reviewed_by is null
-      or r.reviewed_at is null
-      or not exists (
-        select 1
-        from public.profiles p
-        join public.account_roles ar on ar.user_id = p.user_id
-        where p.user_id = r.reviewed_by
-          and p.status = 'active'
-          and ar.role_code in ('admin', 'owner')
+    ) or (
+      r.status in ('paid', 'approved')
+      and not exists (
+        select 1 from public.group_payments gp
+        where gp.request_id = r.id and gp.status = 'succeeded'
+          and gp.amount_minor = r.fee_minor and gp.currency = 'EGP'
+      )
+    ) or (
+      r.status = 'approved'
+      and (
+        not exists (
+          select 1 from public.group_members gm
+          where gm.group_id = r.group_id and gm.student_id = r.student_id
+        )
+        or r.reviewed_by is null
+        or r.reviewed_at is null
+        or not exists (
+          select 1
+          from public.profiles p
+          join public.account_roles ar on ar.user_id = p.user_id
+          where p.user_id = r.reviewed_by
+            and p.status = 'active'
+            and ar.role_code in ('admin', 'owner')
+        )
       )
     )
-  );
+  $preflight_requests$,
+    case when has_student_identity then 'e.student_id' else 'null::uuid' end,
+    case when has_student_identity then 'e.student_id' else 'null::uuid' end
+  ) into invalid_requests;
   if invalid_requests > 0 then
     raise exception 'remediation_group_requests_invalid: %', invalid_requests
       using errcode = '23514';
   end if;
+
+  for expected_table in select unnest(expected_tables) loop
+    execute format(
+      'select coalesce(md5(string_agg(row_hash, '''' order by row_hash)), md5(''''))
+       from (
+         select md5((to_jsonb(source) - case
+           when %L = ''course_enrollments'' then array[''student_id'']::text[]
+           when %L = ''teacher_applications'' then array[''requester_id'', ''email_verified_at'']::text[]
+           else array[]::text[]
+         end)::text) as row_hash
+         from public.%I source
+       ) hashed_rows',
+      expected_table, expected_table, expected_table
+    ) into table_hash;
+    baseline_fingerprint := baseline_fingerprint || expected_table || ':' || table_hash || ';';
+  end loop;
+
+  select count(*),
+    coalesce(md5(string_agg(row_hash, '' order by row_hash)), md5(''))
+  into auth_count, auth_fingerprint
+  from (select md5(to_jsonb(source)::text) as row_hash from auth.users source) hashed_users;
+
+  select count(*),
+    coalesce(md5(string_agg(row_hash, '' order by row_hash)), md5(''))
+  into history_count, history_fingerprint
+  from (
+    select md5(to_jsonb(history)::text) as row_hash
+    from supabase_migrations.schema_migrations history
+  ) hashed_history;
+
+  perform set_config('liveschool.remediation.baseline_fingerprint', baseline_fingerprint, true);
+  perform set_config('liveschool.remediation.auth_users_count', auth_count::text, true);
+  perform set_config('liveschool.remediation.auth_users_fingerprint', auth_fingerprint, true);
+  perform set_config('liveschool.remediation.migration_history_count', history_count::text, true);
+  perform set_config('liveschool.remediation.migration_history_fingerprint', history_fingerprint, true);
 
   perform set_config(
     'liveschool.remediation.legacy_unreviewed_count',
@@ -170,7 +292,8 @@ create table if not exists public.course_enrollment_review_events (
   new_status text check (new_status in ('active', 'declined')),
   note text check (note is null or char_length(btrim(note)) between 1 and 1000),
   check (
-    (event_type = 'reviewed' and previous_status = 'pending' and new_status in ('active', 'declined') and note is null)
+    (event_type = 'reviewed' and previous_status is not null and new_status is not null
+      and previous_status = 'pending' and new_status in ('active', 'declined') and note is null)
     or (event_type = 'legacy_acknowledged' and previous_status in ('active', 'declined') and new_status is null)
   )
 );
@@ -294,8 +417,17 @@ begin
   if liveschool_internal.has_active_role(actor_id, array['admin', 'owner']) then
     return true;
   end if;
-  if course_teacher = actor_id
-     and liveschool_internal.has_active_role(actor_id, array['teacher']) then
+  if liveschool_internal.has_active_role(actor_id, array['teacher'])
+     and (
+       course_teacher = actor_id
+       or exists (
+         select 1
+         from public.learning_groups lg
+         where lg.course_id = p_course_id
+           and lg.teacher_id = actor_id
+           and lg.active = true
+       )
+     ) then
     return true;
   end if;
   if liveschool_internal.has_active_role(actor_id, array['student'])
@@ -319,6 +451,16 @@ begin
   end if;
   return false;
 end;
+$function$;
+
+create or replace function public.can_read_course_lessons(p_course_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $function$
+  select liveschool_internal.can_read_course_lessons(p_course_id);
 $function$;
 
 create or replace function liveschool_internal.group_occupied_seats(p_group_id uuid, p_at timestamptz)
@@ -465,6 +607,8 @@ declare
   learner_id uuid;
   learner_name text;
   inserted_count integer;
+  existing_enrollment public.course_enrollments%rowtype;
+  conflicting_student uuid;
 begin
   if actor_id is null or p_course is null then
     raise exception 'enrollment_forbidden' using errcode = '42501';
@@ -496,16 +640,33 @@ begin
   if learner_name is null or char_length(btrim(learner_name)) not between 2 and 100 then
     raise exception 'enrollment_identity_invalid' using errcode = '23514';
   end if;
-  if exists (
-    select 1 from public.course_enrollments
-    where course_id = p_course and requester_id = actor_id and student_id is null
-  ) then
-    raise exception 'enrollment_identity_unresolved' using errcode = '23514';
+  select e.* into existing_enrollment
+  from public.course_enrollments e
+  where e.course_id = p_course
+    and e.status = 'active'
+    and (
+      e.student_id = learner_id
+      or (e.student_id is null and e.requester_id = learner_id)
+    )
+  for update;
+  if found then
+    if existing_enrollment.student_id is null then
+      raise exception 'enrollment_identity_unresolved' using errcode = '23514';
+    end if;
+    return false;
   end if;
-  if exists (
-    select 1 from public.course_enrollments
-    where course_id = p_course and student_id = learner_id and status = 'active'
-  ) then
+
+  select e.* into existing_enrollment
+  from public.course_enrollments e
+  where e.course_id = p_course and e.requester_id = actor_id
+  for update;
+  if found then
+    if existing_enrollment.student_id is null then
+      raise exception 'enrollment_identity_unresolved' using errcode = '23514';
+    end if;
+    if existing_enrollment.student_id <> learner_id then
+      raise exception 'enrollment_learner_conflict' using errcode = '23514';
+    end if;
     return false;
   end if;
 
@@ -516,6 +677,15 @@ begin
   return inserted_count = 1;
 exception
   when unique_violation then
+    select e.student_id into conflicting_student
+    from public.course_enrollments e
+    where e.course_id = p_course and e.requester_id = actor_id;
+    if conflicting_student is null then
+      raise exception 'enrollment_identity_unresolved' using errcode = '23514';
+    end if;
+    if conflicting_student <> learner_id then
+      raise exception 'enrollment_learner_conflict' using errcode = '23514';
+    end if;
     return false;
 end;
 $function$;
@@ -644,6 +814,10 @@ create policy "Read authorized course lessons" on public.lessons
   );
 
 drop policy if exists "Requesters can read their own course enrollments" on public.course_enrollments;
+drop policy if exists "Requesters can read their unresolved legacy enrollments" on public.course_enrollments;
+create policy "Requesters can read their unresolved legacy enrollments" on public.course_enrollments
+  for select to authenticated
+  using (student_id is null and requester_id = (select auth.uid()));
 drop policy if exists "Students can read their authoritative enrollments" on public.course_enrollments;
 create policy "Students can read their authoritative enrollments" on public.course_enrollments
   for select to authenticated
@@ -704,7 +878,10 @@ begin
     if exists (
       select 1 from public.group_members gm
       where gm.group_id = new.id
-        and not liveschool_internal.has_active_course_enrollment(gm.student_id, new.course_id)
+        and (
+          not liveschool_internal.has_active_role(gm.student_id, array['student'])
+          or not liveschool_internal.has_active_course_enrollment(gm.student_id, new.course_id)
+        )
     ) then
       raise exception 'group_course_member_enrollment_required' using errcode = '23514';
     end if;
@@ -734,9 +911,11 @@ begin
   if not found then
     raise exception 'group_missing' using errcode = '23503';
   end if;
-  if not liveschool_internal.has_active_role(new.student_id, array['student'])
-     or not liveschool_internal.has_active_course_enrollment(new.student_id, group_course) then
-    raise exception 'group_student_enrollment_required' using errcode = '23514';
+  if tg_op = 'INSERT' or new.status in ('paid', 'approved') then
+    if not liveschool_internal.has_active_role(new.student_id, array['student'])
+       or not liveschool_internal.has_active_course_enrollment(new.student_id, group_course) then
+      raise exception 'group_student_enrollment_required' using errcode = '23514';
+    end if;
   end if;
 
   if tg_op = 'INSERT' then
@@ -754,20 +933,26 @@ begin
     if new.group_id <> old.group_id or new.student_id <> old.student_id then
       raise exception 'group_request_identity_immutable' using errcode = '23514';
     end if;
-    if old.status in ('expired', 'approved', 'rejected') and new.status <> old.status then
-      raise exception 'group_request_status_final' using errcode = '23514';
+    if new.status is distinct from old.status
+       and not (
+         (old.status = 'reserved' and new.status in ('expired', 'paid', 'rejected'))
+         or (old.status = 'paid' and new.status in ('approved', 'rejected'))
+       ) then
+      raise exception 'group_request_transition_invalid' using errcode = '23514';
     end if;
-    if new.status = 'paid' and old.status <> 'reserved' then
-      raise exception 'group_request_paid_transition_invalid' using errcode = '23514';
+    if old.status in ('paid', 'approved')
+       and (
+         new.expires_at is distinct from old.expires_at
+         or new.fee_minor is distinct from old.fee_minor
+       ) then
+      raise exception 'group_request_payment_terms_immutable' using errcode = '23514';
     end if;
-    if new.status = 'approved' and old.status <> 'paid' then
-      raise exception 'group_request_approval_requires_payment' using errcode = '23514';
-    end if;
-    if new.status = 'expired' and old.status <> 'reserved' then
-      raise exception 'group_request_expiry_transition_invalid' using errcode = '23514';
-    end if;
-    if new.status = 'rejected' and old.status not in ('reserved', 'paid') then
-      raise exception 'group_request_rejection_transition_invalid' using errcode = '23514';
+    if old.status in ('expired', 'approved', 'rejected')
+       and (
+         new.reviewed_by is distinct from old.reviewed_by
+         or new.reviewed_at is distinct from old.reviewed_at
+       ) then
+      raise exception 'group_request_review_metadata_immutable' using errcode = '23514';
     end if;
   end if;
 
@@ -786,6 +971,8 @@ begin
        or not liveschool_internal.has_active_role(new.reviewed_by, array['admin', 'owner']) then
       raise exception 'group_request_reviewer_forbidden' using errcode = '42501';
     end if;
+  elsif new.reviewed_by is not null or new.reviewed_at is not null then
+    raise exception 'group_request_review_metadata_premature' using errcode = '23514';
   end if;
   if new.status = 'approved' and not exists (
     select 1 from public.group_members gm
@@ -845,6 +1032,93 @@ drop trigger if exists group_capacity_change_guard on public.learning_groups;
 create trigger group_capacity_change_guard
 after update of capacity on public.learning_groups
 for each row execute function liveschool_internal.enforce_group_capacity();
+
+-- Repeat invariant checks after trigger installation while the write fence is still held.
+do $post_trigger_invariants$
+declare
+  invalid_members bigint;
+  overcapacity_groups bigint;
+  invalid_requests bigint;
+begin
+  select count(*) into invalid_members
+  from public.group_members gm
+  join public.learning_groups g on g.id = gm.group_id
+  left join public.profiles p on p.user_id = gm.student_id
+  left join public.account_roles ar on ar.user_id = gm.student_id and ar.role_code = 'student'
+  where p.user_id is null or p.status <> 'active' or ar.user_id is null or not exists (
+    select 1 from public.course_enrollments e
+    where e.course_id = g.course_id and e.status = 'active'
+      and (e.student_id = gm.student_id or (e.student_id is null and e.requester_id = gm.student_id))
+  );
+  if invalid_members > 0 then
+    raise exception 'remediation_post_trigger_members_without_active_enrollment: %', invalid_members
+      using errcode = '23514';
+  end if;
+
+  with occupied as (
+    select g.id, g.capacity,
+      (select count(*) from public.group_members gm where gm.group_id = g.id)
+      + (
+        select count(*) from public.group_join_requests r
+        where r.group_id = g.id
+          and (r.status = 'paid' or (r.status = 'reserved' and r.expires_at > clock_timestamp()))
+          and not exists (
+            select 1 from public.group_members gm
+            where gm.group_id = r.group_id and gm.student_id = r.student_id
+          )
+      ) as occupied_seats
+    from public.learning_groups g
+  )
+  select count(*) into overcapacity_groups from occupied where occupied_seats > capacity;
+  if overcapacity_groups > 0 then
+    raise exception 'remediation_post_trigger_groups_over_capacity: %', overcapacity_groups
+      using errcode = '23514';
+  end if;
+
+  select count(*) into invalid_requests
+  from public.group_join_requests r
+  join public.learning_groups g on g.id = r.group_id
+  left join public.profiles p on p.user_id = r.student_id
+  left join public.account_roles ar on ar.user_id = r.student_id and ar.role_code = 'student'
+  where (
+    r.status in ('reserved', 'paid', 'approved')
+    and (
+      p.user_id is null or p.status <> 'active' or ar.user_id is null
+      or not exists (
+        select 1 from public.course_enrollments e
+        where e.course_id = g.course_id and e.status = 'active'
+          and (e.student_id = r.student_id or (e.student_id is null and e.requester_id = r.student_id))
+      )
+    )
+  ) or (
+    r.status in ('paid', 'approved')
+    and not exists (
+      select 1 from public.group_payments gp
+      where gp.request_id = r.id and gp.status = 'succeeded'
+        and gp.amount_minor = r.fee_minor and gp.currency = 'EGP'
+    )
+  ) or (
+    r.status = 'approved'
+    and (
+      not exists (
+        select 1 from public.group_members gm
+        where gm.group_id = r.group_id and gm.student_id = r.student_id
+      )
+      or r.reviewed_by is null or r.reviewed_at is null
+      or not exists (
+        select 1 from public.profiles p
+        join public.account_roles ar on ar.user_id = p.user_id
+        where p.user_id = r.reviewed_by and p.status = 'active'
+          and ar.role_code in ('admin', 'owner')
+      )
+    )
+  );
+  if invalid_requests > 0 then
+    raise exception 'remediation_post_trigger_group_requests_invalid: %', invalid_requests
+      using errcode = '23514';
+  end if;
+end;
+$post_trigger_invariants$;
 
 revoke all on function public.save_learning_group(uuid, uuid, uuid, uuid, text, integer, bigint, integer, time, boolean, uuid[])
   from public, anon, authenticated, service_role;
@@ -911,7 +1185,10 @@ begin
     if exists (
       select 1 from public.group_members gm
       where gm.group_id = saved_group
-        and not liveschool_internal.has_active_course_enrollment(gm.student_id, p_course)
+        and (
+          not liveschool_internal.has_active_role(gm.student_id, array['student'])
+          or not liveschool_internal.has_active_course_enrollment(gm.student_id, p_course)
+        )
     ) then
       raise exception 'group_course' using errcode = '23514';
     end if;
@@ -1069,7 +1346,7 @@ declare
   grade_ids text[];
   application_id uuid;
 begin
-  if actor_id is null or not liveschool_internal.has_active_role(actor_id, array['admin', 'owner', 'manager', 'support', 'teacher', 'student', 'parent']) then
+  if actor_id is null or not liveschool_internal.has_active_role(actor_id, array['student', 'parent']) then
     raise exception 'teacher_intake_forbidden' using errcode = '42501';
   end if;
   select u.email, u.email_confirmed_at into account_email, account_confirmed
@@ -1153,6 +1430,7 @@ begin
   select * into challenge from public.teacher_intake_challenges
   where id = p_challenge for update;
   if not found or challenge.purpose <> 'track'
+     or challenge.actor_id is distinct from actor_id
      or challenge.consumed_at is not null or challenge.expires_at <= clock_timestamp() then
     raise exception 'teacher_tracking_challenge_invalid' using errcode = '42501';
   end if;
@@ -1164,7 +1442,7 @@ begin
 
   if application.requester_id is not null then
     if actor_id is null or application.requester_id <> actor_id
-       or not liveschool_internal.has_active_role(actor_id, array['admin', 'owner', 'manager', 'support', 'teacher', 'student', 'parent'])
+       or not liveschool_internal.has_active_role(actor_id, array['student', 'parent'])
        or not exists (select 1 from auth.users where id = actor_id and email_confirmed_at is not null) then
       raise exception 'teacher_tracking_forbidden' using errcode = '42501';
     end if;
@@ -1371,6 +1649,7 @@ grant select on public.course_enrollment_review_audit to authenticated, service_
 revoke all on function liveschool_internal.has_active_role(uuid, text[]) from public, anon, authenticated, service_role;
 revoke all on function liveschool_internal.has_active_course_enrollment(uuid, uuid) from public, anon, authenticated, service_role;
 revoke all on function liveschool_internal.can_read_course_lessons(uuid) from public, anon, authenticated, service_role;
+revoke all on function public.can_read_course_lessons(uuid) from public, anon, authenticated, service_role;
 revoke all on function liveschool_internal.group_occupied_seats(uuid, timestamptz) from public, anon, authenticated, service_role;
 revoke all on function liveschool_internal.consume_teacher_intake_limit(text, text, integer, interval) from public, anon, authenticated, service_role;
 revoke all on function liveschool_internal.validate_enrollment_identity() from public, anon, authenticated, service_role;
@@ -1395,6 +1674,7 @@ revoke all on function public.approve_group_join_request_as_admin(uuid) from pub
 
 grant execute on function liveschool_internal.has_active_role(uuid, text[]) to authenticated;
 grant execute on function liveschool_internal.can_read_course_lessons(uuid) to authenticated;
+grant execute on function public.can_read_course_lessons(uuid) to authenticated;
 grant execute on function public.request_course_enrollment(uuid, uuid) to authenticated;
 grant execute on function public.review_course_enrollment_as_admin(uuid, uuid, text) to authenticated;
 grant execute on function public.acknowledge_legacy_enrollment_as_admin(uuid, uuid, text) to authenticated;
@@ -1408,7 +1688,32 @@ grant execute on function public.review_teacher_application_as_admin(uuid, text)
 do $final_assertions$
 declare
   expected record;
+  expected_tables text[] := array[
+    'profiles', 'roles', 'permissions', 'account_roles', 'role_permissions', 'guardian_links',
+    'stages', 'grades', 'subjects', 'teacher_profiles', 'courses', 'course_units', 'lessons',
+    'learning_groups', 'group_members', 'group_join_requests', 'group_payments', 'class_sessions',
+    'teacher_earnings', 'teacher_applications', 'support_requests', 'support_replies',
+    'chat_threads', 'chat_participants', 'chat_messages', 'site_settings', 'course_enrollments',
+    'course_assignments', 'course_assignment_submissions', 'session_attendance',
+    'session_roster_snapshots', 'session_roster_entries', 'session_attendance_events'
+  ];
+  missing_tables text[];
+  expected_table text;
+  table_hash text;
+  baseline_fingerprint text := '';
+  auth_count bigint;
+  auth_fingerprint text;
+  history_count bigint;
+  history_fingerprint text;
 begin
+  select coalesce(array_agg(missing.table_name order by missing.table_name), '{}'::text[])
+  into missing_tables
+  from unnest(expected_tables) as missing(table_name)
+  where to_regclass(format('public.%I', missing.table_name)) is null;
+  if cardinality(missing_tables) > 0 then
+    raise exception 'remediation_final_baseline_tables_missing: %', array_to_string(missing_tables, ', ');
+  end if;
+
   if to_regclass('public.course_enrollments') is null
      or not exists (
        select 1 from information_schema.columns
@@ -1484,6 +1789,7 @@ begin
       ('public', 'review_teacher_application_as_admin', 'uuid, text'),
       ('public', 'reserve_group_seat', 'uuid'),
       ('public', 'approve_group_join_request_as_admin', 'uuid'),
+      ('public', 'can_read_course_lessons', 'uuid'),
       ('liveschool_internal', 'has_active_role', 'uuid, text[]'),
       ('liveschool_internal', 'has_active_course_enrollment', 'uuid, uuid'),
       ('liveschool_internal', 'can_read_course_lessons', 'uuid'),
@@ -1508,7 +1814,9 @@ begin
       join pg_namespace n on n.oid = p.pronamespace
       where n.nspname = expected.schema_name
         and p.proname = expected.function_name
-        and pg_catalog.pg_get_function_identity_arguments(p.oid) = expected.arguments
+        and p.oid = to_regprocedure(format(
+          '%I.%I(%s)', expected.schema_name, expected.function_name, expected.arguments
+        ))::oid
         and p.prosecdef
         and coalesce(p.proconfig, '{}'::text[]) = array['search_path=""']
     ) then
@@ -1526,12 +1834,15 @@ begin
      or has_function_privilege('service_role', 'public.reserve_group_seat(uuid)', 'EXECUTE')
      or has_function_privilege('anon', 'public.approve_group_join_request_as_admin(uuid)', 'EXECUTE')
      or has_function_privilege('authenticated', 'public.approve_group_join_request_as_admin(uuid)', 'EXECUTE')
-     or has_function_privilege('service_role', 'public.approve_group_join_request_as_admin(uuid)', 'EXECUTE') then
+     or has_function_privilege('service_role', 'public.approve_group_join_request_as_admin(uuid)', 'EXECUTE')
+     or has_function_privilege('anon', 'public.can_read_course_lessons(uuid)', 'EXECUTE')
+     or has_function_privilege('service_role', 'public.can_read_course_lessons(uuid)', 'EXECUTE') then
     raise exception 'remediation_final_privilege_forbidden';
   end if;
 
   if has_table_privilege('anon', 'public.lessons', 'SELECT')
-     or not has_table_privilege('authenticated', 'public.lessons', 'SELECT') then
+     or not has_table_privilege('authenticated', 'public.lessons', 'SELECT')
+     or not has_function_privilege('authenticated', 'public.can_read_course_lessons(uuid)', 'EXECUTE') then
     raise exception 'remediation_final_lesson_grants_invalid';
   end if;
 
@@ -1569,6 +1880,44 @@ begin
         expected.schema_name, expected.relation_name, expected.trigger_name;
     end if;
   end loop;
+
+  for expected_table in select unnest(expected_tables) loop
+    execute format(
+      'select coalesce(md5(string_agg(row_hash, '''' order by row_hash)), md5(''''))
+       from (
+         select md5((to_jsonb(source) - case
+           when %L = ''course_enrollments'' then array[''student_id'']::text[]
+           when %L = ''teacher_applications'' then array[''requester_id'', ''email_verified_at'']::text[]
+           else array[]::text[]
+         end)::text) as row_hash
+         from public.%I source
+       ) hashed_rows',
+      expected_table, expected_table, expected_table
+    ) into table_hash;
+    baseline_fingerprint := baseline_fingerprint || expected_table || ':' || table_hash || ';';
+  end loop;
+  if baseline_fingerprint <> current_setting('liveschool.remediation.baseline_fingerprint') then
+    raise exception 'remediation_final_baseline_changed';
+  end if;
+
+  select count(*), coalesce(md5(string_agg(row_hash, '' order by row_hash)), md5(''))
+  into auth_count, auth_fingerprint
+  from (select md5(to_jsonb(source)::text) as row_hash from auth.users source) hashed_users;
+  if auth_count <> current_setting('liveschool.remediation.auth_users_count')::bigint
+     or auth_fingerprint <> current_setting('liveschool.remediation.auth_users_fingerprint') then
+    raise exception 'remediation_final_auth_accounts_changed';
+  end if;
+
+  select count(*), coalesce(md5(string_agg(row_hash, '' order by row_hash)), md5(''))
+  into history_count, history_fingerprint
+  from (
+    select md5(to_jsonb(history)::text) as row_hash
+    from supabase_migrations.schema_migrations history
+  ) hashed_history;
+  if history_count <> current_setting('liveschool.remediation.migration_history_count')::bigint
+     or history_fingerprint <> current_setting('liveschool.remediation.migration_history_fingerprint') then
+    raise exception 'remediation_final_migration_history_changed';
+  end if;
 
   if (select count(*) from public.course_enrollments
       where status in ('active', 'declined') and reviewed_by is null and reviewed_at is null)

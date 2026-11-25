@@ -34,7 +34,7 @@ test("student assignment scope excludes enrollments for unpublished courses", as
   assert.deepEqual(result.ids, ["11111111-1111-4111-8111-111111111111"]);
   assert.deepEqual(calls, [
     ["select", "course_id,courses!inner(status)"],
-    ["in", "requester_id", ["22222222-2222-4222-8222-222222222222"]],
+    ["in", "student_id", ["22222222-2222-4222-8222-222222222222"]],
     ["eq", "status", "active"],
     ["eq", "courses.status", "published"],
   ]);
@@ -59,7 +59,7 @@ function tableClient(results) {
   };
 }
 
-test("parent assignment scope includes enrollments requested by the parent", async () => {
+test("parent assignment scope uses active linked students and authoritative learner IDs", async () => {
   const parentId = "11111111-1111-4111-8111-111111111111";
   const childId = "22222222-2222-4222-8222-222222222222";
   const client = tableClient({
@@ -70,9 +70,35 @@ test("parent assignment scope includes enrollments requested by the parent", asy
   const result = await assignmentScope(client, "parent", parentId);
 
   assert.deepEqual(result.ids, ["33333333-3333-4333-8333-333333333333"]);
-  assert.ok(client.calls.some((call) =>
-    call[0] === "in" && call[1] === "requester_id" && call[2].includes(parentId) && call[2].includes(childId)
-  ));
+  assert.deepEqual(result.students, [childId]);
+  assert.deepEqual(client.calls, [
+    ["from", "guardian_links"],
+    ["select", "student_id,profiles!guardian_links_student_id_fkey(status)"],
+    ["eq", "guardian_id", parentId],
+    ["eq", "profiles.status", "active"],
+    ["from", "course_enrollments"],
+    ["select", "course_id,courses!inner(status)"],
+    ["in", "student_id", [childId]],
+    ["eq", "status", "active"],
+    ["eq", "courses.status", "published"],
+  ]);
+});
+
+test("parent assignment scope does not query enrollments without active linked students", async () => {
+  const parentId = "11111111-1111-4111-8111-111111111111";
+  const client = tableClient({
+    guardian_links: { data: [], error: null },
+  });
+
+  const result = await assignmentScope(client, "parent", parentId);
+
+  assert.deepEqual(result, { ids: [], students: [], error: false });
+  assert.deepEqual(client.calls, [
+    ["from", "guardian_links"],
+    ["select", "student_id,profiles!guardian_links_student_id_fkey(status)"],
+    ["eq", "guardian_id", parentId],
+    ["eq", "profiles.status", "active"],
+  ]);
 });
 
 test("teacher assignment scope includes published courses from active group assignments", async () => {

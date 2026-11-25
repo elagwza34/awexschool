@@ -2,20 +2,24 @@
 import { FormMessage } from "@/features/auth/auth-card";
 import { sessionClient } from "@/features/auth/supabase-server";
 import { LiveApplicationForm } from "@/features/teachers/live-application-form";
+import { readTeacherCaptchaPublicConfig } from "@/features/teachers/teacher-intake-security";
+import { readTeacherSessionAccount } from "@/features/teachers/teacher-session";
 
 export const metadata = { title: "انضم كمدرس" };
 
 const fields = [
   ["fullName", "الاسم الكامل", "text", "name", 160],
-  ["email", "البريد الإلكتروني", "email", "email", 254],
   ["phone", "رقم الهاتف", "tel", "tel", 25],
   ["governorate", "المحافظة", "text", "address-level1", 80],
   ["qualification", "المؤهل", "text", "off", 160],
 ] as const;
 
 export default async function TeacherApplicationPage() {
-  const client = await sessionClient();
-  const [subjects, grades] = client ? await Promise.all([
+  const client = await sessionClient(true);
+  const account = client ? await readTeacherSessionAccount(client) : null;
+  const eligible = !!account?.roles.some((role) => role === "student" || role === "parent");
+  const captchaSiteKey = readTeacherCaptchaPublicConfig();
+  const [subjects, grades] = eligible && client ? await Promise.all([
     client.from("subjects").select("id,name").order("name"),
     client.from("grades").select("id,name,stage_id,position").order("stage_id").order("position"),
   ]) : [];
@@ -24,11 +28,15 @@ export default async function TeacherApplicationPage() {
     <h1 className="text-3xl font-bold">انضم كمدرس</h1>
     <p className="mt-3 text-sm leading-7 text-muted-foreground">عرّفنا بتخصصك وخبرتك. بعد الإرسال هتستلم رقم متابعة للطلب.</p>
     <section className="soft-card mt-6 p-5 sm:p-8">
-      {!available ? <FormMessage error>تقديم المدرسين غير متاح حاليًا.</FormMessage> : <LiveApplicationForm>
+      {!eligible ? <FormMessage error>سجّل الدخول بحساب طالب أو ولي أمر نشط لإرسال طلب الانضمام.</FormMessage>
+        : !captchaSiteKey ? <FormMessage error>تقديم المدرسين غير متاح حاليًا.</FormMessage>
+          : !available ? <FormMessage error>تقديم المدرسين غير متاح حاليًا.</FormMessage>
+            : <LiveApplicationForm captchaSiteKey={captchaSiteKey}>
+        <p className="rounded-lg border p-3 text-sm leading-7">سيتم تسجيل الطلب بالبريد الإلكتروني المؤكد لحسابك.</p>
         <fieldset className="grid gap-4 sm:grid-cols-2">
           <legend className="mb-3 font-bold">بيانات التواصل والخبرة</legend>
           {fields.map(([name, label, type, autoComplete, maxLength]) => <label key={name} className="grid gap-2 text-sm font-semibold">
-            {label}<input name={name} type={type} autoComplete={autoComplete} dir={type === "email" || type === "tel" ? "ltr" : undefined}
+            {label}<input name={name} type={type} autoComplete={autoComplete} dir={type === "tel" ? "ltr" : undefined}
               maxLength={maxLength} className="field" required />
           </label>)}
           <label className="grid gap-2 text-sm font-semibold">سنوات الخبرة

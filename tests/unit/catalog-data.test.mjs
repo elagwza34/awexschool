@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createClient } from "@supabase/supabase-js";
-import {
+import * as catalogData from "../../src/features/catalog/catalog-data.ts";
+const {
   loadCatalogOptions,
   loadCourseEnrollments,
+  loadEnrollmentLearners,
   loadPublishedCourse,
   loadPublishedCourses,
-} from "../../src/features/catalog/catalog-data.ts";
+} = catalogData;
 import { loadPublicGroups } from "../../src/features/catalog/public-groups-data.ts";
 
 function clientWith(results) {
@@ -130,12 +132,101 @@ test("course enrollments never convert missing configuration or query errors int
   assert.equal("data" in result, false);
 });
 
-test("course enrollments preserve successful rows and empty results", async () => {
-  const rows = [{ course_id: "course-1", learner_name: "Learner", status: "pending" }];
-  assert.deepEqual(await loadCourseEnrollments(clientWith({ course_enrollments: { data: rows, error: null } })), {
-    state: "ready", data: rows,
-  });
+test("course enrollments preserve authoritative identities and visible legacy rows", async () => {
+  const rows = [
+    {
+      course_id: "course-1",
+      requester_id: "requester-1",
+      student_id: "student-1",
+      learner_name: "Name at request time",
+      student: { display_name: "Current learner name" },
+      status: "pending",
+    },
+    {
+      course_id: "course-2",
+      requester_id: "requester-1",
+      student_id: null,
+      learner_name: "Legacy learner",
+      student: null,
+      status: "active",
+    },
+  ];
+  const client = clientWith({ course_enrollments: { data: rows, error: null } });
+  assert.deepEqual(await loadCourseEnrollments(client), { state: "ready", data: rows });
+  assert.deepEqual(client.calls, [
+    ["from", "course_enrollments"],
+    ["select", "course_enrollments", "course_id,requester_id,student_id,learner_name,status,student:profiles!course_enrollments_student_id_fkey(display_name)"],
+    ["order", "course_enrollments", "created_at", { ascending: false }],
+  ]);
   assert.deepEqual(await loadCourseEnrollments(clientWith({ course_enrollments: empty })), { state: "ready", data: [] });
+});
+
+test("catalog readers normalize embedded SDK relation arrays without dropping legacy rows", async () => {
+  const enrollments = await loadCourseEnrollments(clientWith({
+    course_enrollments: {
+      data: [
+        {
+          course_id: "course-1", requester_id: "requester-1", student_id: "student-1",
+          learner_name: "Stored name", status: "pending",
+          student: [{ display_name: "Current name" }],
+        },
+        {
+          course_id: "course-2", requester_id: "requester-1", student_id: null,
+          learner_name: "Legacy learner", status: "active", student: [],
+        },
+      ],
+      error: null,
+    },
+  }));
+  assert.deepEqual(enrollments, {
+    state: "ready",
+    data: [
+      {
+        course_id: "course-1", requester_id: "requester-1", student_id: "student-1",
+        learner_name: "Stored name", status: "pending", student: { display_name: "Current name" },
+      },
+      {
+        course_id: "course-2", requester_id: "requester-1", student_id: null,
+        learner_name: "Legacy learner", status: "active", student: null,
+      },
+    ],
+  });
+
+  const learners = await loadEnrollmentLearners(clientWith({
+    guardian_links: {
+      data: [
+        { student_id: "student-1", profiles: [{ display_name: "Child", status: "active" }] },
+        { student_id: "student-2", profiles: [] },
+      ],
+      error: null,
+    },
+  }), "guardian-1");
+  assert.deepEqual(learners, {
+    state: "ready",
+    data: [{ student_id: "student-1", profiles: { display_name: "Child", status: "active" } }],
+  });
+});
+
+test("linked enrollment learners come from guardian links with active profiles", async () => {
+  assert.equal(typeof loadEnrollmentLearners, "function");
+  const guardianId = "11111111-1111-4111-8111-111111111111";
+  const rows = [{ student_id: "22222222-2222-4222-8222-222222222222", profiles: { display_name: "Child", status: "active" } }];
+  const client = clientWith({ guardian_links: { data: rows, error: null } });
+
+  assert.deepEqual(await loadEnrollmentLearners(client, guardianId), { state: "ready", data: rows });
+  assert.deepEqual(client.calls, [
+    ["from", "guardian_links"],
+    ["select", "guardian_links", "student_id,profiles!guardian_links_student_id_fkey(display_name,status)"],
+    ["eq", "guardian_links", "guardian_id", guardianId],
+    ["eq", "guardian_links", "profiles.status", "active"],
+  ]);
+});
+
+test("linked enrollment learner queries fail closed without configuration", async () => {
+  assert.equal(typeof loadEnrollmentLearners, "function");
+  assert.deepEqual(await loadEnrollmentLearners(null, "11111111-1111-4111-8111-111111111111"), {
+    state: "error", kind: "configuration",
+  });
 });
 
 test("public groups preserve only successful empty results", async () => {

@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { getAccount, ownerClient } from "@/features/auth/supabase-server";
+import { getAccount, sessionClient } from "@/features/auth/supabase-server";
 
 const uuid = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
 const errors: Record<string, string> = {
@@ -14,7 +14,7 @@ const errors: Record<string, string> = {
 
 export async function saveLearningGroup(groupId: string | null, _previous: string, form: FormData): Promise<string> {
   const account = await getAccount();
-  const client = ownerClient();
+  const client = await sessionClient(true);
   if (!client || !account?.roles.some((role) => role === "owner" || role === "admin")) redirect("/account");
 
   const name = String(form.get("name") ?? "").trim();
@@ -33,7 +33,7 @@ export async function saveLearningGroup(groupId: string | null, _previous: strin
   }
 
   const { data, error } = await client.rpc("save_learning_group", {
-    p_actor: account.user.id, p_group: groupId, p_course: course, p_teacher: teacher, p_name: name,
+    p_group: groupId, p_course: course, p_teacher: teacher, p_name: name,
     p_capacity: capacity, p_fee_minor: Math.round(Number(fee) * 100), p_weekday: weekday,
     p_time: time, p_active: form.get("active") === "on", p_students: students,
   });
