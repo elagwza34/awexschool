@@ -8,15 +8,30 @@ import {
   teachers,
 } from "../src/features/catalog/mock-data";
 
-test("the sticky course preview stays below the global header", async ({ page }) => {
+test("the fixed global header stays above page content while scrolling", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/courses/math-prep-1");
-  await page.evaluate(() => window.scrollTo(0, 250));
-  const header = await page.getByRole("banner").boundingBox();
-  const preview = await page.locator("main aside").boundingBox();
-  expect(header).not.toBeNull();
-  expect(preview).not.toBeNull();
-  expect(preview!.y).toBeGreaterThanOrEqual(header!.y + header!.height);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/home-2");
+  const header = page.getByRole("banner");
+  const hero = page.getByRole("heading", { level: 1 });
+  await expect(hero).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  expect(
+    await header.evaluate((element) => getComputedStyle(element).position),
+  ).toBe("fixed");
+  const headerBox = await header.boundingBox();
+  const heroBox = await hero.boundingBox();
+  expect(headerBox).not.toBeNull();
+  expect(heroBox).not.toBeNull();
+  expect(heroBox!.y).toBeGreaterThanOrEqual(headerBox!.y + headerBox!.height);
+
+  await page.evaluate(() => window.scrollTo(0, 400));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  const scrolledHeaderBox = await header.boundingBox();
+  expect(scrolledHeaderBox).not.toBeNull();
+  expect(scrolledHeaderBox!.y).toBe(headerBox!.y);
+  expect(scrolledHeaderBox!.height).toBe(headerBox!.height);
+  await expect(header).toBeInViewport();
 });
 
 test("all public routes and fixture detail routes render; invalid resources return 404", async ({
@@ -133,7 +148,8 @@ for (const viewport of [
 test("grade finder and mobile navigation work", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/");
-  await page.getByRole("button", { name: "فتح القائمة" }).click();
+  const menuButton = page.getByRole("button", { name: "فتح القائمة" });
+  await menuButton.click();
   await expect(
     page.getByRole("navigation", { name: "التنقل على الهاتف" }),
   ).toBeVisible();
@@ -141,16 +157,25 @@ test("grade finder and mobile navigation work", async ({ page }) => {
   await expect(
     page.getByRole("navigation", { name: "التنقل على الهاتف" }),
   ).toHaveCount(0);
-  await page
-    .getByLabel("المرحلة الدراسية", { exact: true })
-    .selectOption("primary");
-  await page
-    .getByLabel("الصف الدراسي", { exact: true })
-    .selectOption("primary-4");
+  await expect(menuButton).toBeFocused();
+
+  await page.goto("/home-2");
+  const stage = page.getByLabel("المرحلة الدراسية", { exact: true });
+  const grade = page.getByLabel("الصف الدراسي", { exact: true });
+  await stage.selectOption("primary");
+  await expect(grade).toHaveValue("primary-1");
+  await expect(grade.locator("option")).toHaveCount(6);
+  await grade.selectOption("primary-4");
   await page.getByRole("button", { name: "اكتشف مقرراتك" }).click();
-  await expect(page).toHaveURL(/grades\/primary-4/);
+  await expect(page).toHaveURL(/\/grades\/primary-4$/);
   await expect(
-    page.getByRole("heading", { name: "أصدقاء الأرقام" }),
+    page.getByRole("heading", { name: "الصف الرابع الابتدائي", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.locator('a[href="/courses?grade=primary-4&track=arabic"]'),
+  ).toBeVisible();
+  await expect(
+    page.locator('a[href="/courses?grade=primary-4&track=languages"]'),
   ).toBeVisible();
 });
 
@@ -194,33 +219,30 @@ test("repeated and long query parameters remain safe and responsive", async ({
   ).toBeLessThanOrEqual(375);
 });
 
-test("course tabs, unit disclosures, and text lesson preview work", async ({
+test("FAQ disclosures and retired lesson preview redirects work", async ({
   page,
 }) => {
-  await page.goto("/courses/math-prep-1");
-  await page.getByRole("tab", { name: "المحتوى", exact: true }).click();
+  await page.goto("/faq");
+  const disclosure = page.locator("details").nth(1);
+  const summary = disclosure.locator("summary");
+  await expect(disclosure).not.toHaveAttribute("open", "");
+  await summary.press("Enter");
+  await expect(disclosure).toHaveAttribute("open", "");
   await expect(
-    page.getByRole("tab", { name: "المحتوى", exact: true }),
-  ).toHaveAttribute("aria-selected", "true");
-  const summaries = page.locator("details summary");
-  await summaries.nth(1).click();
-  await expect(page.locator("details").nth(1)).toHaveAttribute("open", "");
-  await page
-    .getByRole("link", { name: "الأعداد النسبية: الفكرة ببساطة", exact: true })
-    .click();
-  await expect(page).toHaveURL(/lessons\/math-prep-1-u1-l1/);
-  await page.getByRole("button", { name: "الفكرة التالية" }).click();
-  await expect(
-    page.getByRole("heading", { name: "نربطها بحياتنا" }),
+    disclosure.getByText(
+      "لا. شاشات الدخول والتسجيل ولوحات الأدوار للمعاينة فقط، ولا تنشئ حسابات فعلية.",
+      { exact: true },
+    ),
   ).toBeVisible();
-  await page.getByRole("button", { name: "الفكرة التالية" }).click();
+  await summary.press("Enter");
+  await expect(disclosure).not.toHaveAttribute("open", "");
+
+  await page.goto("/lessons/math-prep-1-u1-l1");
+  await expect(page).toHaveURL(/\/courses$/);
   await expect(
-    page.getByText("انتهت المعاينة. لا يتم تسجيل تقدم دراسي فعلي."),
+    page.getByRole("heading", { name: "المقررات الدراسية", exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "أعد المعاينة" }).click();
-  await expect(
-    page.getByRole("heading", { name: "نبدأ من الفكرة" }),
-  ).toBeVisible();
+  await expect(page.getByLabel("ابحث عن مقرر", { exact: true })).toBeVisible();
 });
 
 test("pricing dialog traps focus and restores trigger focus", async ({

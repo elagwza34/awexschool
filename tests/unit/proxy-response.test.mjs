@@ -1,11 +1,54 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { registerHooks } from "node:module";
 import test from "node:test";
 import { NextRequest, NextResponse } from "next/server.js";
 
+globalThis.__proxyLockAuth = { session: null, user: null, roles: [] };
+
 registerHooks({
   resolve(specifier, context, nextResolve) {
     if (specifier === "next/server") return nextResolve("next/server.js", context);
+    if (specifier === "@/lib/environment") {
+      return {
+        url: "data:text/javascript,export function readSupabaseEnvironment(){return {url:'http://127.0.0.1:54321',key:'local-test-key',secretKey:'local-secret-key'}}",
+        shortCircuit: true,
+      };
+    }
+    if (specifier === "@supabase/ssr") {
+      return {
+        url: `data:text/javascript,
+          export function createServerClient() {
+            return {
+              auth: {
+                async getSession() { return { data: { session: globalThis.__proxyLockAuth.session } }; },
+                async getUser() { return { data: { user: globalThis.__proxyLockAuth.user } }; },
+              },
+              from() {
+                return {
+                  select() {
+                    return {
+                      async eq() {
+                        return { data: globalThis.__proxyLockAuth.roles.map((role_code) => ({ role_code })), error: null };
+                      },
+                    };
+                  },
+                };
+              },
+            };
+          }
+        `,
+        shortCircuit: true,
+      };
+    }
+    if (specifier.startsWith("@/")) {
+      return nextResolve(new URL(`../../src/${specifier.slice(2)}.ts`, import.meta.url).href, context);
+    }
+    if (specifier.startsWith(".") && context.parentURL?.endsWith(".ts") && !/\.[a-z]+$/i.test(specifier)) {
+      return nextResolve(`${specifier}.ts`, context);
+    }
     return nextResolve(specifier, context);
   },
 });
@@ -95,4 +138,39 @@ test("login return paths preserve supported deep links and reject redirect bypas
     "/student/\u0000evil",
   ];
   for (const value of rejected) assert.equal(authRedirect.safeLoginNextPath(value, fallback), fallback, value);
+});
+
+test("a global lock admits authenticated portals without bypassing role checks", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "awex-proxy-lock-test-"));
+  process.env.SITE_LOCK_STORE_DIR = directory;
+  const { saveLock, removeLock } = await import("../../src/lib/site-access.ts");
+  const { proxy } = await import("../../src/proxy.ts");
+  try {
+    await saveLock("*", "local-global-lock-code");
+
+    globalThis.__proxyLockAuth = { session: null, user: null, roles: [] };
+    const guest = await proxy(new NextRequest("https://liveschool.test/student"));
+    assert.equal(guest.status, 401);
+
+    globalThis.__proxyLockAuth = { session: { access_token: "student-token" }, user: { id: "student-id" }, roles: ["student"] };
+    const student = await proxy(new NextRequest("https://liveschool.test/student"));
+    assert.equal(student.status, 200);
+
+    const deniedAdmin = await proxy(new NextRequest("https://liveschool.test/admin"));
+    assert.equal(deniedAdmin.status, 307);
+    assert.equal(deniedAdmin.headers.get("location"), "https://liveschool.test/?message=denied");
+
+    globalThis.__proxyLockAuth = { session: { access_token: "admin-token" }, user: { id: "admin-id" }, roles: ["admin"] };
+    const admin = await proxy(new NextRequest("https://liveschool.test/admin"));
+    assert.equal(admin.status, 200);
+
+    await saveLock("/student", "local-student-lock-code");
+    const pathLockedStudent = await proxy(new NextRequest("https://liveschool.test/student"));
+    assert.equal(pathLockedStudent.status, 401);
+  } finally {
+    await removeLock("/student");
+    await removeLock("*");
+    rmSync(directory, { recursive: true, force: true });
+    delete process.env.SITE_LOCK_STORE_DIR;
+  }
 });

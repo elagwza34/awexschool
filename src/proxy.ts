@@ -236,6 +236,15 @@ export async function proxy(request: NextRequest) {
       return destination ? redirectWithCookies(request, destination, access.response) : access.response;
     }
 
+    // Authenticated account holders retain portal access while public pages remain locked.
+    if (lock.scope === "*" && portalPath.test(pathname) && !await getRequestLock(pathname, false)) {
+      const access = await continueRequest(request, sessionVerificationMode(pathname));
+      if (access.authenticated) {
+        const destination = routeAccessRedirect(pathname, access);
+        return destination ? redirectWithCookies(request, destination, access.response) : access.response;
+      }
+    }
+
     // Account holders can use the catalog and teacher profiles while the landing page is locked.
     if (lock.scope === "*" && /^\/(?:courses|teachers)(?:\/|$)/.test(pathname) && !await getRequestLock(pathname, false)) {
       const account = await continueRequest(request, "user");

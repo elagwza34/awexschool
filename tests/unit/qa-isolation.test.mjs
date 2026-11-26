@@ -39,6 +39,10 @@ test("preview QA builds inside the scrubbed Playwright server environment", () =
   assert.equal(previewConfig.webServer.env.NEXT_PUBLIC_SUPABASE_URL, "http://127.0.0.1:54321");
 });
 
+test("default browser QA does not import Node unit test files", () => {
+  assert.deepEqual(baseConfig.testMatch, ["**/*.spec.ts"]);
+});
+
 test("both QA server environments scrub every prohibited credential variable", () => {
   const prohibited = [
     "SUPABASE_ACCESS_TOKEN",
