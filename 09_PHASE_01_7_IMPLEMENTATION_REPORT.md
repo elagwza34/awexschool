@@ -528,6 +528,32 @@ The owner subsequently authorized controlled interaction with the existing produ
 - No database password is available for a logical dump, so no new logical backup was created.
 - **Gate remains closed for any new production database mutation or deployment that lacks an independently verified recovery guarantee.** No migration rerun, synthetic Auth creation, RLS change, cleanup, or deployment was performed to bypass this condition.
 
-### 10.4 Current release status
+### 10.4 Application integration and local release evidence
 
-The already-applied database state is verified 13/13. The exact 44-path application payload remains subject to the authorized local commit, clean release-branch preparation, build/regression gates, safe runtime verification, and exact-artifact owner approval before deployment. Real-user JWT/RLS/RPC testing remains unverified because no approved synthetic account exists and creating one would require a production Auth mutation without the required recovery guarantee. Phase 02 remains not started.
+- The exact verified 44-path payload was committed as `993b7ccff3865cfb6b6592f31c8f188c8089f875` with message `fix: complete Phase 01.7 authorization and integrity remediation` (44 files, 6,799 insertions, 399 deletions).
+- Clean local release branch: `release/phase-01-7-production`, based on `3f7d3826bbd55f750e61537c64b2cbd1785780ae`. No push, merge, or deployment was performed.
+- Original repository remains on `main@77661f42ef1fc6a8261b7bb32410a5d9fa9b3445`; its 517-file aggregate SHA-256 remains `23c637b8b0656388f453b202e7fb1d9038843a049d35f7e6aa55ee38923c8682`, and all nine protected files remain byte-identical to their backup.
+- Release gates completed before the payload commit: 256/256 unit tests, ESLint, TypeScript, staged diff check, full `npm audit` with zero vulnerabilities, and a credential scan with zero high-confidence findings.
+- Final release-branch gates: 256/256 unit tests, ESLint, TypeScript, full dependency audit with zero vulnerabilities, and production build passed. Next.js 16.4.6 webpack build ID: `jU5APnstnsYO3Cz-j6_q0`.
+- Canonical SQL hashes remained unchanged: baseline migration `91bbaba89108e490157aa1bcf36c73730c1d18507b5218e3373c599677fbcac2`; Phase 01.7 migration `46af318f57eaa0ae3111ced7c83283ee8080f4825f655522488c3a958d08e291`; verifier `6e4954d85906cd1ad0bb8e4b196481dfb62895048f0c7ed3fa642170a32e3f40`; rollback `e4dbe820f877297c9ac019dbfb9ef0ae96ab73bcb300c62ec2e3d65abf964b5a`.
+
+### 10.5 Browser and runtime evidence
+
+- A local release server using only the production Supabase URL and publishable key rendered `/courses` with all 36 published course links, Arabic RTL metadata, no loading placeholder after resolution, no alert, and no browser console/page errors.
+- A real published course detail page rendered its heading and enrollment aside. Anonymous navigation to its `/lessons` route redirected back to the course detail page, preserving the access boundary.
+- Mobile Chromium at 375 x 812 rendered `/courses` without horizontal overflow.
+- `/teachers/apply` rendered the authenticated-student/parent gate. `/teachers/track?reference=11111111-1111-4111-8111-111111111111` failed closed with “متابعة الطلبات غير متاحة حاليًا.”
+- Focused Playwright run: six authorization/intake checks passed. Three fixture-oriented public UI checks timed out because the current restored home page no longer contains the legacy grade finder and fixture course slugs such as `math-prep-1` are absent without the local fixture database. These failures are recorded as open regression-suite reconciliation work; they were not hidden, skipped, or rewritten to pass.
+- The earlier browser-tool observation of `/courses` remaining on its loading state was not reproducible in a fresh Chromium run. Direct SSR rendering and browser DOM verification both completed successfully.
+
+### 10.6 Hostinger and current production status
+
+- Production host: Hostinger Node.js site `liveschool.awexen.com`, root `/home/u723774559/domains/liveschool.awexen.com/public_html`, enabled.
+- Current deployed source remains GitHub `elagwza34/awexschool`, branch `main`, commit `77661f42ef1fc6a8261b7bb32410a5d9fa9b3445`, build UUID `01a20966-8343-706e-ba32-c257f51cb06c`, Node.js 22. Git auto-deployment is enabled.
+- Current production environment key names were reviewed with values masked. Teacher-intake CAPTCHA configuration is not present, so intake submission/tracking remains intentionally fail-closed.
+- Non-destructive production HTTP smoke checks: `/teachers/apply` and `/teachers/track` returned 200; `/student` returned the generic locked shell; `/`, `/courses`, a published course route, and an invalid route returned the existing Awex School access-lock HTTP 401. The lock was not bypassed.
+- Hostinger's scan of the old deployed build still reports one moderate `minimatch` issue; the new local dependency tree reports zero vulnerabilities. This does not verify the not-yet-deployed artifact on Hostinger.
+
+### 10.7 Release disposition
+
+**Classification: RELEASE BLOCKED.** The database package is already applied and verified 13/13, and the application payload is locally committed and built. Deployment remains blocked by the absent verified recovery point, unresolved fixture-oriented Playwright failures, missing real-user JWT/RLS/RPC evidence, and lack of owner approval for the exact final artifact. No production database mutation, Auth-user creation, key rotation, push, merge, deployment, disabled-feature activation, or Phase 02 work was performed.
