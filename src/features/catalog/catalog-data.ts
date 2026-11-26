@@ -15,6 +15,23 @@ export interface CourseEnrollment {
   student: { display_name: string } | null;
 }
 
+export function resolveCourseEnrollment(
+  enrollments: CourseEnrollment[],
+  courseId: string,
+  learnerId: string,
+): CourseEnrollment | undefined {
+  const learnerEnrollments = enrollments.filter((row) => row.course_id === courseId && (
+    row.student_id !== null
+      ? row.student_id === learnerId
+      : row.requester_id === learnerId
+  ));
+  for (const status of ["active", "pending", "declined"]) {
+    const enrollment = learnerEnrollments.find((row) => row.status === status);
+    if (enrollment) return enrollment;
+  }
+  return undefined;
+}
+
 function singleRelation<T>(relation: T | T[] | null | undefined): T | null {
   return Array.isArray(relation) ? relation[0] ?? null : relation ?? null;
 }

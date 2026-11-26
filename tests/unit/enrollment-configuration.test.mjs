@@ -54,6 +54,9 @@ registerHooks({
     if (specifier === "@/features/catalog/enrollment-actions") {
       return { url: new URL("../../src/features/catalog/enrollment-actions.ts", import.meta.url).href, shortCircuit: true };
     }
+    if (specifier === "@/features/catalog/catalog-data") {
+      return { url: new URL("../../src/features/catalog/catalog-data.ts", import.meta.url).href, shortCircuit: true };
+    }
     if (specifier === "@/features/catalog/live-catalog") {
       return {
         url: `data:text/javascript,
@@ -289,6 +292,132 @@ test("the parent course form selects linked learner UUIDs instead of free-text n
   assert.equal(select.props.required, true);
   assert.ok(elements.some((item) => item.type === "option" && item.props.value === childId && textOf(item) === "Linked Child"));
   assert.equal(elements.some((item) => item.type === "input" && item.props.name === "learner"), false);
+});
+
+test("the student course page resolves active enrollment ahead of a newer guardian request", async () => {
+  reset(["student"]);
+  globalThis.__enrollmentClient = pageClient({
+    enrollments: [
+      {
+        course_id: courseId, requester_id: "44444444-4444-4444-8444-444444444444",
+        student_id: studentId, learner_name: "Student", student: { display_name: "Student" }, status: "pending",
+      },
+      {
+        course_id: courseId, requester_id: studentId,
+        student_id: studentId, learner_name: "Student", student: { display_name: "Student" }, status: "active",
+      },
+    ],
+  });
+  const element = await CoursePage({
+    params: Promise.resolve({ courseId }),
+    searchParams: Promise.resolve({}),
+  });
+  assert.match(textOf(element), /التحاقك بالمقرر مؤكد/);
+  assert.doesNotMatch(textOf(element), /طلب الالتحاق قيد المراجعة/);
+  const elements = elementsOf(element);
+  assert.equal(elements.some((item) => item.props.href === `/courses/${courseId}/lessons`), true);
+  assert.equal(elements.some((item) => item.type === "form"), false);
+});
+
+test("the parent course page shows independent active and pending sibling states", async () => {
+  reset(["parent"]);
+  const siblingId = "44444444-4444-4444-8444-444444444444";
+  globalThis.__enrollmentClient = pageClient({
+    learners: [
+      { student_id: childId, profiles: { display_name: "Active Child", status: "active" } },
+      { student_id: siblingId, profiles: { display_name: "Pending Child", status: "active" } },
+    ],
+    enrollments: [
+      {
+        course_id: courseId, requester_id: studentId, student_id: siblingId,
+        learner_name: "Pending Child", student: { display_name: "Pending Child" }, status: "pending",
+      },
+      {
+        course_id: courseId, requester_id: "55555555-5555-4555-8555-555555555555", student_id: childId,
+        learner_name: "Active Child", student: { display_name: "Active Child" }, status: "active",
+      },
+    ],
+  });
+  const element = await CoursePage({
+    params: Promise.resolve({ courseId }),
+    searchParams: Promise.resolve({}),
+  });
+  const text = textOf(element);
+  assert.match(text, /Active Child/);
+  assert.match(text, /Pending Child/);
+  assert.match(text, /التحاقك بالمقرر مؤكد/);
+  assert.match(text, /طلب الالتحاق قيد المراجعة/);
+  const elements = elementsOf(element);
+  assert.equal(elements.filter((item) => item.props.href === `/courses/${courseId}/lessons`).length, 1);
+  assert.equal(elements.some((item) => item.type === "form"), false);
+});
+
+test("the parent course page offers requests only when another requester can provide the learner state", async () => {
+  reset(["parent"]);
+  const siblingId = "44444444-4444-4444-8444-444444444444";
+  const otherRequesterId = "55555555-5555-4555-8555-555555555555";
+  globalThis.__enrollmentClient = pageClient({
+    learners: [
+      { student_id: childId, profiles: { display_name: "Enrolled Child", status: "active" } },
+      { student_id: siblingId, profiles: { display_name: "New Child", status: "active" } },
+    ],
+    enrollments: [{
+      course_id: courseId, requester_id: otherRequesterId, student_id: childId,
+      learner_name: "Enrolled Child", student: { display_name: "Enrolled Child" }, status: "declined",
+    }],
+  });
+  const element = await CoursePage({
+    params: Promise.resolve({ courseId }),
+    searchParams: Promise.resolve({}),
+  });
+  const elements = elementsOf(element);
+  const options = elements.filter((item) => item.type === "option" && item.props.value);
+  assert.deepEqual(options.map((item) => item.props.value), [siblingId]);
+  assert.match(textOf(element), /لم يُقبل طلب الالتحاق/);
+});
+
+test("the parent course page does not offer a second request after its one course row exists", async () => {
+  reset(["parent"]);
+  globalThis.__enrollmentClient = pageClient({
+    learners: [
+      { student_id: childId, profiles: { display_name: "First Child", status: "active" } },
+      { student_id: "44444444-4444-4444-8444-444444444444", profiles: { display_name: "Second Child", status: "active" } },
+    ],
+    enrollments: [{
+      course_id: courseId, requester_id: studentId, student_id: childId,
+      learner_name: "First Child", student: { display_name: "First Child" }, status: "pending",
+    }],
+  });
+  const element = await CoursePage({
+    params: Promise.resolve({ courseId }),
+    searchParams: Promise.resolve({}),
+  });
+  const elements = elementsOf(element);
+  assert.equal(elements.some((item) => item.type === "form"), false);
+  assert.deepEqual(elements.filter((item) => item.type === "option").map((item) => item.props.value), []);
+  assert.match(textOf(element), /First Child/);
+  assert.match(textOf(element), /Second Child/);
+  assert.match(textOf(element), /قيد المراجعة/);
+});
+
+test("the parent course page never resolves an unrelated learner's visible enrollment", async () => {
+  reset(["parent"]);
+  globalThis.__enrollmentClient = pageClient({
+    learners: [{ student_id: childId, profiles: { display_name: "Linked Child", status: "active" } }],
+    enrollments: [{
+      course_id: courseId, requester_id: "44444444-4444-4444-8444-444444444444", student_id: "44444444-4444-4444-8444-444444444444",
+      learner_name: "Unrelated Child", student: { display_name: "Unrelated Child" }, status: "active",
+    }],
+  });
+  const element = await CoursePage({
+    params: Promise.resolve({ courseId }),
+    searchParams: Promise.resolve({}),
+  });
+  assert.doesNotMatch(textOf(element), /Unrelated Child/);
+  assert.doesNotMatch(textOf(element), /التحاقك بالمقرر مؤكد/);
+  const elements = elementsOf(element);
+  assert.equal(elements.some((item) => item.props.href === `/courses/${courseId}/lessons`), false);
+  assert.ok(elements.some((item) => item.type === "option" && item.props.value === childId));
 });
 
 test("the course page keeps legacy enrollment status visible without an authoritative lessons action", async () => {

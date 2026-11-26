@@ -8,6 +8,7 @@ const {
   loadEnrollmentLearners,
   loadPublishedCourse,
   loadPublishedCourses,
+  resolveCourseEnrollment,
 } = catalogData;
 import { loadPublicGroups } from "../../src/features/catalog/public-groups-data.ts";
 
@@ -227,6 +228,52 @@ test("linked enrollment learner queries fail closed without configuration", asyn
   assert.deepEqual(await loadEnrollmentLearners(null, "11111111-1111-4111-8111-111111111111"), {
     state: "error", kind: "configuration",
   });
+});
+
+function enrollmentRow(overrides = {}) {
+  return {
+    course_id: "course-1",
+    requester_id: "requester-1",
+    student_id: "student-1",
+    learner_name: "Learner",
+    student: { display_name: "Learner" },
+    status: "pending",
+    ...overrides,
+  };
+}
+
+test("effective enrollment lets an active row beat a newer pending request for the same learner", () => {
+  const active = enrollmentRow({ status: "active" });
+  const newerPending = enrollmentRow({ requester_id: "guardian-1", status: "pending" });
+  assert.equal(resolveCourseEnrollment([newerPending, active], "course-1", "student-1"), active);
+});
+
+test("effective enrollment preserves pending, declined, and legacy states for one learner", () => {
+  const pending = enrollmentRow();
+  const declined = enrollmentRow({ status: "declined" });
+  const legacy = enrollmentRow({ student_id: null, requester_id: "student-1", status: "active" });
+  assert.equal(resolveCourseEnrollment([pending], "course-1", "student-1"), pending);
+  assert.equal(resolveCourseEnrollment([declined], "course-1", "student-1"), declined);
+  assert.equal(resolveCourseEnrollment([legacy], "course-1", "student-1"), legacy);
+  assert.equal(resolveCourseEnrollment([legacy], "course-1", "another-student"), undefined);
+});
+
+test("effective enrollment keeps sibling states independent", () => {
+  const activeSibling = enrollmentRow({ student_id: "student-1", status: "active" });
+  const pendingSibling = enrollmentRow({ student_id: "student-2", requester_id: "guardian-1" });
+  const rows = [pendingSibling, activeSibling];
+  assert.equal(resolveCourseEnrollment(rows, "course-1", "student-1"), activeSibling);
+  assert.equal(resolveCourseEnrollment(rows, "course-1", "student-2"), pendingSibling);
+});
+
+test("effective enrollment uses learner identity rather than requester or display identity", () => {
+  const unrelated = enrollmentRow({ requester_id: "student-1", student_id: "student-2", status: "active" });
+  const otherCourse = enrollmentRow({ course_id: "course-2", status: "active" });
+  assert.equal(resolveCourseEnrollment([unrelated, otherCourse], "course-1", "student-1"), undefined);
+});
+
+test("effective enrollment ignores unsupported request states", () => {
+  assert.equal(resolveCourseEnrollment([enrollmentRow({ status: "expired" })], "course-1", "student-1"), undefined);
 });
 
 test("public groups preserve only successful empty results", async () => {

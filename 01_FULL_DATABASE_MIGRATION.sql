@@ -1003,6 +1003,7 @@ language plpgsql
 security definer
 set search_path = ''
 as $function$
+<<record_session_attendance>>
 declare
   actor_id uuid := (select auth.uid());
   actor_status text;
@@ -1072,7 +1073,9 @@ begin
 
   if found then
     update public.session_attendance sa
-    set status = p_status, marked_at = marked_at, marked_by = actor_id
+    set status = p_status,
+        marked_at = record_session_attendance.marked_at,
+        marked_by = actor_id
     where sa.session_id = p_session and sa.student_id = p_student;
   else
     insert into public.session_attendance (session_id, student_id, status, marked_at, marked_by)
