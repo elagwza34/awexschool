@@ -1,4 +1,5 @@
 import { createHash, createHmac, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
+import type { Stats } from "node:fs";
 import { mkdir, readFile, readdir, rename, rm, rmdir, stat, writeFile } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
 import { homedir } from "node:os";
@@ -179,9 +180,7 @@ export async function isLockAttemptBlocked(subject: string, now = Date.now(), ma
 }
 
 const storeGuardQueues = new Map<string, Promise<void>>();
-type StoreGuardStats = Awaited<ReturnType<typeof stat>>;
-
-function sameStoreGuard(current: StoreGuardStats, owner: StoreGuardStats) {
+function sameStoreGuard(current: Stats, owner: Stats) {
   return current.dev === owner.dev && current.ino === owner.ino && current.mtimeMs === owner.mtimeMs;
 }
 
@@ -190,7 +189,7 @@ function isTransientGuardError(error: unknown) {
   return process.platform === "win32" && (code === "EBUSY" || code === "EPERM");
 }
 
-async function releaseStoreGuard(guard: string, owner: StoreGuardStats) {
+async function releaseStoreGuard(guard: string, owner: Stats) {
   for (let retry = 0; retry < 100; retry += 1) {
     const current = await stat(guard).catch(() => null);
     if (!current || !sameStoreGuard(current, owner)) return;
@@ -215,7 +214,7 @@ async function withStoreGuard<T>(name: string, operation: () => Promise<T>): Pro
   await previous;
 
   let acquired = false;
-  let owner: StoreGuardStats | undefined;
+  let owner: Stats | undefined;
   try {
     for (let retry = 0; retry < 100; retry += 1) {
       try {
