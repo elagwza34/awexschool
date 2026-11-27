@@ -47,7 +47,7 @@ Baseline `3909ab1` compared with `6423691`. The baseline assessment is a code re
 | `/parent/progress` | Parent | Blocked by routing | Restore only after role and data guards are proven | Pending |
 | `/parent/schedule` | Parent | Partially integrated | Verify remaining original controls and persistence | Pending |
 | `/parent` | Parent | Partially integrated | Verify remaining original controls and persistence | Pending |
-| `/pricing` | Public | Replaced | Restore original layout and equivalent operation | Pending |
+| `/pricing` | Public | Replaced | Original informational page restored | Browser acceptance pending |
 | `/register` | Public | Partially integrated | Verify remaining original controls and persistence | Pending |
 | `/search` | Public | Replaced | Original route and filters connected to published Supabase data. Card parity and database-backed browser evidence pending. | In progress |
 | `/stages/[stageId]` | Public | Mock data | Replace operational fixtures with scoped backend state | Pending |

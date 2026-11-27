@@ -282,3 +282,13 @@ test("public groups preserve only successful empty results", async () => {
     learning_groups: { data: null, error: { message: "Failed to fetch" } },
   })), { state: "error", kind: "network" });
 });
+
+test("published catalog search matches a course, subject, or teacher within selected filters", () => {
+  const courses = [
+    { id: "a", title: "Algebra", grade_id: "grade-1", subject_id: "math", track: "arabic", subjects: [{ name: "Mathematics" }], teacher_profiles: { full_name: "Mona Ali" } },
+    { id: "b", title: "Geometry", grade_id: "grade-2", subject_id: "math", track: "languages", subjects: { name: "Mathematics" }, teacher_profiles: null },
+  ];
+  assert.deepEqual(catalogData.filterPublishedCatalog(courses, { q: " mona ", grade: "grade-1", subject: "math" }).map(({ id }) => id), ["a"]);
+  assert.deepEqual(catalogData.filterPublishedCatalog(courses, { q: "MATHEMATICS", grade: "", subject: "math", track: "languages" }).map(({ id }) => id), ["b"]);
+  assert.deepEqual(catalogData.filterPublishedCatalog(courses, { q: "Algebra", grade: "grade-2", subject: "" }), []);
+});

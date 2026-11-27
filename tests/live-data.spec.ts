@@ -1,5 +1,17 @@
 import { expect, test } from "@playwright/test";
 
+test("the original catalog search route preserves filters and distinguishes unavailable data", async ({ page }) => {
+  await page.goto("/search?q=math");
+  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+  await expect(page.getByRole("searchbox")).toHaveValue("math");
+  await expect(page.getByRole("alert")).toContainText("تعذّر تحميل بيانات المقررات");
+  await page.getByRole("searchbox").fill("algebra");
+  await page.getByRole("button", { name: "تطبيق" }).click();
+  await expect(page).toHaveURL((url) =>
+    url.pathname === "/search" && url.searchParams.get("q") === "algebra",
+  );
+});
+
 test("unconfigured public catalog and groups report unavailable data instead of successful empty states", async ({ page }) => {
   await page.goto("/courses");
   await expect(page.getByRole("main").getByRole("alert")).toContainText("تعذّر تحميل بيانات المقررات حاليًا.");
