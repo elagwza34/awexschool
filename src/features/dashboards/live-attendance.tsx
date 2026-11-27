@@ -77,7 +77,6 @@ export async function LiveAttendance({ role, searchParams }: {
         </div>
       );
     }
-  }
   } else {
     const links = role === "parent" ? await client.from("guardian_links").select("student_id").eq("guardian_id", account.user.id) : null;
       const studentIds = role === "student" ? [account.user.id] : links?.data?.map(({ student_id }) => student_id) ?? [];
