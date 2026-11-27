@@ -309,3 +309,140 @@ export const getLesson = (id: string) => {
       if (lesson) return { course, unit, lesson };
     }
 };
+
+// Portal mock data for standalone UI without Supabase
+export interface MockUser {
+  id: string;
+  name: string;
+  email: string;
+  role: "student" | "teacher" | "parent" | "admin" | "owner";
+  status: "active" | "pending" | "disabled";
+  avatar?: string;
+  phone?: string;
+  createdAt: string;
+}
+
+export const mockUsers: MockUser[] = [
+  { id: "user-1", name: "يوسف أحمد", email: "youssef@school.com", role: "student", status: "active", avatar: "/avatars/youssef.png", createdAt: "2026-01-15" },
+  { id: "user-2", name: "أ. أحمد حسن", email: "ahmed@school.com", role: "teacher", status: "active", avatar: "/avatars/ahmed.png", createdAt: "2026-01-10" },
+  { id: "user-3", name: "أ. مريم عادل", email: "mariam@school.com", role: "teacher", status: "active", avatar: "/avatars/mariam.png", createdAt: "2026-01-12" },
+  { id: "user-4", name: "أ. عمر سالم", email: "omar@school.com", role: "teacher", status: "active", avatar: "/avatars/omar.png", createdAt: "2026-01-14" },
+  { id: "user-5", name: "سليمة علي", email: "salma@school.com", role: "student", status: "active", avatar: "/avatars/salma.png", createdAt: "2026-01-20" },
+  { id: "user-6", name: "نور إبراهيم", email: "nour@school.com", role: "student", status: "active", avatar: "/avatars/nour.png", createdAt: "2026-01-18" },
+  { id: "user-7", name: "أ. فاطمة محمد", email: "fatima@school.com", role: "parent", status: "active", avatar: "/avatars/fatima.png", createdAt: "2026-01-22" },
+  { id: "user-8", name: "المدير العام", email: "admin@school.com", role: "admin", status: "active", avatar: "/avatars/admin.png", createdAt: "2026-01-05" },
+];
+
+export function getMockUsers(): MockUser[] {
+  return mockUsers;
+}
+
+export function getUserById(id: string): MockUser | undefined {
+  return mockUsers.find((u) => u.id === id);
+}
+
+// Courses mock
+export interface MockCourse {
+  id: string;
+  title: string;
+  code: string;
+  description: string;
+  teacherId: string;
+  teacherName: string;
+  grade: string;
+  subject: string;
+  studentsCount: number;
+  status: "published" | "draft" | "archived";
+  createdAt: string;
+  color: string;
+}
+
+export const mockCourses: MockCourse[] = [
+  {
+    id: "course-1",
+    title: "الرياضيات للصف الثاني الثانوي",
+    code: "MATH-201",
+    description: "دراسة مفصلة للمفاهيم الرياضية المتقدمة",
+    teacherId: "user-2",
+    teacherName: "أ. أحمد حسن",
+    grade: "الثاني الثانوي",
+    subject: "رياضيات",
+    studentsCount: 25,
+    status: "published",
+    createdAt: "2026-09-01",
+    color: "bg-blue-100 text-blue-700",
+  },
+  {
+    id: "course-2",
+    title: "العلوم للصف الثاني الثانوي",
+    code: "SCI-202",
+    description: "دراسة العلوم الطبيعية والتطبيقية",
+    teacherId: "user-3",
+    teacherName: "أ. مريم عادل",
+    grade: "الثاني الثانوي",
+    subject: "علوم",
+    studentsCount: 22,
+    status: "published",
+    createdAt: "2026-09-01",
+    color: "bg-green-100 text-green-700",
+  },
+  {
+    id: "course-3",
+    title: "اللغة العربية للصف الثاني الثانوي",
+    code: "ARA-203",
+    description: "دراسة الأدب والنحو العربي",
+    teacherId: "user-4",
+    teacherName: "أ. عمر سالم",
+    grade: "الثاني الثانوي",
+    subject: "لغة عربية",
+    studentsCount: 28,
+    status: "published",
+    createdAt: "2026-09-01",
+    color: "bg-purple-100 text-purple-700",
+  },
+  {
+    id: "course-4",
+    title: "اللغة الإنجليزية للصف الثاني الثانوي",
+    code: "ENG-204",
+    description: "دراسة اللغة الإنجليزية والمهارات اللغوية",
+    teacherId: "user-2",
+    teacherName: "أ. أحمد حسن",
+    grade: "الثاني الثانوي",
+    subject: "لغة إنجليزية",
+    studentsCount: 25,
+    status: "published",
+    createdAt: "2026-09-01",
+    color: "bg-orange-100 text-orange-700",
+  },
+];
+
+export function getMockCourses(): MockCourse[] {
+  return mockCourses;
+}
+
+export function getCoursesByTeacher(teacherId: string): MockCourse[] {
+  return mockCourses.filter((c) => c.teacherId === teacherId);
+}
+
+export function getCoursesByStudent(studentId: string): MockCourse[] {
+  return mockCourses;
+}
+
+// Enrollments mock
+export interface MockEnrollment {
+  id: string;
+  course_id: string;
+  learner_name: string;
+  status: "active" | "pending" | "declined";
+  created_at: string;
+}
+
+export const mockEnrollments: MockEnrollment[] = [
+  { id: "enroll-1", course_id: "course-1", learner_name: "يوسف أحمد", status: "active", created_at: "2026-09-01" },
+  { id: "enroll-2", course_id: "course-2", learner_name: "يوسف أحمد", status: "active", created_at: "2026-09-01" },
+  { id: "enroll-3", course_id: "course-3", learner_name: "يوسف أحمد", status: "active", created_at: "2026-09-01" },
+];
+
+export function getMockEnrollments(): MockEnrollment[] {
+  return mockEnrollments;
+}
