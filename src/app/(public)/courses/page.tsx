@@ -3,6 +3,8 @@ import { Breadcrumbs, PageIntro } from "@/components/shared";
 import LoadingState from "@/components/loading-state";
 import { PublishedCourseCard } from "@/components/published-course-card";
 import { listCatalogOptions, listPublishedCourses } from "@/features/catalog/live-catalog";
+import { filterPublishedCatalog } from "@/features/catalog/catalog-data";
+import { parseCatalogQuery } from "@/features/catalog/query";
 
 export const metadata = { title: "المقررات" };
 
@@ -20,15 +22,10 @@ async function CoursesContent({ searchParams }: CoursesPageProps) {
   const courses = coursesResult.state === "ready" ? coursesResult.data : [];
   const unavailable = coursesResult.state === "error" || optionsResult.state === "error";
   const canShowEmpty = coursesResult.state === "ready" && optionsResult.state === "ready";
-  const [q, grade, subject, track, enrollment] = ["q", "grade", "subject", "track", "enrollment"].map((key) => {
-    const value = query[key];
-    return typeof value === "string" ? value : undefined;
-  });
-  const enrollmentUnavailable = enrollment === "unavailable";
-  const needle = (q ?? "").trim().toLocaleLowerCase("ar");
-  const visible = courses.filter((course) => (!grade || course.grade_id === grade) &&
-    (!subject || course.subject_id === subject) && (!track || course.track === track) &&
-    (!needle || course.title.toLocaleLowerCase("ar").includes(needle)));
+  const filters = parseCatalogQuery(query);
+  const { q, grade, subject, track } = filters;
+  const enrollmentUnavailable = query.enrollment === "unavailable";
+  const visible = filterPublishedCatalog(courses, filters);
   return <div className="container-shell py-8">
     <Breadcrumbs items={[{ label: "المقررات" }]} />
     <PageIntro title="المقررات الدراسية" description="تصفّح المقررات المنشورة وسجّل طلب التحاقك." />

@@ -3,6 +3,26 @@ import test from "node:test";
 import * as routeAccess from "../../src/features/auth/route-access.ts";
 const { routeAccessRedirect, sessionVerificationMode } = routeAccess;
 
+test("the original owner dashboard requires a verified owner role", () => {
+  assert.equal(sessionVerificationMode("/owner"), "roles");
+  assert.equal(routeAccessRedirect("/owner", { authenticated: false, roles: [] }), "/login?next=%2Fowner");
+  assert.equal(routeAccessRedirect("/owner", { authenticated: true, roles: ["owner"] }), null);
+  for (const role of ["admin", "manager", "support", "customer_service", "student"]) {
+    assert.equal(routeAccessRedirect("/owner", { authenticated: true, roles: [role] }), "/?message=denied");
+  }
+});
+
+test("customer service routes require their distinct authenticated role", () => {
+  for (const pathname of ["/customer-service", "/customer-service/requests", "/customer-service/activity"]) {
+    assert.equal(sessionVerificationMode(pathname), "roles");
+    assert.equal(routeAccessRedirect(pathname, { authenticated: false, roles: [] }), `/login?next=${encodeURIComponent(pathname)}`);
+    assert.equal(routeAccessRedirect(pathname, { authenticated: true, roles: ["customer_service"] }), null);
+    for (const role of ["support", "manager", "admin", "owner", "student"]) {
+      assert.equal(routeAccessRedirect(pathname, { authenticated: true, roles: [role] }), "/?message=denied");
+    }
+  }
+});
+
 test("guests are redirected from every live portal namespace to login with a safe next path", () => {
   for (const path of [
     "/student",

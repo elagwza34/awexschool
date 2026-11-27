@@ -4,10 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { TeacherCard } from "@/components/catalog-cards";
 import { Button } from "@/components/ui/button";
-import type { Teacher } from "@/features/catalog/types";
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
-export function TeachersCarousel({ teachers }: { teachers: Teacher[] }) {
+export function TeachersCarousel({ teachers }: { teachers: ComponentProps<typeof TeacherCard>["teacher"][] }) {
   const ref = useRef<HTMLDivElement>(null);
   const [paused, setPaused] = useState(false);
   const canLoop = teachers.length > 1;

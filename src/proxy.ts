@@ -35,7 +35,7 @@ const headers = {
   "X-Robots-Tag": "noindex, nofollow",
 };
 
-const portalPath = /^\/(?:admin|manager|support|teacher|student|parent|workspace)(?:\/|$)/;
+const portalPath = /^\/(?:owner$|(?:admin|manager|support|customer-service|teacher|student|parent|workspace)(?:\/|$))/;
 const globalLockExemptPaths = new Set([
   "/login", "/register", "/account", "/account/callback", "/reset-password",
   "/teachers/apply", "/teachers/track", "/dashboards",

@@ -26,13 +26,17 @@ after(() => {
   for (const directory of temporaryDirectories) rmSync(directory, { recursive: true, force: true });
 });
 
-test("preview QA builds inside the scrubbed Playwright server environment", () => {
+test("preview QA builds before starting browser execution with the same scrubbed environment", () => {
   assert.equal(
     packageJson.scripts["test:qa:preview"],
-    "npm run lint && npm run typecheck && npm test && playwright test --config=playwright.preview.config.ts",
+    "npm run lint && npm run typecheck && npm test && npm run test:preview:browsers",
   );
   assert.equal(previewConfig.webServer.command, "npm run build:test && npm run start -- --port 3100");
   assert.equal(previewConfig.webServer.timeout, 180_000);
+  assert.deepEqual(previewConfig.projects.map(({ name }) => name), ["chromium", "firefox", "webkit"]);
+  const runner = readFileSync(new URL("../../scripts/preview-test.mjs", import.meta.url), "utf8");
+  assert.match(runner, /\.\.\.config\.webServer\.env/);
+  assert.ok(runner.indexOf('"build:test"') < runner.indexOf('"--config=playwright.preview.config.ts"'));
   assert.equal(typeof packageJson.scripts["build:test"], "string");
   assert.equal(previewConfig.webServer.env.LIVESCHOOL_ENV, "test");
   assert.equal(previewConfig.webServer.env.NEXT_PUBLIC_LIVESCHOOL_ENV, "test");

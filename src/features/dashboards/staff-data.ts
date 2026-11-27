@@ -56,7 +56,7 @@ export const staffProfiles: DashboardProfile[] = staffRoles.map((role) => {
     metrics: [],
   };
 });
-export function staffSections(role: StaffRole) {
+export function staffSections(role: StaffRole | "customer-service") {
   return [
     { id: "overview", href: `/${role}`, label: "نظرة عامة" },
     {
@@ -85,6 +85,7 @@ export interface StaffRequest {
   contactEmail?: string;
   source?: RequestSource;
   replies?: string[];
+  escalated?: boolean;
 }
 
 export type RequestSource = "visitor" | "student" | "parent";

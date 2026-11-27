@@ -1,2 +1,5 @@
-import {StaffWorkspace} from "@/features/dashboards/staff-workspace";
-export default function StaffPage(){return <StaffWorkspace role="support" section="requests"/>;}
+import { CustomerServiceWorkspace } from "@/features/dashboards/customer-service-workspace";
+
+export default function StaffPage() {
+  return <CustomerServiceWorkspace section="requests" technical />;
+}

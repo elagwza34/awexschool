@@ -1,15 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import type { ReactNode } from "react";
+import { useState, useTransition } from "react";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { CourseCard } from "@/components/catalog-cards";
 import { EmptyState } from "@/components/shared";
 import { Button } from "@/components/ui/button";
-import { grades, subjects } from "./mock-data";
-import { catalogService } from "./service";
-import type { Course, CourseTrack } from "./types";
+import type { CourseTrack } from "./types";
 
 export function CatalogBrowser({
   initialQuery = "",
@@ -18,6 +16,11 @@ export function CatalogBrowser({
   fixedSubject,
   fixedTrack,
   search = false,
+  resultCount,
+  children,
+  grades,
+  subjects,
+  unavailable,
 }: {
   initialQuery?: string;
   initialGrade?: string;
@@ -25,53 +28,38 @@ export function CatalogBrowser({
   fixedSubject?: string;
   fixedTrack?: CourseTrack;
   search?: boolean;
+  resultCount: number;
+  children: ReactNode;
+  grades: { id: string; name: string }[];
+  subjects: { id: string; name: string }[];
+  unavailable: boolean;
 }) {
-  const [results, setResults] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, startTransition] = useTransition();
   const [query, setQuery] = useState(initialQuery);
   const [grade, setGrade] = useState(initialGrade);
   const [subject, setSubject] = useState(fixedSubject ?? initialSubject);
   const router = useRouter();
   const pathname = usePathname();
 
-  useEffect(() => {
-    let cancelled = false;
-    catalogService
-      .listCourses({ query, grade, subject, track: fixedTrack })
-      .then((data) => {
-        if (!cancelled) {
-          setResults(data);
-          setLoading(false);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [query, grade, subject, fixedTrack]);
   const apply = (q: string, g: string, s: string) => {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
     if (g) params.set("grade", g);
     if (s && !fixedSubject) params.set("subject", s);
     if (fixedTrack) params.set("track", fixedTrack);
-    router.replace(`${pathname}${params.size ? `?${params}` : ""}`, {
+    startTransition(() => router.replace(`${pathname}${params.size ? `?${params}` : ""}`, {
       scroll: false,
-    });
+    }));
   };
   return (
     <div className="pb-8">
       <form
         className="soft-card mb-5 grid items-end gap-3 p-4 md:grid-cols-[2fr_1fr_1fr_auto]"
+        action={pathname}
         role="search"
         aria-label="البحث في المقررات"
-        onSubmit={(e) => {
-          e.preventDefault();
-          apply(query, grade, subject);
-        }}
       >
+        {fixedTrack && <input type="hidden" name="track" value={fixedTrack} />}
         <div>
           <label
             className="mb-2 flex items-center gap-2 text-sm font-bold"
@@ -82,6 +70,7 @@ export function CatalogBrowser({
           </label>
           <input
             id="catalog-query"
+            name="q"
             type="search"
             className="field"
             value={query}
@@ -99,6 +88,7 @@ export function CatalogBrowser({
           </label>
           <select
             id="catalog-grade"
+            name="grade"
             className="field"
             value={grade}
             onChange={(e) => {
@@ -123,6 +113,7 @@ export function CatalogBrowser({
           </label>
           <select
             id="catalog-subject"
+            name="subject"
             disabled={!!fixedSubject}
             className="field disabled:bg-muted"
             value={subject}
@@ -150,7 +141,8 @@ export function CatalogBrowser({
           aria-live="polite"
           className="min-w-0 flex-1 break-words text-sm text-muted-foreground"
         >
-          {loading ? "جاري التحميل..." : results.length ? results.length + " مقررات نموذجية" : "لا توجد نتائج"}{query && <> تطابق «{query}»</>}
+          {loading ? "جاري التحميل..." : unavailable ? "تعذّر تحميل نتائج البحث" : resultCount ? resultCount + " مقررات" : "لا توجد نتائج"}
+          {initialQuery && !unavailable && <> تطابق «{initialQuery}»</>}
         </p>
         {(query || grade || (!fixedSubject && subject)) && (
           <Button
@@ -167,11 +159,9 @@ export function CatalogBrowser({
           </Button>
         )}
       </div>
-      {results.length ? (
+      {unavailable ? <p role="alert" className="soft-card p-5">تعذّر تحميل بيانات المقررات حاليًا.</p> : resultCount ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {results.map((course) => (
-            <CourseCard course={course} key={course.id} />
-          ))}
+          {children}
         </div>
       ) : (
         <>

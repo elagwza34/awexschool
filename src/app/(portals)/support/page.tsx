@@ -1,5 +1,5 @@
-﻿import { OperationsOverview } from "@/features/dashboards/operations-overview";
+import { CustomerServiceWorkspace } from "@/features/dashboards/customer-service-workspace";
 
-export default function PortalPage() {
-  return <OperationsOverview role="support" />;
+export default function StaffPage() {
+  return <CustomerServiceWorkspace section="overview" technical />;
 }

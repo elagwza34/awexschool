@@ -67,7 +67,7 @@ export default async function AccountPage({
     {accountRole && <LivePortalNavigation name={account.name} roles={account.roles} accountRole={accountRole} />}
     <main id="main-content" tabIndex={-1} className={`dashboard-width space-y-5 pb-8 ${accountRole ? "pt-5" : "pt-28"}`}>
       <h1 className="text-2xl font-bold sm:text-3xl">{account ? `حساب ${account.name}` : "حساب LiveSchool"}</h1>
-      {isOwner && <Button variant="outline" asChild><Link href="/admin/permissions">عرض صلاحيات الأدوار</Link></Button>}
+      {isOwner && <Button variant="outline" asChild><Link href="/owner">لوحة المالك</Link></Button>}
       {message && Object.hasOwn(messages, message) && <p role="status" className="soft-card p-4 text-sm">{messages[message]}</p>}
           <dl className="soft-card grid gap-4 p-5 sm:grid-cols-3">
             <div className="min-w-0"><dt className="text-sm text-muted-foreground">الاسم</dt><dd className="mt-1 break-words font-semibold">{account.name}</dd></div>

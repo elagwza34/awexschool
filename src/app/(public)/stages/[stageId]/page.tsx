@@ -1,22 +1,20 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, GraduationCap } from "lucide-react";
-import { stages, grades } from "@/features/catalog/mock-data";
+import { listEducationHierarchy } from "@/features/catalog/live-catalog";
+import { stagePresentation } from "@/features/catalog/catalog-presentation";
 import { Breadcrumbs, PageIntro, tones } from "@/components/shared";
 import { cn } from "@/lib/utils";
 
-export const dynamicParams = false;
-export function generateStaticParams() {
-  return stages.map((s) => ({ stageId: s.id }));
-}
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ stageId: string }>;
 }) {
   const { stageId } = await params;
+  const hierarchy = await listEducationHierarchy();
   return {
-    title: stages.find((s) => s.id === stageId)?.name ?? "مرحلة غير موجودة",
+    title: (hierarchy.state === "ready" ? hierarchy.data.stages : []).find((s) => s.id === stageId)?.name ?? "مرحلة غير موجودة",
   };
 }
 export default async function StagePage({
@@ -25,6 +23,9 @@ export default async function StagePage({
   params: Promise<{ stageId: string }>;
 }) {
   const { stageId } = await params;
+  const hierarchy = await listEducationHierarchy();
+  if (hierarchy.state === "error") return <div className="container-shell py-8"><p role="alert" className="soft-card p-4">تعذّر تحميل المراحل حاليًا.</p></div>;
+  const { stages, grades } = hierarchy.data;
   const stage = stages.find((s) => s.id === stageId);
   if (!stage) notFound();
   return (
@@ -37,21 +38,21 @@ export default async function StagePage({
       />
       <PageIntro
         title={stage.name}
-        description="حدد صفك الدراسي لتصل إلى المواد والمقررات المناسبة لك. تتوفر مقررات نموذجية لبعض الصفوف في هذا العرض."
+        description="حدد صفك الدراسي لتصل إلى المواد والمقررات المناسبة لك."
       />
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {grades
-          .filter((g) => g.stageId === stage.id)
+          .filter((g) => g.stage_id === stage.id)
           .map((grade) => (
             <Link
               className="soft-card group flex items-center gap-3 p-4 hover:border-primary"
-              href={`/grades/${grade.id}`}
+              href={`/grades/${encodeURIComponent(grade.id)}`}
               key={grade.id}
             >
               <span
                 className={cn(
                   "flex size-12 items-center justify-center rounded-xl",
-                  tones[stage.tone],
+                  tones[stagePresentation(stage).tone],
                 )}
               >
                 <GraduationCap aria-hidden="true" />

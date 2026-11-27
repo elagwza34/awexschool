@@ -23,9 +23,9 @@ const stageIcons = {
   secondary: GraduationCap,
 };
 
-export function StageCard({ stage, image }: { stage: Stage; image?: string }) {
-  const Icon = stageIcons[stage.id];
-  const yearCount = grades.filter((grade) => grade.stageId === stage.id).length;
+export function StageCard({ stage, image, gradeCount }: { stage: Omit<Stage, "id"> & { id: string }; image?: string; gradeCount?: number }) {
+  const Icon = Object.hasOwn(stageIcons, stage.id) ? stageIcons[stage.id as keyof typeof stageIcons] : GraduationCap;
+  const yearCount = gradeCount ?? grades.filter((grade) => grade.stageId === stage.id).length;
   return (
     <Link
       href={routes.stage(stage.id)}
@@ -70,7 +70,7 @@ export function SubjectCard({
   subject,
   href,
 }: {
-  subject: Subject;
+  subject: Omit<Subject, "id"> & { id: string };
   href?: string;
 }) {
   return (
@@ -103,53 +103,75 @@ export function SubjectCard({
 export function CourseCard({ course }: { course: Course }) {
   const subject = getSubject(course.subjectId)!;
   const teacher = getTeacher(course.teacherId)!;
-  const total = course.units.reduce((n, unit) => n + unit.lessons.length, 0);
+  return <CatalogCourseCard
+    id={course.id}
+    title={course.title}
+    subjectId={subject.id}
+    subjectName={subject.name}
+    gradeName={getGrade(course.gradeId)?.name}
+    term={course.term}
+    teacher={{ id: teacher.id, name: teacher.name, initials: teacher.initials }}
+    lessonCount={course.units.reduce((count, unit) => count + unit.lessons.length, 0)}
+  />;
+}
+
+export function CatalogCourseCard({ id, title, subjectId, subjectName, gradeName, term, teacher, lessonCount }: {
+  id: string;
+  title: string;
+  subjectId?: string | null;
+  subjectName?: string;
+  gradeName?: string;
+  term?: string;
+  teacher?: { id: string; name: string; initials: string; portraitPath?: string | null };
+  lessonCount?: number;
+}) {
+  const subject = subjectId ? getSubject(subjectId) : undefined;
   return (
     <article className="soft-card overflow-hidden transition-colors hover:border-primary">
       <Link
-        href={routes.course(course.id)}
+        href={routes.course(id)}
         tabIndex={-1}
         aria-hidden="true"
         className={cn(
           "relative flex h-28 items-center justify-center overflow-hidden border-b",
-          tones[subject.tone],
+          tones[subject?.tone ?? "mint"],
         )}
       >
-        <span className="absolute start-4 top-4 rounded-md bg-white/80 px-2 py-1 text-[11px] font-bold">
-          {course.term}
-        </span>
+        {term && <span className="absolute start-4 top-4 rounded-md bg-white/80 px-2 py-1 text-[11px] font-bold">
+          {term}
+        </span>}
         <span className="absolute -bottom-10 -end-7 size-40 rounded-full border-[24px] border-current opacity-[.06]" />
         <span className="absolute bottom-4 start-5 text-[11px] font-bold">
           liveschool / مساحة للفهم
         </span>
         <span className="font-serif text-5xl" dir="ltr">
-          {subject.id === "math" ? "x² + y²" : subject.symbol}
+          {subjectId === "math" ? "x² + y²" : (subject?.symbol ?? subjectName?.charAt(0))}
         </span>
       </Link>
       <div className="p-4">
         <div className="mb-3 flex flex-wrap gap-2">
-          <Badge>{subject.name}</Badge>
+          {subjectName && <Badge>{subjectName}</Badge>}
           <Badge className="bg-muted text-muted-foreground">
-            {getGrade(course.gradeId)?.name}
+            {gradeName}
           </Badge>
         </div>
         <h3 className="text-lg font-semibold">
-          <Link className="hover:text-primary" href={routes.course(course.id)}>
-            {course.title}
+          <Link className="hover:text-primary" href={routes.course(id)}>
+            {title}
           </Link>
         </h3>
-        <Link
+        {teacher && <Link
           href={routes.teacher(teacher.id)}
           className="mt-3 flex min-h-11 items-center gap-2 text-sm text-muted-foreground"
         >
-            <TeacherAvatar teacherId={teacher.id} fallback={teacher.initials} className="size-8" />
+            <TeacherAvatar teacherId={teacher.portraitPath === undefined ? teacher.id : undefined} portraitPath={teacher.portraitPath} fallback={teacher.initials} className="size-8" />
           أ. {teacher.name}
-        </Link>
+        </Link>}
         <div className="mt-4 flex flex-wrap gap-3 border-t pt-4 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1.5">
+          {lessonCount !== undefined && <span className="flex items-center gap-1.5">
             <BookOpen aria-hidden="true" className="size-3.5" />
-            {total} دروس
-          </span>
+            {lessonCount} دروس
+          </span>}
           <span className="flex items-center gap-1.5">
             <Clock3 aria-hidden="true" className="size-3.5" />
             بإيقاعك
@@ -164,7 +186,7 @@ export function TeacherCard({
   teacher,
   variant = "default",
 }: {
-  teacher: Teacher;
+  teacher: Pick<Teacher, "id" | "name" | "initials" | "title" | "bio"> & { experience: number | null; portraitPath?: string | null };
   variant?: "default" | "compact" | "directory";
 }) {
   if (variant !== "default") {
@@ -178,7 +200,8 @@ export function TeacherCard({
         )}
       >
         <TeacherAvatar
-          teacherId={teacher.id}
+          teacherId={teacher.portraitPath === undefined ? teacher.id : undefined}
+          portraitPath={teacher.portraitPath}
           fallback={teacher.initials}
           className={directory ? "size-20 rounded-xl sm:size-24" : "size-11"}
         />
@@ -200,12 +223,12 @@ export function TeacherCard({
       href={routes.teacher(teacher.id)}
       className="soft-card group flex h-full flex-col items-center p-6 text-center transition-all hover:-translate-y-1 hover:border-primary hover:shadow-md"
     >
-      <TeacherAvatar teacherId={teacher.id} fallback={teacher.initials} className="mb-4 size-20 border-4 border-white text-2xl shadow-sm ring-1 ring-border" />
+      <TeacherAvatar teacherId={teacher.portraitPath === undefined ? teacher.id : undefined} portraitPath={teacher.portraitPath} fallback={teacher.initials} className="mb-4 size-20 border-4 border-white text-2xl shadow-sm ring-1 ring-border" />
       <h3 className="text-lg font-semibold">أ. {teacher.name}</h3>
       <p className="mt-1 text-sm font-medium text-primary">{teacher.title}</p>
-      <span className="mt-3 inline-flex rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-muted-foreground">
+      {teacher.experience !== null && <span className="mt-3 inline-flex rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-muted-foreground">
         خبرة {teacher.experience} سنوات
-      </span>
+      </span>}
       <p className="mt-4 line-clamp-3 text-sm leading-6 text-muted-foreground">
         {teacher.bio}
       </p>

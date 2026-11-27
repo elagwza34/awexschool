@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import type { ReactNode } from "react";
 import { dashboardLinks, dashboardRoles, type DashboardRole } from "@/features/auth/dashboard-roles";
 
 const actions: Partial<Record<DashboardRole, readonly { title: string; items: readonly string[] }[]>> = {
@@ -15,19 +16,24 @@ const actions: Partial<Record<DashboardRole, readonly { title: string; items: re
   student: [{ title: "إجراءات الواجبات", items: ["تسليم واجب"] }],
 };
 
-export function AdminPermissions({ role }: { role: DashboardRole }) {
+export function AdminPermissions({ role, ownerWorkspace = false, children }: {
+  role: DashboardRole;
+  ownerWorkspace?: boolean;
+  children?: ReactNode;
+}) {
   const sections = dashboardLinks(role);
   const access = role === "owner" || role === "admin" ? sections : [...sections, { href: "/account", label: "حسابي" }];
 
   return (
-    <main id="main-content" tabIndex={-1} className="dashboard-width space-y-6 pt-5 pb-8">
+    <main id="main-content" tabIndex={-1} className={ownerWorkspace ? "container-shell space-y-6 pt-28 pb-8" : "dashboard-width space-y-6 pt-5 pb-8"}>
       <header className="space-y-2">
+        {ownerWorkspace && <p className="text-sm font-bold text-primary">لوحة المالك</p>}
         <h1 className="text-2xl font-bold sm:text-3xl">إدارة صلاحيات الأدوار</h1>
         <p className="text-sm leading-7 text-muted-foreground">
           اختر دورًا لعرض الأقسام والإجراءات المتاحة له.
         </p>
       </header>
-      <form action="/admin/permissions" method="get" className="soft-card flex flex-wrap items-end gap-4 p-4">
+      <form action={ownerWorkspace ? "/owner" : "/admin/permissions"} method="get" className="soft-card flex flex-wrap items-end gap-4 p-4">
         <label className="grid min-w-0 flex-1 gap-2 text-sm font-bold">
           الدور
           <select className="field max-w-xs" name="role" defaultValue={role} key={role}>
@@ -58,6 +64,7 @@ export function AdminPermissions({ role }: { role: DashboardRole }) {
           ))}
         </div>
       </div>
+      {children}
     </main>
   );
 }

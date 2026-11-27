@@ -150,7 +150,7 @@ export async function changeDemoVisibility(form: FormData) {
   redirect(mutationOutcome(result) === "saved" ? "/account?message=saved" : "/account?message=save-failed");
 }
 
-export async function saveSocialLinks(form: FormData) {
+async function persistSocialLinks(form: FormData, destination: "/owner" | "/admin/settings") {
   const admin = await requireOwner();
   const links: SocialLinksConfig = {};
   for (const { id, hosts } of socialChannels) {
@@ -160,19 +160,27 @@ export async function saveSocialLinks(form: FormData) {
     try {
       url = new URL(value);
     } catch {
-      redirect("/admin/settings?social=invalid#social-links");
+      redirect(`${destination}?social=invalid#social-links`);
     }
     if (value.length > 2048 || url.protocol !== "https:" || url.username || url.password || url.port ||
       !hosts.some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`))) {
-      redirect("/admin/settings?social=invalid#social-links");
+      redirect(`${destination}?social=invalid#social-links`);
     }
     links[id] = url.href;
   }
   const result = await admin.from("site_settings").update({ social_links: links }).eq("id", true)
     .select("id").maybeSingle();
   redirect(mutationOutcome(result) === "saved"
-    ? "/admin/settings?social=saved#social-links"
-    : "/admin/settings?social=failed#social-links");
+    ? `${destination}?social=saved#social-links`
+    : `${destination}?social=failed#social-links`);
+}
+
+export async function saveSocialLinks(form: FormData) {
+  return persistSocialLinks(form, "/admin/settings");
+}
+
+export async function saveOwnerSocialLinks(form: FormData) {
+  return persistSocialLinks(form, "/owner");
 }
 
 export async function removeUser(form: FormData) {

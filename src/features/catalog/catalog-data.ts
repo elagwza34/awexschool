@@ -36,7 +36,43 @@ function singleRelation<T>(relation: T | T[] | null | undefined): T | null {
   return Array.isArray(relation) ? relation[0] ?? null : relation ?? null;
 }
 
+type SearchableCourse = {
+  title: string;
+  grade_id: string | null;
+  subject_id: string | null;
+  track: string;
+  subjects?: { name: string } | { name: string }[] | null;
+  teacher_profiles?: { full_name: string } | { full_name: string }[] | null;
+};
+
+export function filterPublishedCatalog<T extends SearchableCourse>(
+  courses: T[],
+  filters: { q: string; grade: string; subject: string; track?: string },
+) {
+  const needle = filters.q.trim().toLocaleLowerCase("ar");
+  return courses.filter((course) =>
+    (!filters.grade || course.grade_id === filters.grade) &&
+    (!filters.subject || course.subject_id === filters.subject) &&
+    (!filters.track || course.track === filters.track) &&
+    (!needle || [course.title, singleRelation(course.subjects)?.name, singleRelation(course.teacher_profiles)?.full_name]
+      .some((value) => value?.toLocaleLowerCase("ar").includes(needle))),
+  );
+}
+
 export const catalogFields = "id,title,description,track,grade_id,subject_id,grades(name),subjects(name),teacher_profiles(user_id,full_name,portrait_path)";
+
+export function catalogCardDetails(course: {
+  grades?: { name: string } | { name: string }[] | null;
+  subjects?: { name: string } | { name: string }[] | null;
+  teacher_profiles?: { user_id: string; full_name: string; portrait_path: string | null } |
+    { user_id: string; full_name: string; portrait_path: string | null }[] | null;
+}) {
+  return {
+    subjectName: singleRelation(course.subjects)?.name,
+    gradeName: singleRelation(course.grades)?.name,
+    teacher: singleRelation(course.teacher_profiles),
+  };
+}
 
 export async function loadCatalogOptions(client: SupabaseClient | null) {
   if (!client) return configurationFailure();
