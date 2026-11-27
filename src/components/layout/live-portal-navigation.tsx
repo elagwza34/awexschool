@@ -16,7 +16,8 @@ export function LivePortalNavigation({ name, roles, accountRole }: { name: strin
     }
   }, [pathname]);
   const adminWorkspace = roles.some((role) => role === "admin" || role === "owner") && isAdminWorkspace(pathname);
-  const activeRole = adminWorkspace ? "admin" : accountRole ?? pathname.split("/")[1];
+  const segment = pathname.split("/")[1];
+  const activeRole = adminWorkspace ? "admin" : accountRole ?? (segment === "customer-service" ? "customer_service" : segment);
   const current = dashboardRoles.find(({ role }) => role === activeRole && (adminWorkspace || roles.includes(role)));
   if (!current) return null;
 

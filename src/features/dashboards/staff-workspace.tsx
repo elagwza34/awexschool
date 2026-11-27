@@ -10,6 +10,8 @@ import {
   staffRoles,
   staffSections,
   requestStatusLabels,
+  type StaffMember,
+  type StaffRequest,
   type RequestStatus,
 } from "./staff-data";
 import type { StaffRole } from "./types";
@@ -21,10 +23,30 @@ export function StaffWorkspace({
   section?: "overview" | "requests" | "team" | "activity";
 }) {
   const { members, requests, activity, updateRequest, replyToRequest } = useStaffPreview();
+  return <StaffWorkspaceView role={role} section={section} members={members} requests={requests}
+    activity={activity} updateRequest={(id, status) => updateRequest(role, id, status)}
+    replyToRequest={(id, reply) => replyToRequest(role, id, reply)} />;
+}
+
+export function StaffWorkspaceView({
+  role, section, members, requests, activity, updateRequest, replyToRequest, escalateRequest, managers = [],
+}: {
+  role: StaffRole | "customer-service";
+  section: "overview" | "requests" | "team" | "activity";
+  members: StaffMember[];
+  requests: StaffRequest[];
+  activity: string[];
+  updateRequest: (id: string, status: RequestStatus) => void | Promise<string | undefined>;
+  replyToRequest: (id: string, reply: string) => string | undefined | Promise<string | undefined>;
+  escalateRequest?: (id: string, manager: string) => Promise<string | undefined>;
+  managers?: { id: string; name: string }[];
+}) {
+  const live = role === "customer-service";
   const [replyFeedback, setReplyFeedback] = useState<{ id: string; error?: string }>();
   const [filter, setFilter] = useState("all"),
     [query, setQuery] = useState("");
-  const definition = staffRoles.find((item) => item.id === role)!;
+  const definition = live ? { label: "خدمة العملاء", description: "تابع الطلبات المسندة إليك ورد على العملاء." }
+    : staffRoles.find((item) => item.id === role)!;
   const visible = requests.filter(
     (item) =>
       (filter === "all" || item.status === filter) &&
@@ -44,7 +66,7 @@ export function StaffWorkspace({
           {definition.label}
         </h1>
         <p className="mt-3 text-sm leading-7 text-muted-foreground">
-          {definition.description} نموذج واجهة فقط، بدون صلاحيات أو تواصل فعلي.
+          {definition.description} {!live && "نموذج واجهة فقط، بدون صلاحيات أو تواصل فعلي."}
         </p>
       </div>
       {section === "overview" && (
@@ -54,7 +76,7 @@ export function StaffWorkspace({
               {
                 label: "الطلبات",
                 value: String(requests.length),
-                note: "بيانات توضيحية",
+                note: live ? "الطلبات المسندة إليك" : "بيانات توضيحية",
                 icon: "review",
                 tone: "blue",
               },
@@ -75,7 +97,7 @@ export function StaffWorkspace({
                     : requests.filter((item) => item.status === "resolved")
                         .length,
                 ),
-                note: "داخل المعاينة",
+                note: live ? "طلبات مكتملة" : "داخل المعاينة",
                 icon: "complete",
                 tone: "mint",
               },
@@ -100,12 +122,12 @@ export function StaffWorkspace({
       {section === "requests" && (
         <Panel
           title={
-            role === "manager" ? "متابعة طلبات الفريق" : "طلباتك في المعاينة"
+            role === "manager" ? "متابعة طلبات الفريق" : live ? "الطلبات المسندة إليك" : "طلباتك في المعاينة"
           }
           subtitle={
             role === "manager"
               ? "متابعة فقط؛ تحديث الحالة من لوحة الدعم الفني."
-              : "حدّث الحالة أو أضف ردًا يظهر لصاحب الطلب في المعاينة."
+              : live ? "حدّث الحالة أو أضف ردًا على الطلب." : "حدّث الحالة أو أضف ردًا يظهر لصاحب الطلب في المعاينة."
           }
         >
           <div className="mb-4 grid gap-3 sm:grid-cols-2">
@@ -172,17 +194,16 @@ export function StaffWorkspace({
                       id={`request-${item.id}`}
                       className="field sm:max-w-xs"
                       value={item.status}
-                      onChange={(event) =>
-                        updateRequest(
-                          role,
-                          item.id,
-                          event.target.value as RequestStatus,
-                        )
-                      }
+                      onChange={async (event) => {
+                        const error = await updateRequest(item.id, event.target.value as RequestStatus);
+                        if (live) setReplyFeedback({ id: item.id, error: error || undefined });
+                      }}
                     >
                       {Object.entries(requestStatusLabels).map(
                         ([value, label]) => (
-                          <option key={value} value={value}>
+                          <option key={value} value={value} disabled={live && value !== item.status &&
+                            !(item.status === "new" && value === "in-progress") &&
+                            !(item.status === "in-progress" && value === "resolved")}>
                             {label}
                           </option>
                         ),
@@ -191,23 +212,39 @@ export function StaffWorkspace({
                   </div>
                 )}
                 <RequestReplies replies={item.replies} />
-                {role === "support" && (
-                  <form className="mt-4 grid gap-2" onSubmit={(event) => {
+                {(role === "support" || (live && item.status !== "resolved")) && (
+                  <form className="mt-4 grid gap-2" onSubmit={async (event) => {
                     event.preventDefault();
                     const form = event.currentTarget;
-                    const error = replyToRequest(role, item.id, String(new FormData(form).get("reply") ?? ""));
+                    const error = await replyToRequest(item.id, String(new FormData(form).get("reply") ?? ""));
                     setReplyFeedback({ id: item.id, error });
                     if (!error) form.reset();
                   }}>
                     <label className="grid gap-2 text-sm font-semibold">رد الفريق
                       <textarea className="field min-h-20 py-2" name="reply" required minLength={3} maxLength={2000} />
                     </label>
-                    {replyFeedback?.id === item.id && <p role={replyFeedback.error ? "alert" : "status"} className="text-sm">
-                      {replyFeedback.error ?? "تم إضافة الرد."}
-                    </p>}
                     <Button type="submit" className="justify-self-start">إضافة الرد</Button>
                   </form>
                 )}
+                {live && managers.length > 0 && escalateRequest && item.status !== "resolved" && !item.escalated && (
+                  <form className="mt-4 flex flex-wrap items-end gap-2" onSubmit={async (event) => {
+                    event.preventDefault();
+                    const manager = String(new FormData(event.currentTarget).get("manager") ?? "");
+                    const error = await escalateRequest(item.id, manager);
+                    setReplyFeedback({ id: item.id, error });
+                  }}>
+                    <label className="grid gap-2 text-sm font-semibold">المدير
+                      <select className="field" name="manager" required>
+                        <option value="">اختر مديرًا</option>
+                        {managers.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
+                      </select>
+                    </label>
+                    <Button type="submit">تصعيد الطلب</Button>
+                  </form>
+                )}
+                {replyFeedback?.id === item.id && <p role={replyFeedback.error ? "alert" : "status"} className="mt-2 text-sm">
+                  {replyFeedback.error ?? (live ? "تم حفظ التحديث." : "تم إضافة الرد.")}
+                </p>}
               </article>
             ))}
           </div>
@@ -220,8 +257,8 @@ export function StaffWorkspace({
       )}
       {section === "activity" && (
         <Panel
-          title="سجل النشاط التجريبي"
-          subtitle="تغييرات هذه الجلسة فقط؛ يُعاد ضبطها عند تحديث الصفحة."
+          title={live ? "سجل النشاط" : "سجل النشاط التجريبي"}
+          subtitle={live ? "التحديثات المحفوظة للطلبات المسندة إليك." : "تغييرات هذه الجلسة فقط؛ يُعاد ضبطها عند تحديث الصفحة."}
         >
           {logs.length ? (
             <ul className="space-y-3">
@@ -236,7 +273,7 @@ export function StaffWorkspace({
             </ul>
           ) : (
             <p role="status" className="py-4 text-sm text-muted-foreground">
-              لا توجد تغييرات في هذه المعاينة بعد.
+              {live ? "لا توجد تغييرات مسجلة." : "لا توجد تغييرات في هذه المعاينة بعد."}
             </p>
           )}
         </Panel>
