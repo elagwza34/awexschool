@@ -11,6 +11,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     {message === "reset" && <FormMessage>تم تغيير كلمة المرور. سجّل الدخول بكلمة المرور الجديدة.</FormMessage>}
     {message === "login" && <FormMessage error>تعذّر تسجيل الدخول. راجع بياناتك وتأكد من تفعيل البريد الإلكتروني.</FormMessage>}
     {message === "unavailable" && <FormMessage error>تسجيل الدخول غير متاح حاليًا. جرّب مرة تانية.</FormMessage>}
+    {message === "revoke" && <FormMessage error>تم تغيير كلمة المرور، لكن تعذّر إنهاء الجلسات الموجودة. سجّل الخروج من الأجهزة الأخرى أو راجع الدعم.</FormMessage>}
     <form action={signIn} className="grid gap-4">
       {next && <input type="hidden" name="next" value={next} />}
       <EmailField />

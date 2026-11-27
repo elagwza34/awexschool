@@ -1,3 +1,4 @@
+import { isIP } from "node:net";
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 import { liveDashboardPaths } from "@/features/auth/dashboard-roles";
@@ -21,6 +22,8 @@ import {
   removeLock,
   saveLock,
   siteSessionSeconds,
+  verifyLockAttempt,
+  withLockVerification,
 } from "./lib/site-access";
 
 const headers = {
@@ -33,6 +36,32 @@ const headers = {
 };
 
 const portalPath = /^\/(?:admin|manager|support|teacher|student|parent|workspace)(?:\/|$)/;
+const globalLockExemptPaths = new Set([
+  "/login", "/register", "/account", "/account/callback", "/reset-password",
+  "/teachers/apply", "/teachers/track", "/dashboards",
+]);
+
+function lockClient(request: NextRequest) {
+  const secret = process.env.LIVESCHOOL_TRUSTED_PROXY_SECRET;
+  const supplied = request.headers.get("x-liveschool-proxy-secret");
+  const trustedProxies = new Set((process.env.LIVESCHOOL_TRUSTED_PROXY_IPS ?? "")
+    .split(",").map((value) => value.trim().toLowerCase()).filter(Boolean));
+  if (!secret || !supplied || !matchesSiteCode(supplied, secret) || !trustedProxies.size) return "unknown";
+  const forwarded = request.headers.get("x-forwarded-for")?.split(",").map((value) => value.trim()) ?? [];
+  if (!forwarded.length || forwarded.length > 30 || forwarded.some((value) => !isIP(value))) return "unknown";
+  let clientIndex = forwarded.length - 1;
+  while (clientIndex >= 0 && trustedProxies.has(forwarded[clientIndex]!.toLowerCase())) clientIndex -= 1;
+  if (clientIndex < 0 || clientIndex === forwarded.length - 1) return "unknown";
+  return forwarded[clientIndex]!.toLowerCase();
+}
+
+function throttled(owner = false) {
+  const response = gate(429, owner
+    ? "محاولات كثيرة. انتظر 15 دقيقة قبل المحاولة تاني."
+    : "محاولات كثيرة. انتظر 15 دقيقة قبل المحاولة تاني.", owner);
+  response.headers.set("Retry-After", "900");
+  return response;
+}
 
 function gate(status: number, message: string, owner = false) {
   return screen(status, owner ? "إدارة أقفال الموقع" : "دخول Awex School", message, status === 503 ? "" : `
@@ -78,17 +107,19 @@ function screen(status: number, title: string, message: string, content: string)
 }
 
 async function readForm(request: NextRequest) {
-  const length = Number(request.headers.get("content-length"));
+  const declaredLength = request.headers.get("content-length");
   const contentType = request.headers.get("content-type")?.split(";")[0];
   const fetchSite = request.headers.get("sec-fetch-site");
   if (
     contentType !== "application/x-www-form-urlencoded" ||
-    !Number.isInteger(length) || length < 1 || length > 2048 ||
+    (declaredLength !== null && (!/^\d+$/.test(declaredLength) || Number(declaredLength) < 1 || Number(declaredLength) > 2048)) ||
     (fetchSite && fetchSite !== "same-origin" && fetchSite !== "none")
   ) {
     return undefined;
   }
-  return new URLSearchParams(await request.text());
+  const body = await request.text();
+  if (Buffer.byteLength(body, "utf8") > 2048) return undefined;
+  return new URLSearchParams(body);
 }
 
 function redirectBack(request: NextRequest) {
@@ -124,9 +155,11 @@ async function settings(request: NextRequest) {
   if (!authorized) {
     if (request.method !== "POST") return gate(401, "أدخل كود إدارة الأقفال.", true);
     const fields = await readForm(request);
-    if (!fields || !matchesSiteCode(fields.get("code") ?? "", secret)) {
-      return gate(403, "كود إدارة الأقفال غير صحيح.", true);
-    }
+    if (!fields) return gate(403, "طلب غير صالح.", true);
+    const subject = `owner:${lockClient(request)}`;
+    const matched = await verifyLockAttempt(subject, () => matchesSiteCode(fields.get("code") ?? "", secret));
+    if (matched === null) return throttled(true);
+    if (!matched) return gate(403, "كود إدارة الأقفال غير صحيح.", true);
     return unlock(request, ownerCookie, secret);
   }
 
@@ -199,7 +232,46 @@ async function continueRequest(request: NextRequest, verification: SessionVerifi
   return { response, authenticated: Boolean(user), roles };
 }
 
+async function continueRoutedRequest(request: NextRequest, pathname: string) {
+  if (pathname === "/student/profile") {
+    const access = await continueRequest(request);
+    return redirectWithCookies(request, "/account?portal=student", access.response);
+  }
+  if (portalPath.test(pathname) && !liveDashboardPaths.has(pathname)) {
+    const access = await continueRequest(request);
+    const destination = new URL("/account", request.url);
+    destination.searchParams.set("message", "section-unavailable");
+    destination.searchParams.set("portal", pathname.split("/")[1]);
+    return redirectWithCookies(request, `${destination.pathname}${destination.search}`, access.response);
+  }
+  if (pathname === "/login" || pathname === "/register") {
+    const access = await continueRequest(request, "user");
+    const destination = routeAccessRedirect(pathname, access);
+    return destination ? redirectWithCookies(request, destination, access.response) : access.response;
+  }
+  if (globalLockExemptPaths.has(pathname)) return (await continueRequest(request)).response;
+  const access = await continueRequest(request, sessionVerificationMode(pathname));
+  const destination = routeAccessRedirect(pathname, access);
+  return destination ? redirectWithCookies(request, destination, access.response) : access.response;
+}
+
 export async function proxy(request: NextRequest) {
+  const maxBodyBytes = 1024 * 1024;
+  const contentLength = request.headers.get("content-length");
+  const mayHaveBody = !["GET", "HEAD", "OPTIONS"].includes(request.method);
+  if (mayHaveBody) {
+    if (contentLength && (!/^\d+$/.test(contentLength) || BigInt(contentLength) > BigInt(maxBodyBytes))) {
+      return screen(413, "طلب كبير جدًا", "حجم الطلب أكبر من الحد المسموح.", "");
+    }
+    try {
+      if ((await request.clone().arrayBuffer()).byteLength > maxBodyBytes) {
+        return screen(413, "طلب كبير جدًا", "حجم الطلب أكبر من الحد المسموح.", "");
+      }
+    } catch {
+      return screen(413, "طلب كبير جدًا", "حجم الطلب أكبر من الحد المسموح.", "");
+    }
+  }
+
   let pathname: string;
   try {
     pathname = normalizeLockPath(request.nextUrl.pathname);
@@ -209,53 +281,53 @@ export async function proxy(request: NextRequest) {
 
   try {
     if (pathname === lockSettingsPath) return await settings(request);
-    if (pathname === "/student/profile") {
-      const access = await continueRequest(request);
-      return redirectWithCookies(request, "/account?portal=student", access.response);
-    }
-    if (portalPath.test(pathname) && !liveDashboardPaths.has(pathname)) {
-      const access = await continueRequest(request);
-      const destination = new URL("/account", request.url);
-      destination.searchParams.set("message", "section-unavailable");
-      destination.searchParams.set("portal", pathname.split("/")[1]);
-      return redirectWithCookies(request, `${destination.pathname}${destination.search}`, access.response);
-    }
-    if (pathname === "/login" || pathname === "/register") {
-      const access = await continueRequest(request, "user");
-      const destination = routeAccessRedirect(pathname, access);
-      return destination ? redirectWithCookies(request, destination, access.response) : access.response;
-    }
-    if (["/account", "/account/callback", "/reset-password", "/teachers/apply", "/teachers/track", "/dashboards"].includes(pathname)) {
-      return (await continueRequest(request)).response;
-    }
 
-    const lock = await getRequestLock(pathname);
-    if (!lock || hasSiteSession(request.cookies.get(lockCookie(lock.scope))?.value, lock.key)) {
-      const access = await continueRequest(request, sessionVerificationMode(pathname));
-      const destination = routeAccessRedirect(pathname, access);
-      return destination ? redirectWithCookies(request, destination, access.response) : access.response;
-    }
+    const [pathLock, globalLock] = await Promise.all([
+      getRequestLock(pathname, false),
+      getRequestLock("*"),
+    ]);
+    const globalExempt = Boolean(globalLock && globalLockExemptPaths.has(pathname));
+    let globalAuthorized = !globalLock || globalExempt || hasSiteSession(
+      request.cookies.get(lockCookie("*"))?.value,
+      globalLock.key,
+    );
+    const pathAuthorized = !pathLock || hasSiteSession(
+      request.cookies.get(lockCookie(pathLock.scope))?.value,
+      pathLock.key,
+    );
+    if (globalAuthorized && pathAuthorized) return continueRoutedRequest(request, pathname);
 
-    // Authenticated account holders retain portal access while public pages remain locked.
-    if (lock.scope === "*" && portalPath.test(pathname) && !await getRequestLock(pathname, false)) {
+    if (!globalAuthorized && globalLock && portalPath.test(pathname)) {
       const access = await continueRequest(request, sessionVerificationMode(pathname));
       if (access.authenticated) {
-        const destination = routeAccessRedirect(pathname, access);
-        return destination ? redirectWithCookies(request, destination, access.response) : access.response;
+        globalAuthorized = true;
+        if (pathAuthorized) {
+          const destination = routeAccessRedirect(pathname, access);
+          return destination ? redirectWithCookies(request, destination, access.response) : access.response;
+        }
       }
     }
 
-    // Account holders can use the catalog and teacher profiles while the landing page is locked.
-    if (lock.scope === "*" && /^\/(?:courses|teachers)(?:\/|$)/.test(pathname) && !await getRequestLock(pathname, false)) {
+    if (!globalAuthorized && globalLock && /^\/(?:courses|teachers)(?:\/|$)/.test(pathname)) {
       const account = await continueRequest(request, "user");
-      if (account.authenticated) return account.response;
+      if (account.authenticated) {
+        globalAuthorized = true;
+        if (pathAuthorized) return account.response;
+      }
     }
 
+    if (globalAuthorized && pathAuthorized) return continueRoutedRequest(request, pathname);
+    const lock = !globalAuthorized ? globalLock : pathLock;
+    if (!lock) return continueRoutedRequest(request, pathname);
     if (request.method !== "POST") return gate(401, "أدخل الكود اللي وصلك عشان تفتح الصفحة.");
     const fields = await readForm(request);
-    if (!fields || !await matchesLockCode(fields.get("code") ?? "", lock)) {
-      return gate(403, "الكود غير صحيح. جرّب تاني.");
-    }
+    if (!fields) return gate(403, "طلب غير صالح.");
+    const subject = `visitor:${lockClient(request)}:${lock.scope}`;
+    const matched = await withLockVerification(() =>
+      verifyLockAttempt(subject, () => matchesLockCode(fields.get("code") ?? "", lock)),
+    );
+    if (matched === null) return throttled();
+    if (!matched) return gate(403, "الكود غير صحيح. جرّب تاني.");
     return unlock(request, lockCookie(lock.scope), lock.key);
   } catch (error) {
     console.error("Unable to load or update site locks", error);

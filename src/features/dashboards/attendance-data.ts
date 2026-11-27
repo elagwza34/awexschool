@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { MutationOutcome } from "../../lib/mutation-result.ts";
+import { activeLinkedStudentIds } from "./guardian-learner-scope.ts";
 
 export type AttendanceRole = "teacher" | "student" | "parent";
 export type AttendanceStatus = "present" | "absent" | "late";
@@ -111,11 +112,12 @@ export async function loadAttendanceData(client: SupabaseClient, {
     };
   }
 
-  const links = role === "parent"
-    ? await client.from("guardian_links").select("student_id").eq("guardian_id", userId)
-    : null;
-  if (links?.error) return { state: "error" };
-  const studentIds = role === "student" ? [userId] : links?.data?.map(({ student_id }) => student_id) ?? [];
+  let studentIds = role === "student" ? [userId] : [];
+  if (role === "parent") {
+    const scope = await activeLinkedStudentIds(client, userId);
+    if (scope.error) return { state: "error" };
+    studentIds = scope.ids;
+  }
   if (!studentIds.length) return { state: "empty" };
   const { data, error } = await client.from("session_attendance")
     .select("session_id,student_id,status,class_sessions(title,starts_at),profiles(display_name)")

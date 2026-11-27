@@ -20,7 +20,9 @@ export async function sessionClient(writable = false) {
     cookies: {
       getAll: () => jar.getAll(),
       setAll(items) {
-        if (writable) for (const { name, value, options } of items) jar.set(name, value, options);
+        if (writable) for (const { name, value, options } of items) {
+          jar.set(name, value, { ...options, secure: process.env.NODE_ENV === "production" });
+        }
       },
     },
   });

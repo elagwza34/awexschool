@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { authConfig, ownerClient, sessionClient } from "@/features/auth/supabase-server";
+import { authConfig, sessionClient } from "@/features/auth/supabase-server";
+import { bootstrapOwner } from "@/features/auth/owner-bootstrap";
 
 export async function GET(request: Request) {
   const incoming = new URL(request.url);
@@ -12,17 +13,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(destination);
   }
   const { data, error } = await client.auth.exchangeCodeForSession(code);
-  const accountEmail = data.user?.email?.trim().toLowerCase();
-  const ownerEmail = process.env.LIVESCHOOL_OWNER_EMAIL?.trim().toLowerCase();
   if (error) destination.searchParams.set("message", "callback");
-  else if (data.user && data.user.email_confirmed_at && accountEmail && ownerEmail && accountEmail === ownerEmail) {
-    const admin = ownerClient();
-    const response = await fetch(new URL("/auth/v1/settings", config.url), { headers: { apikey: config.key }, cache: "no-store" }).catch(() => null);
-    const settings = response?.ok ? await response.json().catch(() => null) : null;
-    if (settings?.mailer_autoconfirm === false && admin) {
-      const result = await admin.rpc("assign_owner_role", { account_id: data.user.id });
-      if (result.error) destination.searchParams.set("message", "owner");
-    } else destination.searchParams.set("message", "owner");
-  }
+  else if (await bootstrapOwner(data.user) === "failed") destination.searchParams.set("message", "owner");
   return NextResponse.redirect(destination);
 }

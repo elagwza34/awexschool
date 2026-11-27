@@ -15,7 +15,10 @@ registerHooks({
         shortCircuit: true,
       };
     }
-    if (specifier === "@/features/auth/supabase-server") {
+    if (specifier === "@/features/auth/owner-bootstrap") {
+      return { url: new URL("../../src/features/auth/owner-bootstrap.ts", import.meta.url).href, shortCircuit: true };
+    }
+    if (specifier === "@/features/auth/supabase-server" || specifier === "./supabase-server") {
       return {
         url: `data:text/javascript,
           export function authConfig() { return { url: 'http://127.0.0.1:54321', key: 'test-key' }; }

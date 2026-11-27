@@ -156,6 +156,23 @@ test("challenge creation cannot proceed with missing CAPTCHA secret or invalid p
   assert.throws(() => security.buildTeacherIntakeChallenge({ purpose: "submit", actorId: null, ip: null }), /challenge/i);
 });
 
+test("the migration locks intake tables in tracking runtime order", () => {
+  const migration = readFileSync(new URL("../../supabase/migrations/20261126170000_phase02_authorization_isolation.sql", import.meta.url), "utf8");
+  const lockList = migration.match(/lock table([\s\S]*?)in share row exclusive mode/i)?.[1] ?? "";
+  const challenges = lockList.indexOf("public.teacher_intake_challenges");
+  const counters = lockList.indexOf("public.teacher_intake_rate_limits");
+  const applications = lockList.indexOf("public.teacher_applications");
+  assert.ok(challenges >= 0 && counters > challenges && applications > counters, "expected challenges, rate limits, then applications");
+});
+
+test("the migration retains challenge referential integrity and adds service-role-only intake helpers", () => {
+  const migration = readFileSync(new URL("../../supabase/migrations/20261126170000_phase02_authorization_isolation.sql", import.meta.url), "utf8");
+  assert.doesNotMatch(migration, /drop constraint teacher_intake_challenges_application_id_fkey/i);
+  assert.match(migration, /create or replace function public\.consume_teacher_tracking_admission/i);
+  assert.match(migration, /create or replace function public\.discard_teacher_intake_challenge/i);
+  assert.match(migration, /revoke all on table public\.course_enrollment_review_audit from public, anon, authenticated, service_role/i);
+});
+
 test("the browser policy permits only the configured Turnstile script and challenge frame", () => {
   const proxy = readFileSync(new URL("../../src/proxy.ts", import.meta.url), "utf8");
   assert.match(proxy, /script-src[^;\n]*https:\/\/challenges\.cloudflare\.com/);

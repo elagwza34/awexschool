@@ -22,6 +22,7 @@ registerHooks({
     return nextLoad(url, context);
   },
   resolve(specifier, context, nextResolve) {
+    if (specifier === "server-only") return { url: "data:text/javascript,export {}", shortCircuit: true };
     if (specifier === "next/link") {
       return { url: "data:text/javascript,export default function Link() { return null; }", shortCircuit: true };
     }

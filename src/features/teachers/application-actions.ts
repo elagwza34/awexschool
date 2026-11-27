@@ -12,6 +12,13 @@ const accountRequired = "سجّل الدخول بحساب طالب أو ولي �
 const captchaRequired = "تعذّر التحقق الأمني. حاول مرة تانية.";
 const trackingUnavailable = "متابعة الطلبات غير متاحة حاليًا.";
 const trackingMissing = "الطلب غير موجود أو رقم المتابعة غير صحيح.";
+const bestEffort = async (operation: () => PromiseLike<unknown>) => {
+  try {
+    await operation();
+  } catch {
+    return;
+  }
+};
 
 export async function submitTeacherApplication(_previous: string, form: FormData) {
   const client = await sessionClient(true);
@@ -50,21 +57,34 @@ export async function submitTeacherApplication(_previous: string, form: FormData
   } catch {
     return captchaRequired;
   }
-  const inserted = await owner.from("teacher_intake_challenges").insert(challenge).select("id").single();
-  if (inserted.error || !inserted.data?.id) return applicationUnavailable;
+  let inserted;
+  try {
+    inserted = await owner.from("teacher_intake_challenges").insert(challenge).select("id").single();
+  } catch {
+    await bestEffort(() => owner.rpc("discard_teacher_intake_challenge", { p_challenge: challenge.id }));
+    return applicationUnavailable;
+  }
+  if (inserted.error || !inserted.data?.id) {
+    await bestEffort(() => owner.rpc("discard_teacher_intake_challenge", { p_challenge: challenge.id }));
+    return applicationUnavailable;
+  }
 
   const profile = {
     fullName: full_name, phone, qualification, governorate, experience: Number(experience),
     bio, approach, grades: gradeIds, video,
   };
-  const { data, error } = await client.rpc("submit_teacher_application", {
-    p_challenge: challenge.id, p_subject_id: subject_id, p_profile: profile,
-  });
-  if (error || !data) {
-    if (error?.code === "23505") return "فيه طلب قيد المراجعة للبريد والمادة دول بالفعل.";
-    return error?.message === "teacher_intake_challenge_invalid" ? captchaRequired : "تعذّر إرسال الطلب. جرّب مرة تانية.";
+  try {
+    const { data, error } = await client.rpc("submit_teacher_application", {
+      p_challenge: challenge.id, p_subject_id: subject_id, p_profile: profile,
+    });
+    if (error || !data) {
+      if (error?.code === "23505") return "فيه طلب قيد المراجعة للبريد والمادة دول بالفعل.";
+      return error?.message === "teacher_intake_challenge_invalid" ? captchaRequired : "تعذّر إرسال الطلب. جرّب مرة تانية.";
+    }
+    redirect(`/teachers/track?reference=${data}`);
+  } finally {
+    await bestEffort(() => owner.rpc("discard_teacher_intake_challenge", { p_challenge: challenge.id }));
   }
-  redirect(`/teachers/track?reference=${data}`);
 }
 
 export async function trackTeacherApplication(_previous: string, form: FormData) {
@@ -87,12 +107,33 @@ export async function trackTeacherApplication(_previous: string, form: FormData)
   } catch {
     return captchaRequired;
   }
-  const inserted = await owner.from("teacher_intake_challenges").insert(challenge).select("id").single();
-  if (inserted.error || !inserted.data?.id) return trackingUnavailable;
+  let inserted;
+  try {
+    inserted = await owner.from("teacher_intake_challenges").insert(challenge).select("id").single();
+  } catch {
+    await bestEffort(() => owner.rpc("consume_teacher_tracking_admission", {
+      p_actor_id: user?.email_confirmed_at ? user.id : null,
+      p_ip_hash: challenge.ip_hash,
+    }));
+    await bestEffort(() => owner.rpc("discard_teacher_intake_challenge", { p_challenge: challenge.id }));
+    return trackingMissing;
+  }
+  if (inserted.error || !inserted.data?.id) {
+    await bestEffort(() => owner.rpc("consume_teacher_tracking_admission", {
+      p_actor_id: user?.email_confirmed_at ? user.id : null,
+      p_ip_hash: challenge.ip_hash,
+    }));
+    await bestEffort(() => owner.rpc("discard_teacher_intake_challenge", { p_challenge: challenge.id }));
+    return trackingMissing;
+  }
 
-  const { data, error } = await client.rpc("track_teacher_application", { p_challenge: challenge.id });
-  if (error || !["pending", "accepted", "rejected"].includes(data ?? "")) return trackingMissing;
-  return data;
+  try {
+    const { data, error } = await client.rpc("track_teacher_application", { p_challenge: challenge.id });
+    if (error || !["pending", "accepted", "rejected"].includes(data ?? "")) return trackingMissing;
+    return data;
+  } finally {
+    await bestEffort(() => owner.rpc("discard_teacher_intake_challenge", { p_challenge: challenge.id }));
+  }
 }
 
 export async function reviewTeacherApplication(id: string, form: FormData) {

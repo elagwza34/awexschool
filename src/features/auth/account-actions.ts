@@ -7,6 +7,7 @@ import { socialChannels, type SocialLinksConfig } from "./social-links";
 import { readRegistration, signupMetadata } from "./registration";
 import { mutationOutcome } from "@/lib/mutation-result";
 import { safeLoginNextPath } from "./auth-redirect";
+import { bootstrapOwner } from "./owner-bootstrap";
 
 const managedRoles = new Set(["student", "parent", "teacher", "support", "manager", "admin"]);
 const text = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
@@ -64,8 +65,10 @@ export async function verifySignupCode(form: FormData) {
   const email = text(form, "email").toLowerCase();
   const token = text(form, "code");
   if (!client || !validEmail(email) || !/^\d{6,10}$/.test(token)) redirect("/register?message=code-invalid");
-  const { error } = await client.auth.verifyOtp({ email, token, type: "email" });
-  redirect(error ? "/register?message=code-invalid" : "/account");
+  const { data, error } = await client.auth.verifyOtp({ email, token, type: "email" });
+  if (error) redirect("/register?message=code-invalid");
+  const owner = await bootstrapOwner(data.user);
+  redirect(owner === "failed" ? "/account?message=owner" : "/account");
 }
 
 function recoveryClient() {
@@ -96,14 +99,14 @@ export async function resetPassword(form: FormData) {
   if (error) redirect("/reset-password?step=code&message=code");
   const changed = await client.auth.updateUser({ password });
   if (changed.error) redirect("/reset-password?message=failed");
-  await client.auth.signOut({ scope: "global" });
-  redirect("/login?message=reset");
+  const revoked = await client.auth.signOut({ scope: "global" });
+  redirect(revoked.error ? "/login?message=revoke" : "/login?message=reset");
 }
 
 export async function signOut() {
   const client = await sessionClient(true);
-  await client?.auth.signOut();
-  redirect("/account");
+  const result = await client?.auth.signOut();
+  redirect(result?.error ? "/account?message=signout-failed" : "/account");
 }
 
 async function requireOwner() {
@@ -122,7 +125,7 @@ export async function addUser(form: FormData) {
   const email = text(form, "email").toLowerCase();
   const password = String(form.get("password") ?? "");
   if (!managedRoles.has(role) || !validEmail(email) || email === process.env.LIVESCHOOL_OWNER_EMAIL?.toLowerCase() ||
-    name.length < 2 || name.length > 100 || password.length < 12 || password.length > 72)
+    name.length < 2 || name.length > 100 || !validPassword(password))
     redirect(`${destination}?message=invalid`);
   const { data, error } = await admin.auth.admin.createUser({
     email, password, email_confirm: true,

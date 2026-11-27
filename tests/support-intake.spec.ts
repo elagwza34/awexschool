@@ -1,47 +1,72 @@
 import { expect, test } from "@playwright/test";
 
-test("visitor complaints always go to the technical support queue", async ({ page }) => {
+async function expectUrl(page: import("@playwright/test").Page, expected: string) {
+  const destination = new URL(expected, "http://127.0.0.1:3100");
+  await expect(page).toHaveURL((url) =>
+    url.origin === destination.origin &&
+    url.pathname === destination.pathname &&
+    url.search === destination.search,
+  );
+}
+
+async function expectNoPreviewIntake(page: import("@playwright/test").Page) {
+  for (const label of ["اسمك", "نوع الطلب", "عنوان الطلب", "تفاصيل الطلب", "تبديل اللوحة"]) {
+    await expect(page.getByLabel(label, { exact: true })).toHaveCount(0);
+  }
+  await expect(page.getByRole("button", { name: "إرسال الطلب في المعاينة", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "قدّم شكوى أو طلب", exact: true })).toHaveCount(0);
+  await expect(page.locator('a[href="/support/requests"]')).toHaveCount(0);
+}
+
+test("footer help labels lead to contact without a support intake form", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("contentinfo").getByRole("link", { name: "قدّم شكوى أو طلب" }).click();
-  await page.getByLabel("اسمك", { exact: true }).fill("زائر التجربة");
-  await page.getByLabel("البريد الإلكتروني").fill("visitor@example.com");
-  await expect(page.getByRole("combobox", { name: "نوع الطلب" })).toHaveCount(0);
-  await page.getByLabel("عنوان الطلب").fill("عطل في فيديو المراجعة");
-  await page.getByLabel("تفاصيل الطلب").fill("الفيديو لا يبدأ عند فتح الدرس.");
-  await page.getByRole("button", { name: "إرسال الطلب في المعاينة" }).click();
-  await expect(page.getByRole("status")).toContainText("الدعم الفني");
-  await page.getByRole("link", { name: "لوحات التحكم", exact: true }).last().click();
-  await page.locator('a[href="/support"]').click();
-  await page.locator('nav a[href="/support/requests"]').click();
-  await expect(page.getByRole("heading", { name: "عطل في فيديو المراجعة" })).toBeVisible();
-  await expect(page.getByLabel("تبديل اللوحة").locator('option[value="customer-service"]')).toHaveCount(0);
-  expect((await page.goto("/customer-service/requests"))?.status()).toBe(404);
+  const footer = page.getByRole("contentinfo");
+  for (const label of ["تواصل معنا", "ابعت لنا طلب"]) {
+    const link = footer.getByRole("link", { name: label, exact: true });
+    await expect(link).toHaveAttribute("href", "/contact");
+    await link.click();
+    await expectUrl(page, "/contact");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByRole("main").locator("form")).toHaveCount(0);
+    await expectNoPreviewIntake(page);
+    await page.goto("/");
+  }
+
+  await page.goto("/track-request");
+  await expectUrl(page, "/contact");
+  await expect(page.getByRole("main").locator("form")).toHaveCount(0);
+  await expectNoPreviewIntake(page);
 });
 
-test("parent can see a technical support status update from their dashboard", async ({ page }) => {
-  await page.goto("/parent");
-  await page.getByRole("link", { name: "قدّم شكوى أو طلب" }).click();
-  await page.getByLabel("عنوان الطلب").fill("طلب مراجعة المجموعة");
-  await page.getByLabel("تفاصيل الطلب").fill("أحتاج مراجعة اختيار مجموعة ابني.");
-  await page.getByRole("button", { name: "إرسال الطلب في المعاينة" }).click();
-  await expect(page.getByRole("status")).toContainText("الدعم الفني");
-  await page.getByLabel("تبديل اللوحة").selectOption("support");
-  await page.locator('nav a[href="/support/requests"]').click();
-  const ticket = page.getByRole("article").filter({ hasText: "طلب مراجعة المجموعة" });
-  await ticket.getByRole("combobox").selectOption("in-progress");
-  await page.getByLabel("تبديل اللوحة").selectOption("parent");
-  await page.getByRole("link", { name: "قدّم شكوى أو طلب" }).click();
-  await expect(page.getByRole("listitem").filter({ hasText: "طلب مراجعة المجموعة" })).toContainText("قيد المتابعة");
-});
+test("support and retired help sections contain guests and hide the preview queue", async ({ page, request }) => {
+  const support = await request.get("/support", { maxRedirects: 0 });
+  expect(support.status()).toBe(307);
+  const supportDestination = new URL(support.headers().location!, support.url());
+  expect(`${supportDestination.pathname}${supportDestination.search}`).toBe("/login?next=%2Fsupport");
+  await page.goto("/support");
+  await expectUrl(page, "/login?next=%2Fsupport");
+  await expect(page.getByRole("heading", { name: "تسجيل الدخول", exact: true })).toBeVisible();
+  await expectNoPreviewIntake(page);
 
-test("student request is attributed to their preview account and kept out of parent history", async ({ page }) => {
-  await page.goto("/student");
-  await page.getByRole("link", { name: "قدّم شكوى أو طلب" }).click();
-  await page.getByLabel("عنوان الطلب").fill("استفسار عن جدول المراجعة");
-  await page.getByLabel("تفاصيل الطلب").fill("عايز أعرف موعد المجموعة المتاحة للمراجعة.");
-  await page.getByRole("button", { name: "إرسال الطلب في المعاينة" }).click();
-  await expect(page.getByRole("listitem").filter({ hasText: "استفسار عن جدول المراجعة" })).toContainText("جديد");
-  await page.getByLabel("تبديل اللوحة").selectOption("parent");
-  await page.getByRole("link", { name: "قدّم شكوى أو طلب" }).click();
-  await expect(page.getByText("استفسار عن جدول المراجعة", { exact: true })).toHaveCount(0);
+  const disabled: [string, string][] = [
+    ["/support/requests", "/account?message=section-unavailable&portal=support"],
+    ["/support/activity", "/account?message=section-unavailable&portal=support"],
+    ["/parent/help", "/account?message=section-unavailable&portal=parent"],
+    ["/student/help", "/account?message=section-unavailable&portal=student"],
+  ];
+  for (const [path, location] of disabled) {
+    const response = await request.get(path, { maxRedirects: 0 });
+    expect(response.status(), path).toBe(307);
+    const destination = new URL(response.headers().location!, response.url());
+    expect(destination.origin, path).toBe(new URL(response.url()).origin);
+    expect(`${destination.pathname}${destination.search}`, path).toBe(location);
+    await page.goto(path);
+    await expectUrl(page, "/login");
+    await expectNoPreviewIntake(page);
+  }
+
+  await page.goto("/dashboards");
+  await expectUrl(page, "/login");
+  await expectNoPreviewIntake(page);
+  expect((await request.get("/customer-service/requests")).status()).toBe(404);
 });

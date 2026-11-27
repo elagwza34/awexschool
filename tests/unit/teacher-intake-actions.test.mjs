@@ -112,10 +112,14 @@ function applicationForm(overrides = {}) {
   });
 }
 
-function queryResult(result, calls, table) {
+function queryResult(result, calls, table, insertThrows = false) {
   const builder = {
     select(...args) { calls.push(["select", table, ...args]); return builder; },
-    insert(value) { calls.push(["insert", table, value]); return builder; },
+    insert(value) {
+      calls.push(["insert", table, value]);
+      if (insertThrows) throw new TypeError("ambiguous insert transport failure");
+      return builder;
+    },
     update(value) { calls.push(["update", table, value]); return builder; },
     eq(...args) { calls.push(["eq", table, ...args]); return builder; },
     in(...args) { calls.push(["in", table, ...args]); return builder; },
@@ -128,7 +132,7 @@ function queryResult(result, calls, table) {
   return builder;
 }
 
-function fakeClient({ user = null, results = {}, rpcResult = { data: true, error: null }, createdUser = null, deleteError = null } = {}) {
+function fakeClient({ user = null, results = {}, rpcResult = { data: true, error: null }, createdUser = null, deleteError = null, insertThrows = false } = {}) {
   const calls = [];
   return {
     calls,
@@ -146,7 +150,7 @@ function fakeClient({ user = null, results = {}, rpcResult = { data: true, error
     },
     from(table) {
       calls.push(["from", table]);
-      return queryResult(results[table] ?? { data: null, error: null }, calls, table);
+      return queryResult(results[table] ?? { data: null, error: null }, calls, table, insertThrows);
     },
     async rpc(name, args) { calls.push(["rpc", name, args]); return rpcResult; },
   };
@@ -209,6 +213,37 @@ test("application submission uses the confirmed session identity and a server-cr
   assert.equal("email" in rpc[2].p_profile, false);
   assert.equal("p_actor" in rpc[2], false);
   assert.equal(owner.calls.some(([name, table]) => name === "from" && table === "teacher_applications"), false);
+  assert.deepEqual(owner.calls.filter(([name]) => name === "rpc"), [[
+    "rpc", "discard_teacher_intake_challenge", { p_challenge: challengeId },
+  ]]);
+});
+
+test("application submission discards its challenge when the database rejects the request", async () => {
+  const session = fakeClient({ user: account().user, rpcResult: { data: null, error: { message: "teacher_intake_invalid" } } });
+  const owner = fakeClient({ results: { teacher_intake_challenges: { data: { id: challengeId }, error: null } } });
+  reset({ session, owner });
+
+  assert.match(await actions.submitTeacherApplication("", applicationForm()), /تعذّر إرسال الطلب/);
+  assert.deepEqual(owner.calls.filter(([name]) => name === "rpc"), [[
+    "rpc", "discard_teacher_intake_challenge", { p_challenge: challengeId },
+  ]]);
+});
+
+test("application submission discards its challenge when insertion fails or is ambiguous", async () => {
+  for (const insertThrows of [false, true]) {
+    const session = fakeClient({ user: account().user, rpcResult: { data: applicationId, error: null } });
+    const owner = fakeClient({
+      insertThrows,
+      results: { teacher_intake_challenges: { data: null, error: { code: "08006", message: "transport failed" } } },
+    });
+    reset({ session, owner });
+
+    assert.equal(await actions.submitTeacherApplication("", applicationForm()), "تقديم المدرسين غير متاح حاليًا.");
+    assert.equal(session.calls.filter(([name]) => name === "rpc").length, 0);
+    assert.deepEqual(owner.calls.filter(([name]) => name === "rpc"), [[
+      "rpc", "discard_teacher_intake_challenge", { p_challenge: challengeId },
+    ]]);
+  }
 });
 
 test("application submission rejects inactive roles and unconfirmed Auth email before CAPTCHA", async () => {
@@ -253,6 +288,57 @@ test("tracking creates a purpose-bound email challenge and calls only the generi
   ]]);
   assert.equal(session.calls.some(([name, table]) => name === "from" && table === "teacher_applications"), false);
   assert.equal(owner.calls.some(([name, table]) => name === "from" && table !== "teacher_intake_challenges"), false);
+  assert.deepEqual(owner.calls.filter(([name]) => name === "rpc"), [[
+    "rpc", "discard_teacher_intake_challenge", { p_challenge: challengeId },
+  ]]);
+});
+
+test("tracking insertion failures and RPC authorization failures return the same generic result", async () => {
+  for (const scenario of [
+    { inserted: { data: null, error: { code: "23503", message: "missing reference" } }, rpcCalls: 0 },
+    { inserted: { data: { id: challengeId }, error: null }, rpcCalls: 1, rpcResult: { data: null, error: { message: "teacher_tracking_forbidden" } } },
+    { inserted: { data: { id: challengeId }, error: null }, rpcCalls: 1, rpcResult: { data: null, error: null } },
+  ]) {
+    const session = fakeClient({ user: null, rpcResult: scenario.rpcResult ?? { data: "pending", error: null } });
+    const owner = fakeClient({ results: { teacher_intake_challenges: scenario.inserted } });
+    reset({ session, owner, currentAccount: null });
+    const result = await actions.trackTeacherApplication("", form({
+      reference: applicationId, email: "legacy@example.com", captchaToken: "tracking-token",
+    }));
+    assert.match(result, /الطلب غير موجود أو رقم المتابعة/);
+    assert.equal(session.calls.filter(([name]) => name === "rpc").length, scenario.rpcCalls);
+    const ownerRpcs = owner.calls.filter(([name]) => name === "rpc");
+    if (scenario.rpcCalls === 0) {
+      assert.equal(ownerRpcs[0]?.[1], "consume_teacher_tracking_admission");
+      assert.equal(ownerRpcs[0]?.[2].p_actor_id, null);
+      assert.match(ownerRpcs[0]?.[2].p_ip_hash ?? "", /^[a-f0-9]{64}$/);
+    } else {
+      assert.deepEqual(ownerRpcs, [[
+        "rpc", "discard_teacher_intake_challenge", { p_challenge: challengeId },
+      ]]);
+    }
+  }
+});
+
+test("tracking consumes admission and discards its challenge when insertion is ambiguous", async () => {
+  for (const insertThrows of [false, true]) {
+    const session = fakeClient({ user: null, rpcResult: { data: "pending", error: null } });
+    const owner = fakeClient({
+      insertThrows,
+      results: { teacher_intake_challenges: { data: null, error: { code: "08006", message: "transport failed" } } },
+    });
+    reset({ session, owner, currentAccount: null });
+
+    assert.equal(await actions.trackTeacherApplication("", form({
+      reference: applicationId, email: "legacy@example.com", captchaToken: "tracking-token",
+    })), "الطلب غير موجود أو رقم المتابعة غير صحيح.");
+    assert.equal(session.calls.filter(([name]) => name === "rpc").length, 0);
+    const ownerRpcs = owner.calls.filter(([name]) => name === "rpc");
+    assert.equal(ownerRpcs[0]?.[1], "consume_teacher_tracking_admission");
+    assert.equal(ownerRpcs[0]?.[2].p_actor_id, null);
+    assert.match(ownerRpcs[0]?.[2].p_ip_hash ?? "", /^[a-f0-9]{64}$/);
+    assert.deepEqual(ownerRpcs[1], ["rpc", "discard_teacher_intake_challenge", { p_challenge: challengeId }]);
+  }
 });
 
 test("tracking maps replay expiry and wrong-actor RPC failures to one generic error", async () => {

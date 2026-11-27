@@ -1,15 +1,25 @@
 import assert from "node:assert/strict";
+import { registerHooks } from "node:module";
 import test from "node:test";
-import {
+
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier === "server-only") return { url: "data:text/javascript,export {}", shortCircuit: true };
+    return nextResolve(specifier, context);
+  },
+});
+
+const {
   applyAttendanceRecord,
   isAttendanceStatus,
   isUuid,
   loadAttendanceData,
-} from "../../src/features/dashboards/attendance-data.ts";
+} = await import("../../src/features/dashboards/attendance-data.ts");
 
 const teacherId = "11111111-1111-4111-8111-111111111111";
 const studentId = "22222222-2222-4222-8222-222222222222";
 const childId = "33333333-3333-4333-8333-333333333333";
+const revokedChildId = "88888888-8888-4888-8888-888888888888";
 const sessionId = "44444444-4444-4444-8444-444444444444";
 const otherSessionId = "55555555-5555-4555-8555-555555555555";
 const groupId = "66666666-6666-4666-8666-666666666666";
@@ -83,7 +93,11 @@ function attendanceClient(overrides = {}) {
     session_roster_snapshots: { data: { session_id: sessionId }, error: null },
     session_roster_entries: { data: rosterEntries, error: null },
     session_attendance: { data: [{ student_id: studentId, status: "present" }], error: null },
-    guardian_links: { data: [{ student_id: studentId }, { student_id: childId }], error: null },
+    guardian_links: { data: [
+      { student_id: studentId, profiles: { status: "active" } },
+      { student_id: childId, profiles: [{ status: "active" }] },
+    ], error: null },
+    account_roles: { data: [{ user_id: studentId }, { user_id: childId }], error: null },
     ...overrides,
   });
 }
@@ -183,15 +197,37 @@ test("parent attendance distinguishes no linked children from an empty attendanc
   assert.deepEqual(await loadAttendanceData(noRecords, { role: "parent", userId: teacherId, now }), { state: "empty" });
 });
 
-test("parent attendance scopes records to verified guardian links", async () => {
+test("parent attendance scopes records to active linked learners with current student roles", async () => {
   const client = attendanceClient({ session_attendance: { data: records, error: null } });
   assert.deepEqual(await loadAttendanceData(client, { role: "parent", userId: teacherId, now }), {
     state: "ready",
     records,
   });
-  assert.deepEqual(client.calls.map(({ table }) => table), ["guardian_links", "session_attendance"]);
-  assert.deepEqual(client.calls[0].filters, [["eq", "guardian_id", teacherId]]);
-  assert.deepEqual(client.calls[1].filters, [["in", "student_id", [studentId, childId]]]);
+  assert.deepEqual(client.calls.map(({ table }) => table), ["guardian_links", "account_roles", "session_attendance"]);
+  assert.equal(client.calls[0].selection, "student_id,profiles!guardian_links_student_id_fkey!inner(status)");
+  assert.deepEqual(client.calls[0].filters, [["eq", "guardian_id", teacherId], ["eq", "profiles.status", "active"]]);
+  assert.deepEqual(client.calls[1].filters, [["in", "user_id", [studentId, childId]], ["eq", "role_code", "student"]]);
+  assert.deepEqual(client.calls[2].filters, [["in", "student_id", [studentId, childId]]]);
+});
+
+test("parent attendance excludes disabled and role-revoked learners before querying history", async () => {
+  const client = attendanceClient({
+    guardian_links: { data: [
+      { student_id: studentId, profiles: { status: "active" } },
+      { student_id: childId, profiles: null },
+      { student_id: revokedChildId, profiles: [{ status: "active" }] },
+    ], error: null },
+    account_roles: { data: [{ user_id: studentId }], error: null },
+    session_attendance: { data: records, error: null },
+  });
+
+  assert.deepEqual(await loadAttendanceData(client, { role: "parent", userId: teacherId, now }), {
+    state: "ready",
+    records,
+  });
+  assert.deepEqual(client.calls.map(({ table }) => table), ["guardian_links", "account_roles", "session_attendance"]);
+  assert.deepEqual(client.calls[1].filters, [["in", "user_id", [studentId, revokedChildId]], ["eq", "role_code", "student"]]);
+  assert.deepEqual(client.calls[2].filters, [["in", "student_id", [studentId]]]);
 });
 
 test("attendance accepts real UUID identifiers and rejects fixture identifiers", () => {

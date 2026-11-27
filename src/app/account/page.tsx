@@ -28,6 +28,7 @@ const messages: Record<string, string> = {
   saved: "تم حفظ إعداد المعاينة.",
   deleted: "تم حذف الحساب.",
   "delete-failed": "تعذّر حذف الحساب. حساب المالك محمي، والحسابات المرتبط بها سجلات ممكن تحتاج معالجة الروابط أولًا.",
+  "signout-failed": "تعذّر تسجيل الخروج. الجلسة ما زالت ممكنة؛ جرّب مرة تانية أو أغلق المتصفح.",
 };
 
 export const metadata = { title: "حساب LiveSchool" };

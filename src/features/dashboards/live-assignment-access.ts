@@ -18,12 +18,26 @@ export async function assignmentScope(client: NonNullable<ReturnType<typeof owne
     ])];
     return { ids, students: null, error: !!(owned.error || groups.error) };
   }
-  const guardians = role === "parent" ? await client.from("guardian_links")
-    .select("student_id,profiles!guardian_links_student_id_fkey(status)")
-    .eq("guardian_id", userId).eq("profiles.status", "active") : null;
-  const students = role === "student" ? [userId] : guardians?.data?.map(({ student_id }) => student_id) ?? [];
+  let students = role === "student" ? [userId] : [];
+  let scopeError = false;
+  if (role === "parent") {
+    const guardians = await client.from("guardian_links")
+      .select("student_id,profiles!inner(status)")
+      .eq("guardian_id", userId).eq("profiles.status", "active");
+    scopeError = !!guardians.error;
+    students = [...new Set((guardians.data ?? [])
+      .filter(({ profiles }) => (Array.isArray(profiles) ? profiles[0] : profiles)?.status === "active")
+      .map(({ student_id }) => student_id))];
+    if (students.length) {
+      const roles = await client.from("account_roles").select("user_id")
+        .in("user_id", students).eq("role_code", "student");
+      scopeError = scopeError || !!roles.error;
+      const currentStudents = new Set((roles.data ?? []).map(({ user_id }) => user_id));
+      students = students.filter((studentId) => currentStudents.has(studentId));
+    }
+  }
   const result = students.length ? await client.from("course_enrollments")
     .select("course_id,courses!inner(status)").in("student_id", students)
     .eq("status", "active").eq("courses.status", "published") : null;
-  return { ids: [...new Set(result?.data?.map(({ course_id }) => course_id) ?? [])], students, error: !!(result?.error || guardians?.error) };
+  return { ids: [...new Set(result?.data?.map(({ course_id }) => course_id) ?? [])], students, error: scopeError || !!result?.error };
 }
