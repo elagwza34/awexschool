@@ -7,18 +7,22 @@ import type { RequestStatus } from "./staff-data";
 const uuid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const failure = "تعذّر حفظ التحديث. راجع صلاحية الطلب وحالته.";
 
-async function mutate(id: string, action: string, value: string | null, manager: string | null = null) {
+async function mutate(
+  id: string, action: string, value: string | null, manager: string | null = null,
+  role: "customer_service" | "support" = "customer_service",
+) {
   const account = await getAccount();
-  if (!account?.roles.includes("customer_service") || !uuid.test(id)) return failure;
+  if (!account?.roles.includes(role) || !uuid.test(id)) return failure;
   const client = await sessionClient(true);
   if (!client) return failure;
   const result = await client.rpc("update_assigned_service_request", {
     p_request: id, p_action: action, p_value: value, p_manager: manager,
   });
   if (result.error || result.data !== true) return failure;
-  revalidatePath("/customer-service");
-  revalidatePath("/customer-service/requests");
-  revalidatePath("/customer-service/activity");
+  const path = role === "support" ? "/support" : "/customer-service";
+  revalidatePath(path);
+  revalidatePath(`${path}/requests`);
+  revalidatePath(`${path}/activity`);
 }
 
 export async function updateCustomerRequest(id: string, status: RequestStatus) {
@@ -34,4 +38,14 @@ export async function replyToCustomerRequest(id: string, body: string) {
 export async function escalateCustomerRequest(id: string, manager: string) {
   if (!uuid.test(manager)) return failure;
   return mutate(id, "escalate", null, manager);
+}
+
+export async function updateTechnicalRequest(id: string, status: RequestStatus) {
+  if (status !== "in-progress" && status !== "resolved") return failure;
+  return mutate(id, "status", status, null, "support");
+}
+
+export async function replyToTechnicalRequest(id: string, body: string) {
+  if (typeof body !== "string" || body.trim().length < 3 || body.length > 2000) return failure;
+  return mutate(id, "reply", body.trim(), null, "support");
 }

@@ -29,23 +29,26 @@ export function StaffWorkspace({
 }
 
 export function StaffWorkspaceView({
-  role, section, members, requests, activity, updateRequest, replyToRequest, escalateRequest, managers = [],
+  role, section, members, requests, activity, updateRequest, replyToRequest, escalateRequest, managers = [], persisted = false,
 }: {
   role: StaffRole | "customer-service";
   section: "overview" | "requests" | "team" | "activity";
   members: StaffMember[];
   requests: StaffRequest[];
   activity: string[];
-  updateRequest: (id: string, status: RequestStatus) => void | Promise<string | undefined>;
-  replyToRequest: (id: string, reply: string) => string | undefined | Promise<string | undefined>;
+  updateRequest?: (id: string, status: RequestStatus) => void | Promise<string | undefined>;
+  replyToRequest?: (id: string, reply: string) => string | undefined | Promise<string | undefined>;
   escalateRequest?: (id: string, manager: string) => Promise<string | undefined>;
   managers?: { id: string; name: string }[];
+  persisted?: boolean;
 }) {
-  const live = role === "customer-service";
+  const live = persisted;
   const [replyFeedback, setReplyFeedback] = useState<{ id: string; error?: string }>();
   const [filter, setFilter] = useState("all"),
     [query, setQuery] = useState("");
-  const definition = live ? { label: "خدمة العملاء", description: "تابع الطلبات المسندة إليك ورد على العملاء." }
+  const definition = role === "customer-service" ? { label: "خدمة العملاء", description: "تابع الطلبات المسندة إليك ورد على العملاء." }
+    : live && role === "manager" ? { label: "مدير", description: "تابع الطلبات المصعّدة إليك." }
+    : live && role === "support" ? { label: "دعم فني", description: "تابع طلبات الدعم الفني المسندة إليك." }
     : staffRoles.find((item) => item.id === role)!;
   const visible = requests.filter(
     (item) =>
@@ -126,7 +129,7 @@ export function StaffWorkspaceView({
           }
           subtitle={
             role === "manager"
-              ? "متابعة فقط؛ تحديث الحالة من لوحة الدعم الفني."
+              ? live ? "الطلبات المصعّدة إليك وردود الفريق." : "متابعة فقط؛ تحديث الحالة من لوحة الدعم الفني."
               : live ? "حدّث الحالة أو أضف ردًا على الطلب." : "حدّث الحالة أو أضف ردًا يظهر لصاحب الطلب في المعاينة."
           }
         >
@@ -195,7 +198,7 @@ export function StaffWorkspaceView({
                       className="field sm:max-w-xs"
                       value={item.status}
                       onChange={async (event) => {
-                        const error = await updateRequest(item.id, event.target.value as RequestStatus);
+                        const error = await updateRequest?.(item.id, event.target.value as RequestStatus);
                         if (live) setReplyFeedback({ id: item.id, error: error || undefined });
                       }}
                     >
@@ -212,7 +215,7 @@ export function StaffWorkspaceView({
                   </div>
                 )}
                 <RequestReplies replies={item.replies} />
-                {(role === "support" || (live && item.status !== "resolved")) && (
+                {replyToRequest && (!live || item.status !== "resolved") && (
                   <form className="mt-4 grid gap-2" onSubmit={async (event) => {
                     event.preventDefault();
                     const form = event.currentTarget;

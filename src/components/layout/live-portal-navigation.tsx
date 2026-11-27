@@ -19,7 +19,7 @@ export function LivePortalNavigation({ name, roles, accountRole }: { name: strin
   const segment = pathname.split("/")[1];
   const activeRole = adminWorkspace ? "admin" : accountRole ?? (segment === "customer-service" ? "customer_service" : segment);
   const current = dashboardRoles.find(({ role }) => role === activeRole && (adminWorkspace || roles.includes(role)));
-  if (!current) return null;
+  if (!current || pathname === "/owner") return null;
 
   const sections = dashboardLinks(current.role);
   const links = adminWorkspace ? sections : [...sections, { href: `/account?portal=${current.role}`, label: "حسابي" }];

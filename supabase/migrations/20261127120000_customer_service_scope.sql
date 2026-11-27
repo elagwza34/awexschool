@@ -40,7 +40,7 @@ create index support_request_activity_request_idx on public.support_request_acti
 alter table public.support_request_activity enable row level security;
 revoke all on public.support_request_activity from public, anon, authenticated, service_role;
 grant select on public.support_request_activity to authenticated;
-grant select (id, title, details, contact_name, contact_email, status, created_at, assigned_staff_id, escalated_manager_id)
+grant select (id, title, details, contact_name, contact_email, status, created_at, service_category, assigned_staff_id, escalated_manager_id)
   on public.support_requests to authenticated;
 grant select (request_id, body, created_at) on public.support_replies to authenticated;
 

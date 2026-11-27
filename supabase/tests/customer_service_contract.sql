@@ -6,6 +6,7 @@ begin
     raise exception 'Customer Service role missing';
   end if;
   if not has_column_privilege('authenticated', 'public.support_requests', 'assigned_staff_id', 'SELECT')
+     or not has_column_privilege('authenticated', 'public.support_requests', 'service_category', 'SELECT')
      or not has_column_privilege('authenticated', 'public.support_replies', 'body', 'SELECT')
      or not has_table_privilege('authenticated', 'public.support_request_activity', 'SELECT') then
     raise exception 'Required scoped read grants missing';

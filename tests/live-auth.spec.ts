@@ -1,10 +1,10 @@
 ﻿import { expect, test } from "@playwright/test";
 
 test("the retired dashboard routes return 404 and the admin portal requires login", async ({ page, request }) => {
-  for (const path of ["/owner", "/owner/permissions", "/owner/settings"]) {
+  for (const path of ["/owner/permissions", "/owner/settings"]) {
     expect((await request.get(path)).status(), path).toBe(404);
   }
-  for (const path of ["/admin", "/admin/permissions", "/admin/settings"]) {
+  for (const path of ["/owner", "/admin", "/admin/permissions", "/admin/settings"]) {
     await page.goto(path);
     await expect(page).toHaveURL(/\/login(?:\?|$)/);
   }
