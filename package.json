@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/unit/*.test.mjs",
-    "test:qa:preview": "npm run lint && npm run typecheck && npm test && playwright test --config=playwright.preview.config.ts",
+    "test:preview:browsers": "node scripts/preview-test.mjs",
+    "test:qa:preview": "npm run lint && npm run typecheck && npm test && npm run test:preview:browsers",
     "test:qa:live": "node scripts/live-test.mjs",
     "test:e2e": "playwright test"
   },

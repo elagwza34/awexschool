@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { useState, useTransition } from "react";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { PublishedCourseCard } from "@/components/published-course-card";
 import { EmptyState } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import type { CourseTrack } from "./types";
@@ -16,7 +16,8 @@ export function CatalogBrowser({
   fixedSubject,
   fixedTrack,
   search = false,
-  results,
+  resultCount,
+  children,
   grades,
   subjects,
   unavailable,
@@ -27,7 +28,8 @@ export function CatalogBrowser({
   fixedSubject?: string;
   fixedTrack?: CourseTrack;
   search?: boolean;
-  results: { id: string; title: string; description: string | null; track: string; grade_id: string | null }[];
+  resultCount: number;
+  children: ReactNode;
   grades: { id: string; name: string }[];
   subjects: { id: string; name: string }[];
   unavailable: boolean;
@@ -56,10 +58,6 @@ export function CatalogBrowser({
         action={pathname}
         role="search"
         aria-label="البحث في المقررات"
-        onSubmit={(e) => {
-          e.preventDefault();
-          apply(query, grade, subject);
-        }}
       >
         {fixedTrack && <input type="hidden" name="track" value={fixedTrack} />}
         <div>
@@ -143,7 +141,7 @@ export function CatalogBrowser({
           aria-live="polite"
           className="min-w-0 flex-1 break-words text-sm text-muted-foreground"
         >
-          {loading ? "جاري التحميل..." : unavailable ? "تعذّر تحميل نتائج البحث" : results.length ? results.length + " مقررات" : "لا توجد نتائج"}
+          {loading ? "جاري التحميل..." : unavailable ? "تعذّر تحميل نتائج البحث" : resultCount ? resultCount + " مقررات" : "لا توجد نتائج"}
           {initialQuery && !unavailable && <> تطابق «{initialQuery}»</>}
         </p>
         {(query || grade || (!fixedSubject && subject)) && (
@@ -161,11 +159,9 @@ export function CatalogBrowser({
           </Button>
         )}
       </div>
-      {unavailable ? <p role="alert" className="soft-card p-5">تعذّر تحميل بيانات المقررات حاليًا.</p> : results.length ? (
+      {unavailable ? <p role="alert" className="soft-card p-5">تعذّر تحميل بيانات المقررات حاليًا.</p> : resultCount ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {results.map((course) => (
-            <PublishedCourseCard course={course} grade={grades.find(({ id }) => id === course.grade_id)?.name} key={course.id} />
-          ))}
+          {children}
         </div>
       ) : (
         <>

@@ -13,15 +13,18 @@ const portraitIds = new Set([
 
 export function TeacherAvatar({
   teacherId,
+  portraitPath,
   fallback,
   className,
 }: {
   teacherId?: string;
+  portraitPath?: string | null;
   fallback?: ReactNode;
   className?: string;
 }) {
-  const hasPortrait = teacherId && portraitIds.has(teacherId);
-  if (!hasPortrait && !fallback) return null;
+  const src = portraitPath && /^\/teachers\/[a-z0-9-]+\.webp$/.test(portraitPath)
+    ? portraitPath : teacherId && portraitIds.has(teacherId) ? `/teachers/${teacherId}.webp` : null;
+  if (!src && !fallback) return null;
 
   return (
     <span
@@ -31,9 +34,9 @@ export function TeacherAvatar({
         className,
       )}
     >
-      {hasPortrait ? (
+      {src ? (
         <Image
-          src={`/teachers/${teacherId}.webp`}
+          src={src}
           alt=""
           fill
           unoptimized

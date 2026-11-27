@@ -3,19 +3,25 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, SlidersHorizontal } from "lucide-react";
-import { grades, stages } from "@/features/catalog/mock-data";
+import { grades as previewGrades, stages as previewStages } from "@/features/catalog/mock-data";
 import { Button } from "@/components/ui/button";
 
-export function GradeFinder() {
-  const [stage, setStage] = useState("preparatory");
-  const [grade, setGrade] = useState("preparatory-1");
+type Option = { id: string; name: string };
+
+export function GradeFinder({ stages = previewStages, grades = previewGrades }: {
+  stages?: Option[];
+  grades?: (Option & { stageId: string })[];
+}) {
+  const initialStage = stages.find(({ id }) => id === "preparatory")?.id ?? stages[0]?.id ?? "";
+  const [stage, setStage] = useState(initialStage);
+  const [grade, setGrade] = useState(grades.find(({ stageId }) => stageId === initialStage)?.id ?? "");
   const router = useRouter();
   return (
     <form
       className="soft-card relative z-10 grid items-end gap-3 p-4 shadow-none md:grid-cols-[1.2fr_1fr_1fr_auto] md:p-4"
       onSubmit={(event) => {
         event.preventDefault();
-        router.push(`/grades/${grade}`);
+        if (grade) router.push(`/grades/${encodeURIComponent(grade)}`);
       }}
     >
       <div className="flex items-center gap-3 self-center">
@@ -42,7 +48,7 @@ export function GradeFinder() {
           value={stage}
           onChange={(event) => {
             setStage(event.target.value);
-            setGrade(`${event.target.value}-1`);
+            setGrade(grades.find(({ stageId }) => stageId === event.target.value)?.id ?? "");
           }}
         >
           {stages.map((s) => (
@@ -74,7 +80,7 @@ export function GradeFinder() {
             ))}
         </select>
       </div>
-      <Button type="submit" className="min-h-11">
+      <Button type="submit" disabled={!grade} className="min-h-11">
         اكتشف مقرراتك
         <ArrowLeft aria-hidden="true" />
       </Button>

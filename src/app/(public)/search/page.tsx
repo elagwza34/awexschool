@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Breadcrumbs, PageIntro } from "@/components/shared";
+import { LiveCatalogCourseCard } from "@/features/catalog/live-catalog-card";
 import { filterPublishedCatalog } from "@/features/catalog/catalog-data";
 import { listCatalogOptions, listPublishedCourses } from "@/features/catalog/live-catalog";
 import { CatalogBrowser } from "@/features/catalog/catalog-browser";
@@ -18,6 +19,7 @@ export default async function SearchPage({
   const filters = parseCatalogQuery(params);
   const { q, grade, subject, track } = filters;
   const unavailable = courses.state === "error" || options.state === "error";
+  const results = courses.state === "ready" ? filterPublishedCatalog(courses.data, filters) : [];
   return (
     <div className="container-shell py-6 md:py-8">
       <Breadcrumbs items={[{ label: "البحث" }]} />
@@ -27,7 +29,7 @@ export default async function SearchPage({
       />
       <CatalogBrowser
         search
-        results={courses.state === "ready" ? filterPublishedCatalog(courses.data, filters) : []}
+        resultCount={results.length}
         grades={options.state === "ready" ? options.data.grades : []}
         subjects={options.state === "ready" ? options.data.subjects : []}
         unavailable={unavailable}
@@ -36,7 +38,9 @@ export default async function SearchPage({
         initialQuery={q}
         initialGrade={grade}
         initialSubject={subject}
-      />
+      >
+        {results.map((course) => <LiveCatalogCourseCard key={course.id} course={course} />)}
+      </CatalogBrowser>
     </div>
   );
 }

@@ -61,6 +61,19 @@ export function filterPublishedCatalog<T extends SearchableCourse>(
 
 export const catalogFields = "id,title,description,track,grade_id,subject_id,grades(name),subjects(name),teacher_profiles(user_id,full_name,portrait_path)";
 
+export function catalogCardDetails(course: {
+  grades?: { name: string } | { name: string }[] | null;
+  subjects?: { name: string } | { name: string }[] | null;
+  teacher_profiles?: { user_id: string; full_name: string; portrait_path: string | null } |
+    { user_id: string; full_name: string; portrait_path: string | null }[] | null;
+}) {
+  return {
+    subjectName: singleRelation(course.subjects)?.name,
+    gradeName: singleRelation(course.grades)?.name,
+    teacher: singleRelation(course.teacher_profiles),
+  };
+}
+
 export async function loadCatalogOptions(client: SupabaseClient | null) {
   if (!client) return configurationFailure();
   const [grades, subjects] = await Promise.all([

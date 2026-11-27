@@ -292,3 +292,17 @@ test("published catalog search matches a course, subject, or teacher within sele
   assert.deepEqual(catalogData.filterPublishedCatalog(courses, { q: "MATHEMATICS", grade: "", subject: "math", track: "languages" }).map(({ id }) => id), ["b"]);
   assert.deepEqual(catalogData.filterPublishedCatalog(courses, { q: "Algebra", grade: "grade-2", subject: "" }), []);
 });
+
+test("catalog card maps real nested relations and preserves missing metadata", () => {
+  const course = {
+    id: "course-1", title: "Algebra", track: "arabic", grade_id: "grade-1", subject_id: "math",
+    grades: [{ name: "Grade 1" }], subjects: { name: "Mathematics" },
+    teacher_profiles: [{ user_id: "teacher-1", full_name: "Mona Ali", portrait_path: "/teachers/mona.webp" }],
+  };
+  assert.deepEqual(catalogData.catalogCardDetails(course), {
+    subjectName: "Mathematics", gradeName: "Grade 1", teacher: course.teacher_profiles[0],
+  });
+  assert.deepEqual(catalogData.catalogCardDetails({}), {
+    subjectName: undefined, gradeName: undefined, teacher: null,
+  });
+});
