@@ -16,8 +16,8 @@ export async function MyCourses({ role, overview = false }: { role: "student" | 
 
   try {
     const [r, c] = await Promise.all([getCourseEnrollments(), listPublishedCourses()]);
-    requests = r;
-    courses = c;
+    requests = r.state === "ready" ? r.data : [];
+    courses = c.state === "ready" ? c.data : [];
   } catch {
     requests = getMockEnrollments();
     courses = getMockCourses();

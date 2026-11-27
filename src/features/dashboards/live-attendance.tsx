@@ -76,8 +76,10 @@ export async function LiveAttendance({ role, searchParams }: {
           </section>
         </div>
       );
-    } else {
-      const links = role === "parent" ? await client.from("guardian_links").select("student_id").eq("guardian_id", account.user.id) : null;
+    }
+  }
+  } else {
+    const links = role === "parent" ? await client.from("guardian_links").select("student_id").eq("guardian_id", account.user.id) : null;
       const studentIds = role === "student" ? [account.user.id] : links?.data?.map(({ student_id }) => student_id) ?? [];
       const result = studentIds.length ? await client.from("session_attendance")
         .select("session_id,student_id,status,class_sessions(title,starts_at),profiles(display_name)")
@@ -95,7 +97,6 @@ export async function LiveAttendance({ role, searchParams }: {
           })}
         </ul>
       ) : <p className="soft-card p-4">مفيش سجلات حضور متاحة حاليًا.</p>;
-    }
   }
   return <main id="main-content" className="dashboard-width space-y-4 py-5">
     <h1 className="text-2xl font-bold">الحضور والغياب</h1>{body}
