@@ -9,6 +9,14 @@ test("the original pricing disclosure opens and closes", async ({ page }) => {
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
+test("unconfigured hierarchy routes show errors instead of fixture records", async ({ page }) => {
+  for (const path of ["/stages", "/stages/preparatory", "/grades/preparatory-1", "/subjects", "/subjects/math"]) {
+    const response = await page.goto(path);
+    expect(response?.status()).toBe(200);
+    await expect(page.getByRole("main").getByRole("alert")).toBeVisible();
+  }
+});
+
 test("the original catalog search route preserves filters and distinguishes unavailable data", async ({ page }) => {
   await page.goto("/search?q=math");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");

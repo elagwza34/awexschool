@@ -10,4 +10,6 @@ The preview runner now builds with the scrubbed environment before Playwright st
 
 The final local production build also loaded a real published search result, the homepage grade finder and pricing against the public Supabase connection in Chromium at 1440 px, Firefox at 768 px and WebKit at 390 px. Guest verification of the protected Customer Service requests URL redirected to login in all three browsers. Build, ESLint and the full unit suite passed on the combined changes.
 
+The subsequent hierarchy integration passed the same build, lint and unit checks. The preview suite passed nine focused tests across the three browser engines. A separate read-only browser smoke passed the Stage → Grade → Published Course and Subject → Published Course journeys, including unknown subject handling, against real Supabase data at those viewport sizes.
+
 The Customer Service SQL passed the contract check and a synthetic PostgreSQL scenario covering own-profile visibility, ticket assignment, separation from technical support, reply persistence, manager escalation, status, activity and inactive-account exclusion. Windows reported a file lock while deleting that temporary cluster after the assertions. A full Supabase Auth/PostgREST fixture rehearsal for the new staff screens is pending. Production received read-only queries.

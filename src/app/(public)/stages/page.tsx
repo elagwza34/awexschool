@@ -4,7 +4,8 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Breadcrumbs, PageIntro } from "@/components/shared";
 import { StageCard } from "@/components/catalog-cards";
-import { stages } from "@/features/catalog/mock-data";
+import { listEducationHierarchy } from "@/features/catalog/live-catalog";
+import { stagePresentation } from "@/features/catalog/catalog-presentation";
 
 export const metadata: Metadata = { title: "المراحل الدراسية" };
 
@@ -15,7 +16,9 @@ const stageImages = {
   secondary: "/school-home/img/teen-800.webp",
 };
 
-export default function StagesPage() {
+export default async function StagesPage() {
+  const hierarchy = await listEducationHierarchy();
+  const stages = hierarchy.state === "ready" ? hierarchy.data.stages : [];
   return (
     <div className="container-shell py-6 md:py-8">
       <Breadcrumbs items={[{ label: "المراحل الدراسية" }]} />
@@ -24,9 +27,11 @@ export default function StagesPage() {
         title="اختار مرحلتك، وابدأ رحلتك"
         description="استكشف السنوات الدراسية من الحضانة لحد الثانوية العامة."
       />
+      {hierarchy.state === "error" && <p role="alert" className="soft-card mb-5 p-4">تعذّر تحميل البيانات حاليًا.</p>}
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stages.map((stage) => (
-          <StageCard key={stage.id} stage={stage} image={stageImages[stage.id]} />
+          <StageCard key={stage.id} stage={stagePresentation(stage)} image={stageImages[stage.id as keyof typeof stageImages]}
+            gradeCount={hierarchy.state === "ready" ? hierarchy.data.grades.filter(({ stage_id }) => stage_id === stage.id).length : 0} />
         ))}
       </div>
       <Link

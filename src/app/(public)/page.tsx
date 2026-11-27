@@ -19,8 +19,8 @@ import {
   SubjectCard,
 } from "@/components/catalog-cards";
 import { LiveCatalogCourseCard } from "@/features/catalog/live-catalog-card";
-import { listEducationHierarchy, listPublicTeacherCards, listPublishedCourses } from "@/features/catalog/live-catalog";
-import { stages as stageArtwork, getSubject } from "@/features/catalog/mock-data";
+import { listEducationHierarchy, listPublicTeacherCards, listPublishedCourses, teacherPresentation } from "@/features/catalog/live-catalog";
+import { stagePresentation, subjectPresentation } from "@/features/catalog/catalog-presentation";
 import { GradeFinder } from "@/features/home/grade-finder";
 import { ReferenceHome } from "@/features/home/reference-home";
 import { TeachersCarousel } from "@/features/home/teachers-carousel";
@@ -31,15 +31,7 @@ export default async function HomePage() {
   ]);
   const { stages, grades, subjects } = hierarchy.state === "ready" ? hierarchy.data : { stages: [], grades: [], subjects: [] };
   const courses = catalog.state === "ready" ? catalog.data : [];
-  const teachers = directory.state === "ready" ? directory.data.map((teacher) => ({
-    id: teacher.user_id,
-    name: teacher.full_name,
-    initials: teacher.full_name.trim().split(/\s+/).slice(0, 2).map((word) => word[0]).join(" "),
-    title: teacher.qualification ?? "",
-    bio: teacher.bio ?? "",
-    experience: teacher.experience_years,
-    portraitPath: teacher.portrait_path,
-  })) : [];
+  const teachers = directory.state === "ready" ? directory.data.map(teacherPresentation) : [];
   return (
     <>
       <ReferenceHome />
@@ -119,8 +111,7 @@ export default async function HomePage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {stages.map((stage) => (
               <StageCard
-                stage={{ ...stage, tone: stageArtwork.find(({ id }) => id === stage.id)?.tone ?? "mint",
-                  description: stageArtwork.find(({ id }) => id === stage.id)?.description ?? "" }}
+                stage={stagePresentation(stage)}
                 gradeCount={grades.filter(({ stage_id }) => stage_id === stage.id).length}
                 key={stage.id}
               />
@@ -137,12 +128,7 @@ export default async function HomePage() {
             />
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {subjects.map((subject) => (
-                <SubjectCard key={subject.id} subject={{
-                  ...subject,
-                  tone: getSubject(subject.id)?.tone ?? "mint",
-                  symbol: getSubject(subject.id)?.symbol ?? subject.name.charAt(0),
-                  description: getSubject(subject.id)?.description ?? "",
-                }} />
+                <SubjectCard key={subject.id} subject={subjectPresentation(subject)} />
               ))}
             </div>
           </div>

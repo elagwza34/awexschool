@@ -27,6 +27,7 @@ export const listEducationHierarchy = cache(async () => {
 
 type PublicTeacher = {
   user_id: string;
+  subject_id: string;
   full_name: string;
   qualification: string | null;
   bio: string | null;
@@ -38,7 +39,19 @@ export const listPublicTeacherCards = cache(async () => {
   const client = await sessionClient();
   if (!client) return configurationFailure();
   const { data, error } = await client.from("teacher_profiles")
-    .select("user_id,full_name,qualification,bio,experience_years,portrait_path").order("full_name")
+    .select("user_id,subject_id,full_name,qualification,bio,experience_years,portrait_path").order("full_name")
     .overrideTypes<PublicTeacher[], { merge: false }>();
   return error ? dataFailure(error) : dataReady(data ?? []);
 });
+
+export function teacherPresentation(teacher: PublicTeacher) {
+  return {
+    id: teacher.user_id,
+    name: teacher.full_name,
+    initials: teacher.full_name.trim().split(/\s+/).slice(0, 2).map((word) => word[0]).join(" "),
+    title: teacher.qualification ?? "",
+    bio: teacher.bio ?? "",
+    experience: teacher.experience_years,
+    portraitPath: teacher.portrait_path,
+  };
+}
