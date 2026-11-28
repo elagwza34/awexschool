@@ -16,7 +16,7 @@ test("normal application responses receive a centralized security header policy"
   assert.match(headers["content-security-policy"], /base-uri 'self'/);
   assert.equal(headers["x-content-type-options"], "nosniff");
   assert.equal(headers["x-frame-options"], "DENY");
-  assert.equal(headers["referrer-policy"], "no-referrer");
+  assert.equal(headers["referrer-policy"], "same-origin");
   assert.match(headers["strict-transport-security"], /max-age=31536000/);
   assert.match(headers["permissions-policy"], /camera=\(\)/);
 });

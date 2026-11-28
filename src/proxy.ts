@@ -232,13 +232,17 @@ async function continueRequest(request: NextRequest, verification: SessionVerifi
   return { response, authenticated: Boolean(user), roles };
 }
 
-async function continueRoutedRequest(request: NextRequest, pathname: string) {
+async function continueRoutedRequest(
+  request: NextRequest,
+  pathname: string,
+  verifiedAccess?: Awaited<ReturnType<typeof continueRequest>>,
+) {
   if (pathname === "/student/profile") {
-    const access = await continueRequest(request);
+    const access = verifiedAccess ?? await continueRequest(request);
     return redirectWithCookies(request, "/account?portal=student", access.response);
   }
   if (portalPath.test(pathname) && !liveDashboardPaths.has(pathname)) {
-    const access = await continueRequest(request);
+    const access = verifiedAccess ?? await continueRequest(request);
     const destination = new URL("/account", request.url);
     destination.searchParams.set("message", "section-unavailable");
     destination.searchParams.set("portal", pathname.split("/")[1]);
@@ -250,7 +254,7 @@ async function continueRoutedRequest(request: NextRequest, pathname: string) {
     return destination ? redirectWithCookies(request, destination, access.response) : access.response;
   }
   if (globalLockExemptPaths.has(pathname)) return (await continueRequest(request)).response;
-  const access = await continueRequest(request, sessionVerificationMode(pathname));
+  const access = verifiedAccess ?? await continueRequest(request, sessionVerificationMode(pathname));
   const destination = routeAccessRedirect(pathname, access);
   return destination ? redirectWithCookies(request, destination, access.response) : access.response;
 }
@@ -301,10 +305,7 @@ export async function proxy(request: NextRequest) {
       const access = await continueRequest(request, sessionVerificationMode(pathname));
       if (access.authenticated) {
         globalAuthorized = true;
-        if (pathAuthorized) {
-          const destination = routeAccessRedirect(pathname, access);
-          return destination ? redirectWithCookies(request, destination, access.response) : access.response;
-        }
+        if (pathAuthorized) return continueRoutedRequest(request, pathname, access);
       }
     }
 

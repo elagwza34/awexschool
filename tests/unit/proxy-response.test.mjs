@@ -156,6 +156,11 @@ test("a global lock admits authenticated portals without bypassing role checks",
     const student = await proxy(new NextRequest("https://liveschool.test/student"));
     assert.equal(student.status, 200);
 
+    const restricted = await proxy(new NextRequest("https://liveschool.test/student/subscriptions"));
+    assert.equal(restricted.status, 307);
+    assert.equal(restricted.headers.get("location"), "https://liveschool.test/account?message=section-unavailable&portal=student");
+
+
     const deniedAdmin = await proxy(new NextRequest("https://liveschool.test/admin"));
     assert.equal(deniedAdmin.status, 307);
     assert.equal(deniedAdmin.headers.get("location"), "https://liveschool.test/?message=denied");

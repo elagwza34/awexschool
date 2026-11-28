@@ -84,3 +84,19 @@ test("the old student profile link redirects to the merged account", async ({ re
   expect(destination.pathname).toBe("/account");
   expect(destination.searchParams.get("portal")).toBe("student");
 });
+
+
+test("native login submits with the same-origin server action policy", async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false, baseURL,
+    ignoreHTTPSErrors: baseURL?.startsWith("https://127.0.0.1:") });
+  try {
+    const page = await context.newPage();
+    await page.goto("/login");
+    await page.locator('input[name="email"]').fill("native-login@example.test");
+    await page.locator('input[name="password"]').fill("local-test-password");
+    await page.locator('form button[type="submit"]').click();
+    await expect(page).toHaveURL(/\/login\?message=unavailable/);
+  } finally {
+    await context.close();
+  }
+});
