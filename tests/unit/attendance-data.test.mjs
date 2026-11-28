@@ -19,7 +19,6 @@ const {
 const teacherId = "11111111-1111-4111-8111-111111111111";
 const studentId = "22222222-2222-4222-8222-222222222222";
 const childId = "33333333-3333-4333-8333-333333333333";
-const revokedChildId = "88888888-8888-4888-8888-888888888888";
 const sessionId = "44444444-4444-4444-8444-444444444444";
 const otherSessionId = "55555555-5555-4555-8555-555555555555";
 const groupId = "66666666-6666-4666-8666-666666666666";
@@ -203,21 +202,17 @@ test("parent attendance scopes records to active linked learners with current st
     state: "ready",
     records,
   });
-  assert.deepEqual(client.calls.map(({ table }) => table), ["guardian_links", "account_roles", "session_attendance"]);
-  assert.equal(client.calls[0].selection, "student_id,profiles!guardian_links_student_id_fkey!inner(status)");
-  assert.deepEqual(client.calls[0].filters, [["eq", "guardian_id", teacherId], ["eq", "profiles.status", "active"]]);
-  assert.deepEqual(client.calls[1].filters, [["in", "user_id", [studentId, childId]], ["eq", "role_code", "student"]]);
-  assert.deepEqual(client.calls[2].filters, [["in", "student_id", [studentId, childId]]]);
+  assert.deepEqual(client.calls.map(({ table }) => table), ["guardian_links", "session_attendance"]);
+  assert.equal(client.calls[0].selection, "student_id");
+  assert.deepEqual(client.calls[0].filters, [["eq", "guardian_id", teacherId]]);
+  assert.deepEqual(client.calls[1].filters, [["in", "student_id", [studentId, childId]]]);
 });
 
-test("parent attendance excludes disabled and role-revoked learners before querying history", async () => {
+test("parent attendance queries history only for the learners visible under guardian RLS", async () => {
   const client = attendanceClient({
     guardian_links: { data: [
-      { student_id: studentId, profiles: { status: "active" } },
-      { student_id: childId, profiles: null },
-      { student_id: revokedChildId, profiles: [{ status: "active" }] },
+      { student_id: studentId },
     ], error: null },
-    account_roles: { data: [{ user_id: studentId }], error: null },
     session_attendance: { data: records, error: null },
   });
 
@@ -225,9 +220,8 @@ test("parent attendance excludes disabled and role-revoked learners before query
     state: "ready",
     records,
   });
-  assert.deepEqual(client.calls.map(({ table }) => table), ["guardian_links", "account_roles", "session_attendance"]);
-  assert.deepEqual(client.calls[1].filters, [["in", "user_id", [studentId, revokedChildId]], ["eq", "role_code", "student"]]);
-  assert.deepEqual(client.calls[2].filters, [["in", "student_id", [studentId]]]);
+  assert.deepEqual(client.calls.map(({ table }) => table), ["guardian_links", "session_attendance"]);
+  assert.deepEqual(client.calls[1].filters, [["in", "student_id", [studentId]]]);
 });
 
 test("attendance accepts real UUID identifiers and rejects fixture identifiers", () => {

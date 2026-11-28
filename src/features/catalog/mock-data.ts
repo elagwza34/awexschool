@@ -29,7 +29,16 @@ export const stages: Stage[] = [
     tone: "lilac",
   },
 ];
-const ordinals = ["الأول", "الثاني", "الثالث", "الرابع", "الخامس", "السادس"];
+
+const ordinals = [
+  "الأول",
+  "الثاني",
+  "الثالث",
+  "الرابع",
+  "الخامس",
+  "السادس",
+];
+
 export const grades: Grade[] = stages.flatMap((stage) =>
   stage.id === "kindergarten"
     ? ["KG1", "KG2"].map((name, index) => ({
@@ -37,12 +46,22 @@ export const grades: Grade[] = stages.flatMap((stage) =>
         stageId: stage.id,
         name,
       }))
-    : Array.from({ length: stage.id === "primary" ? 6 : 3 }, (_, i) => ({
-        id: `${stage.id}-${i + 1}`,
-        stageId: stage.id,
-        name: `الصف ${ordinals[i]} ${stage.id === "primary" ? "الابتدائي" : stage.id === "preparatory" ? "الإعدادي" : "الثانوي"}`,
-      })),
+    : Array.from(
+        { length: stage.id === "primary" ? 6 : 3 },
+        (_, i) => ({
+          id: `${stage.id}-${i + 1}`,
+          stageId: stage.id,
+          name: `الصف ${ordinals[i]} ${
+            stage.id === "primary"
+              ? "الابتدائي"
+              : stage.id === "preparatory"
+                ? "الإعدادي"
+                : "الثانوي"
+          }`,
+        })
+      )
 );
+
 export const subjects: Subject[] = [
   {
     id: "math",
@@ -87,6 +106,7 @@ export const subjects: Subject[] = [
     tone: "peach",
   },
 ];
+
 export const teachers: Teacher[] = [
   {
     id: "ahmed-hassan",
@@ -150,48 +170,78 @@ export const teachers: Teacher[] = [
   },
 ];
 
-function makeUnits(courseId: string, subject: Subject): Unit[] {
+function makeUnits(
+  courseId: string,
+  subject: Subject
+): Unit[] {
   const topics: Record<string, string[]> = {
     math: [
       "الأعداد والعمليات عليها",
       "التعبيرات والعلاقات الجبرية",
       "الهندسة والقياس",
     ],
-    arabic: ["القراءة وبناء المعنى", "القواعد والتراكيب", "التعبير والكتابة"],
-    science: ["المادة من حولنا", "الطاقة والحياة", "البيئة والتوازن"],
+    arabic: [
+      "القراءة وبناء المعنى",
+      "القواعد والتراكيب",
+      "التعبير والكتابة",
+    ],
+    science: [
+      "المادة من حولنا",
+      "الطاقة والحياة",
+      "البيئة والتوازن",
+    ],
     english: [
       "Everyday connections",
       "Stories and ideas",
       "Language in action",
     ],
-    physics: ["الكميات والقياس", "الحركة والقوى", "الشغل والطاقة"],
+    physics: [
+      "الكميات والقياس",
+      "الحركة والقوى",
+      "الشغل والطاقة",
+    ],
     history: [
       "قراءة المصادر التاريخية",
       "حضارات تركت أثرًا",
       "التغيير عبر الزمن",
     ],
   };
+
   const courseTopics =
     courseId === "math-primary-4"
-      ? ["الأعداد والقيمة المكانية", "العمليات على الأعداد", "الهندسة والقياس"]
+      ? [
+          "الأعداد والقيمة المكانية",
+          "العمليات على الأعداد",
+          "الهندسة والقياس",
+        ]
       : topics[subject.id];
+
   return courseTopics.map((title, i) => ({
     id: `${courseId}-u${i + 1}`,
     title,
+
     lessons: [
       {
         id: `${courseId}-u${i + 1}-l1`,
+
         title:
           i === 0 && subject.id === "math"
             ? courseId === "math-primary-4"
               ? "القيمة المكانية: لكل رقم مكان"
               : "الأعداد النسبية: الفكرة ببساطة"
             : `مدخل إلى ${title}`,
+
         minutes: 18 + i * 3,
+
         preview: i === 0,
+
         previewSteps:
-          i === 0 ? getPreviewSteps(courseId, subject.id) : undefined,
+          i === 0
+            ? getPreviewSteps(courseId, subject.id)
+            : undefined,
+
         summary: `نستكشف ${title} من خلال شرح تدريجي وأمثلة مرتبطة بالحياة اليومية. هذا محتوى تعليمي توضيحي لعرض الواجهة، وليس اعتمادًا رسميًا للمنهج.`,
+
         objectives: [
           "تحديد الفكرة الأساسية وشرحها بكلماتك",
           "ربط المفهوم بمثال من الحياة اليومية",
@@ -204,7 +254,10 @@ function makeUnits(courseId: string, subject: Subject): Unit[] {
         minutes: 24,
         preview: false,
         summary: "نرتب خطوات الحل ونناقش الأخطاء الشائعة.",
-        objectives: ["ترتيب خطوات التفكير", "مراجعة الحل وتفسير النتيجة"],
+        objectives: [
+          "ترتيب خطوات التفكير",
+          "مراجعة الحل وتفسير النتيجة",
+        ],
       },
       {
         id: `${courseId}-u${i + 1}-l3`,
@@ -212,7 +265,10 @@ function makeUnits(courseId: string, subject: Subject): Unit[] {
         minutes: 15,
         preview: false,
         summary: "نراجع أهم أفكار الوحدة في خريطة مبسطة.",
-        objectives: ["تلخيص المفاهيم", "تحديد ما يحتاج إلى مراجعة"],
+        objectives: [
+          "تلخيص المفاهيم",
+          "تحديد ما يحتاج إلى مراجعة",
+        ],
       },
     ],
   }));
@@ -284,7 +340,10 @@ const arabicCourses: Course[] = [
     price: 279,
   },
 ].map((item) => {
-  const subject = subjects.find((s) => s.id === item.subjectId)!;
+  const subject = subjects.find(
+    (s) => s.id === item.subjectId
+  )!;
+
   return {
     ...item,
     subjectId: subject.id,
@@ -294,23 +353,52 @@ const arabicCourses: Course[] = [
   };
 });
 
-export const courses: Course[] = [...arabicCourses, ...languageCourses];
+export const courses: Course[] = [
+  ...arabicCourses,
+  ...languageCourses,
+];
 
-export const getGrade = (id: string) => grades.find((g) => g.id === id);
-export const getSubject = (id: string) => subjects.find((s) => s.id === id);
-export const getTeacher = (id: string) => teachers.find((t) => t.id === id);
-export const getTeachersForSubject = (subjectId: string) =>
-  teachers.filter((teacher) => teacher.subjectId === subjectId);
-export const getCourse = (id: string) => courses.find((c) => c.id === id);
+export const getGrade = (id: string) =>
+  grades.find((g) => g.id === id);
+
+export const getSubject = (id: string) =>
+  subjects.find((s) => s.id === id);
+
+export const getTeacher = (id: string) =>
+  teachers.find((t) => t.id === id);
+
+export const getTeachersForSubject = (
+  subjectId: string
+) =>
+  teachers.filter(
+    (teacher) => teacher.subjectId === subjectId
+  );
+
+export const getCourse = (id: string) =>
+  courses.find((c) => c.id === id);
+
 export const getLesson = (id: string) => {
-  for (const course of courses)
+  for (const course of courses) {
     for (const unit of course.units) {
-      const lesson = unit.lessons.find((l) => l.id === id);
-      if (lesson) return { course, unit, lesson };
+      const lesson = unit.lessons.find(
+        (l) => l.id === id
+      );
+
+      if (lesson) {
+        return {
+          course,
+          unit,
+          lesson,
+        };
+      }
     }
+  }
 };
 
-// Portal mock data for standalone UI without Supabase
+// ==========================================
+// PORTAL MOCK USERS
+// ==========================================
+
 export interface MockUser {
   id: string;
   name: string;
@@ -323,25 +411,94 @@ export interface MockUser {
 }
 
 export const mockUsers: MockUser[] = [
-  { id: "user-1", name: "يوسف أحمد", email: "youssef@school.com", role: "student", status: "active", avatar: "/avatars/youssef.png", createdAt: "2026-01-15" },
-  { id: "user-2", name: "أ. أحمد حسن", email: "ahmed@school.com", role: "teacher", status: "active", avatar: "/avatars/ahmed.png", createdAt: "2026-01-10" },
-  { id: "user-3", name: "أ. مريم عادل", email: "mariam@school.com", role: "teacher", status: "active", avatar: "/avatars/mariam.png", createdAt: "2026-01-12" },
-  { id: "user-4", name: "أ. عمر سالم", email: "omar@school.com", role: "teacher", status: "active", avatar: "/avatars/omar.png", createdAt: "2026-01-14" },
-  { id: "user-5", name: "سليمة علي", email: "salma@school.com", role: "student", status: "active", avatar: "/avatars/salma.png", createdAt: "2026-01-20" },
-  { id: "user-6", name: "نور إبراهيم", email: "nour@school.com", role: "student", status: "active", avatar: "/avatars/nour.png", createdAt: "2026-01-18" },
-  { id: "user-7", name: "أ. فاطمة محمد", email: "fatima@school.com", role: "parent", status: "active", avatar: "/avatars/fatima.png", createdAt: "2026-01-22" },
-  { id: "user-8", name: "المدير العام", email: "admin@school.com", role: "admin", status: "active", avatar: "/avatars/admin.png", createdAt: "2026-01-05" },
+  {
+    id: "user-1",
+    name: "يوسف أحمد",
+    email: "youssef@school.com",
+    role: "student",
+    status: "active",
+    avatar: "/avatars/youssef.png",
+    createdAt: "2026-01-15",
+  },
+  {
+    id: "user-2",
+    name: "أ. أحمد حسن",
+    email: "ahmed@school.com",
+    role: "teacher",
+    status: "active",
+    avatar: "/avatars/ahmed.png",
+    createdAt: "2026-01-10",
+  },
+  {
+    id: "user-3",
+    name: "أ. مريم عادل",
+    email: "mariam@school.com",
+    role: "teacher",
+    status: "active",
+    avatar: "/avatars/mariam.png",
+    createdAt: "2026-01-12",
+  },
+  {
+    id: "user-4",
+    name: "أ. عمر سالم",
+    email: "omar@school.com",
+    role: "teacher",
+    status: "active",
+    avatar: "/avatars/omar.png",
+    createdAt: "2026-01-14",
+  },
+  {
+    id: "user-5",
+    name: "سليمة علي",
+    email: "salma@school.com",
+    role: "student",
+    status: "active",
+    avatar: "/avatars/salma.png",
+    createdAt: "2026-01-20",
+  },
+  {
+    id: "user-6",
+    name: "نور إبراهيم",
+    email: "nour@school.com",
+    role: "student",
+    status: "active",
+    avatar: "/avatars/nour.png",
+    createdAt: "2026-01-18",
+  },
+  {
+    id: "user-7",
+    name: "أ. فاطمة محمد",
+    email: "fatima@school.com",
+    role: "parent",
+    status: "active",
+    avatar: "/avatars/fatima.png",
+    createdAt: "2026-01-22",
+  },
+  {
+    id: "user-8",
+    name: "المدير العام",
+    email: "admin@school.com",
+    role: "admin",
+    status: "active",
+    avatar: "/avatars/admin.png",
+    createdAt: "2026-01-05",
+  },
 ];
 
 export function getMockUsers(): MockUser[] {
   return mockUsers;
 }
 
-export function getUserById(id: string): MockUser | undefined {
+export function getUserById(
+  id: string
+): MockUser | undefined {
   return mockUsers.find((u) => u.id === id);
 }
 
-// Courses mock
+// ==========================================
+// PORTAL MOCK COURSES
+// ==========================================
+
 export interface MockCourse {
   id: string;
   title: string;
@@ -420,15 +577,28 @@ export function getMockCourses(): MockCourse[] {
   return mockCourses;
 }
 
-export function getCoursesByTeacher(teacherId: string): MockCourse[] {
-  return mockCourses.filter((c) => c.teacherId === teacherId);
+export function getCoursesByTeacher(
+  teacherId: string
+): MockCourse[] {
+  return mockCourses.filter(
+    (course) => course.teacherId === teacherId
+  );
 }
 
-export function getCoursesByStudent(studentId: string): MockCourse[] {
+export function getCoursesByStudent(
+  studentId: string
+): MockCourse[] {
+  // Demo-only behavior.
+  // Retain the parameter for existing callers.
+  void studentId;
+
   return mockCourses;
 }
 
-// Enrollments mock
+// ==========================================
+// PORTAL MOCK ENROLLMENTS
+// ==========================================
+
 export interface MockEnrollment {
   id: string;
   course_id: string;
@@ -438,9 +608,27 @@ export interface MockEnrollment {
 }
 
 export const mockEnrollments: MockEnrollment[] = [
-  { id: "enroll-1", course_id: "course-1", learner_name: "يوسف أحمد", status: "active", created_at: "2026-09-01" },
-  { id: "enroll-2", course_id: "course-2", learner_name: "يوسف أحمد", status: "active", created_at: "2026-09-01" },
-  { id: "enroll-3", course_id: "course-3", learner_name: "يوسف أحمد", status: "active", created_at: "2026-09-01" },
+  {
+    id: "enroll-1",
+    course_id: "course-1",
+    learner_name: "يوسف أحمد",
+    status: "active",
+    created_at: "2026-09-01",
+  },
+  {
+    id: "enroll-2",
+    course_id: "course-2",
+    learner_name: "يوسف أحمد",
+    status: "active",
+    created_at: "2026-09-01",
+  },
+  {
+    id: "enroll-3",
+    course_id: "course-3",
+    learner_name: "يوسف أحمد",
+    status: "active",
+    created_at: "2026-09-01",
+  },
 ];
 
 export function getMockEnrollments(): MockEnrollment[] {

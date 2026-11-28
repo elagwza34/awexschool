@@ -32,9 +32,9 @@ export const adminWorkspaceSections = [
 const sections: Partial<Record<DashboardRole, readonly DashboardLink[]>> = {
   manager: staffSections("manager").filter(({ id }) => id === "requests"),
   support: staffSections("support").filter(({ id }) => id !== "overview"),
-  teacher: teacherSections.filter(({ id }) => ["profile", "courses", "groups", "sessions", "finance", "schedule", "attendance", "assignments", "reviews", "chat", "admin-chat"].includes(id)),
-  parent: parentSections.filter(({ id }) => ["courses", "schedule", "attendance", "assignments", "admin-chat"].includes(id)),
-  student: studentSections.filter(({ id }) => ["courses", "schedule", "attendance", "assignments", "chat", "admin-chat"].includes(id)),
+  teacher: teacherSections.filter(({ id }) => ["profile", "courses", "groups", "sessions", "finance", "schedule", "attendance", "progress", "assignments", "reviews", "chat", "admin-chat"].includes(id)),
+  parent: parentSections.filter(({ id }) => ["courses", "schedule", "attendance", "progress", "assignments", "admin-chat"].includes(id)),
+  student: studentSections.filter(({ id }) => ["courses", "schedule", "attendance", "progress", "assignments", "chat", "admin-chat"].includes(id)),
 };
 
 export function dashboardLinks(role: DashboardRole) {

@@ -17,14 +17,30 @@ import {
   SubjectCard,
 } from "@/components/catalog-cards";
 import {
-  stages,
-  subjects,
+  grades as previewGrades,
+  stages as previewStages,
+  subjects as previewSubjects,
 } from "@/features/catalog/mock-data";
+import { listEducationHierarchy } from "@/features/catalog/live-catalog";
+import { stagePresentation, subjectPresentation } from "@/features/catalog/catalog-presentation";
+import { isPreviewFixtureEnvironment } from "@/lib/environment";
 import { GradeFinder } from "@/features/home/grade-finder";
 
 export const metadata = { title: "????? ?????????" };
 
-export default function HomeTwoPage() {
+export default async function HomeTwoPage() {
+  const hierarchy = await listEducationHierarchy();
+  const preview = hierarchy.state === "error" && isPreviewFixtureEnvironment();
+  const stages = hierarchy.state === "ready"
+    ? hierarchy.data.stages.map(stagePresentation)
+    : preview ? previewStages : [];
+  const grades = hierarchy.state === "ready"
+    ? hierarchy.data.grades.map(({ id, name, stage_id }) => ({ id, name, stageId: stage_id }))
+    : preview ? previewGrades : [];
+  const subjects = hierarchy.state === "ready"
+    ? hierarchy.data.subjects.map(subjectPresentation)
+    : preview ? previewSubjects : [];
+
   return (
     <div id="school-platform" className={styles.home}>
       <section className={styles.hero} aria-labelledby="home-title">
@@ -88,7 +104,12 @@ export default function HomeTwoPage() {
         </div>
       </section>
       <div id="find-grade" className={`container-shell ${styles.finder}`}>
-        <GradeFinder />
+        <GradeFinder stages={stages} grades={grades} />
+        {hierarchy.state === "error" && (
+          <p role={preview ? "status" : "alert"} className="mt-3 text-sm">
+            {preview ? "بيانات تجريبية للمعاينة فقط." : "تعذّر تحميل المراحل والمواد حاليًا."}
+          </p>
+        )}
       </div>
       <section className={`container-shell ${styles.section}`}>
         <SectionHeading

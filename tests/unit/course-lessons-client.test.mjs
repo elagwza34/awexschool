@@ -66,6 +66,15 @@ registerHooks({
         shortCircuit: true,
       };
     }
+    if (specifier === "@/features/catalog/lesson-progress") {
+      return nextResolve(new URL("../../src/features/catalog/lesson-progress.ts", import.meta.url).href, context);
+    }
+    if (specifier === "@/features/catalog/lesson-progress-actions") {
+      return { url: "data:text/javascript,export async function completeLesson() {}", shortCircuit: true };
+    }
+    if (specifier === "@/features/auth/form-controls") {
+      return { url: "data:text/javascript,export function AuthSubmit({ children }) { return children; }", shortCircuit: true };
+    }
     if (specifier === "@/features/catalog/live-catalog") {
       return {
         url: `data:text/javascript,export async function readPublishedCourse() {
@@ -85,7 +94,7 @@ function account(role) {
   return { roles: [role], user: { id: "22222222-2222-4222-8222-222222222222" } };
 }
 
-function reset({ currentAccount = account("student"), allowed = true, accessError = null, units = null } = {}) {
+function reset({ currentAccount = account("student"), allowed = true, accessError = null, units = null, completions = [] } = {}) {
   globalThis.__lessonAccount = currentAccount;
   globalThis.__lessonOwnerCalls = 0;
   globalThis.__lessonSessionCalls = [];
@@ -105,8 +114,12 @@ function reset({ currentAccount = account("student"), allowed = true, accessErro
       const builder = {
         select(...args) { globalThis.__lessonSelects.push([table, ...args]); return builder; },
         eq(...args) { globalThis.__lessonEvents.push(["eq", table, ...args]); return builder; },
+        limit() { return builder; },
+        maybeSingle() { return builder; },
         order(...args) { globalThis.__lessonEvents.push(["order", table, ...args]); return builder; },
         then(resolve, reject) {
+          if (table === "course_enrollments") return Promise.resolve({ data: { course_id: courseId }, error: null }).then(resolve, reject);
+          if (table === "lesson_completions") return Promise.resolve({ data: completions, error: null }).then(resolve, reject);
           return Promise.resolve(units ?? {
             data: [{
               id: unitId,
@@ -124,7 +137,7 @@ function reset({ currentAccount = account("student"), allowed = true, accessErro
 }
 
 async function renderLessons() {
-  return renderToStaticMarkup(await CourseLessons({ params: Promise.resolve({ courseId }) }));
+  return renderToStaticMarkup(await CourseLessons({ params: Promise.resolve({ courseId }), searchParams: Promise.resolve({}) }));
 }
 
 test("authorized lesson bodies use the session client only after the public RPC gate", async () => {
@@ -152,7 +165,7 @@ test("RPC denial cannot be overridden by local enrollment or a privileged-lookin
     reset({ currentAccount: account(role), allowed: false });
 
     await assert.rejects(
-      () => CourseLessons({ params: Promise.resolve({ courseId }) }),
+      () => CourseLessons({ params: Promise.resolve({ courseId }), searchParams: Promise.resolve({}) }),
       (error) => error.destination === `/courses/${courseId}`,
     );
 
@@ -166,7 +179,7 @@ test("RPC grants admit authorized non-student roles without a client-side enroll
   for (const role of ["parent", "admin", "owner"]) {
     reset({ currentAccount: account(role), allowed: true });
 
-    await CourseLessons({ params: Promise.resolve({ courseId }) });
+    await CourseLessons({ params: Promise.resolve({ courseId }), searchParams: Promise.resolve({}) });
 
     assert.deepEqual(globalThis.__lessonEvents.slice(0, 2), [
       ["rpc", "can_read_course_lessons", { p_course_id: courseId }],
@@ -180,7 +193,7 @@ test("anonymous or inactive identities retain public metadata access but never r
   reset({ currentAccount: null });
 
   await assert.rejects(
-    () => CourseLessons({ params: Promise.resolve({ courseId }) }),
+    () => CourseLessons({ params: Promise.resolve({ courseId }), searchParams: Promise.resolve({}) }),
     (error) => error.destination === `/courses/${courseId}`,
   );
 
@@ -204,4 +217,14 @@ test("RPC failures and missing grants fail closed without reading or inventing l
     assert.match(html, /تعذّر التحقق من صلاحية الدروس حاليًا/);
     assert.doesNotMatch(html, new RegExp(liveLessonBody));
   }
+});
+
+
+test("student progress uses persisted markers without a privileged query", async () => {
+  reset({ completions: [{ lesson_id: lessonId }] });
+  const html = await renderLessons();
+  assert.deepEqual(globalThis.__lessonQueries, ["course_units", "course_enrollments", "lesson_completions"]);
+  assert.equal(globalThis.__lessonOwnerCalls, 0);
+  assert.match(html, /100/);
+  assert.doesNotMatch(html, /<form/);
 });

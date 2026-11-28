@@ -4,8 +4,8 @@ const restrictedPreviews = [
   "/admin/content", "/admin/curricula", "/admin/enrollments", "/admin/team", "/admin/users",
   "/admin/reports", "/admin/activity",
   "/admin/learn/math-prep-1", "/manager/activity", "/manager/team",
-  "/parent/help", "/parent/progress", "/student/help", "/student/library", "/student/progress",
-  "/teacher/content", "/teacher/progress",
+  "/parent/help", "/student/help", "/student/library",
+  "/teacher/content",
   "/workspace/support/group-requests",
 ];
 
@@ -27,7 +27,7 @@ test("retired owner routes remain absent", async ({ request }) => {
 });
 
 test("guests cannot enter any supported live portal namespace", async ({ request }) => {
-  for (const path of ["/owner", "/student", "/teacher", "/parent", "/admin", "/manager", "/manager/requests", "/support", "/support/activity", "/support/requests"]) {
+  for (const path of ["/owner", "/student", "/student/progress", "/teacher", "/teacher/progress", "/parent", "/parent/progress", "/admin", "/manager", "/manager/requests", "/support", "/support/activity", "/support/requests"]) {
     const response = await request.get(path, { maxRedirects: 0 });
     expect(response.status(), path).toBe(307);
     expect(response.headers().location, path).toBe(`/login?next=${encodeURIComponent(path)}`);

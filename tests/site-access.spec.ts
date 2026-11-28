@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { request as httpRequest } from "node:http";
+import { request as httpsRequest } from "node:https";
 import { createSiteSession, hasSiteSession, lockCookie } from "../src/lib/site-access";
 
 const settingsPath = "/admin/site-locks";
@@ -23,8 +24,20 @@ async function save(page: Page, scope: string, code: string) {
   await expect(page.getByText(scope === "*" ? "الموقع بالكامل" : scope, { exact: true })).toBeVisible();
 }
 
+async function remove(page: Page, scope: string) {
+  await page.goto(settingsPath);
+  await expect(page.getByRole("heading", { name: "الأقفال الحالية" })).toBeVisible();
+  const lock = page.getByRole("listitem").filter({
+    has: page.getByText(scope === "*" ? "الموقع بالكامل" : scope, { exact: true }),
+  });
+  if (await lock.count()) {
+    await lock.getByRole("button", { name: "إلغاء القفل" }).click();
+  }
+  await expect(lock).toHaveCount(0);
+}
+
 test("known oversized request bodies are rejected before route processing", async ({ browser, baseURL }) => {
-  const guest = await browser.newContext({ baseURL });
+  const guest = await browser.newContext({ baseURL, ignoreHTTPSErrors: baseURL?.startsWith("https://127.0.0.1:") });
   try {
     const response = await guest.request.post("/", { data: Buffer.alloc(1024 * 1024 + 1) });
     expect(response.status()).toBe(413);
@@ -35,7 +48,10 @@ test("known oversized request bodies are rejected before route processing", asyn
 
 async function chunkedStatus(baseURL: string | undefined, path: string, body: string | Buffer) {
   return new Promise<number>((resolve, reject) => {
-    const request = httpRequest(new URL(path, baseURL), {
+    const url = new URL(path, baseURL);
+    const send = url.protocol === "https:" ? httpsRequest : httpRequest;
+    const request = send(url, {
+      ...(url.protocol === "https:" && { rejectUnauthorized: false }),
       method: "POST",
       headers: {
         "content-type": "application/x-www-form-urlencoded",
@@ -86,12 +102,12 @@ test("a global lock preserves framework assets for the public login page", async
       expect(response.headers()["content-type"]).toContain(contentType);
     }
   } finally {
-    await page.request.post(settingsPath, { form: { action: "remove", scope: "*" } });
+    await remove(page, "*");
   }
 });
 
-test("the admin can lock a direct page, lock the entire site, and reopen both", async ({ page, browser, baseURL }) => {
-  const guest = await browser.newContext({ baseURL });
+test("the admin can lock a direct page, lock the entire site, and reopen both", async ({ page, browser, baseURL, request }) => {
+  const guest = await browser.newContext({ baseURL, ignoreHTTPSErrors: baseURL?.startsWith("https://127.0.0.1:") });
   const visitor = await guest.newPage();
   try {
     expect((await guest.request.get("/teachers")).status()).toBe(200);
@@ -112,7 +128,13 @@ test("the admin can lock a direct page, lock the entire site, and reopen both", 
     await expect(visitor).toHaveURL("/teachers");
     await expect(visitor.getByLabel("كود الدخول")).toHaveCount(0);
     expect((await guest.cookies()).find((cookie) => cookie.name === lockCookie("/teachers")))
-      .toMatchObject({ secure: true, httpOnly: true, sameSite: "Lax", path: "/" });
+      .toMatchObject({ secure: true, httpOnly: true, path: "/" });
+    // WebKit's cookie inspector can report Lax as None. Check SameSite on the wire.
+    const unlock = await request.post("/teachers", { form: { code: pageCode }, maxRedirects: 0 });
+    expect(unlock.status()).toBe(303);
+    const cookie = unlock.headers()["set-cookie"];
+    expect(cookie).toContain(`${lockCookie("/teachers")}=`);
+    expect(cookie).toMatch(/(?:^|;\s*)SameSite=Lax(?:;|$)/i);
 
     await save(page, "*", globalCode);
     for (const path of ["/", "/student", "/school-home/motion.js"]) {
@@ -126,12 +148,12 @@ test("the admin can lock a direct page, lock the entire site, and reopen both", 
     await enterCode(visitor, globalCode);
     await expect(visitor).toHaveURL("/teachers");
     await expect(visitor.getByLabel("كود الدخول")).toHaveCount(0);
-    const globalContext = await browser.newContext({ baseURL });
+    const globalContext = await browser.newContext({ baseURL, ignoreHTTPSErrors: baseURL?.startsWith("https://127.0.0.1:") });
     const globalVisitor = await globalContext.newPage();
     try {
-      await globalVisitor.goto("/stages/primary");
+      await globalVisitor.goto("/faq");
       await enterCode(globalVisitor, globalCode);
-      await expect(globalVisitor.getByRole("heading", { level: 1 })).toContainText("المرحلة الابتدائية");
+      await expect(globalVisitor.getByRole("heading", { level: 1 })).toContainText("الأسئلة الشائعة");
       expect((await globalVisitor.goto("/teachers"))?.status()).toBe(401);
       await enterCode(globalVisitor, pageCode);
       await expect(globalVisitor).toHaveURL("/teachers");
@@ -143,15 +165,15 @@ test("the admin can lock a direct page, lock the entire site, and reopen both", 
     expect(protectedPage?.headers()["cache-control"]).toContain("no-store");
     expect((await page.request.get("/school-home/motion.js")).status()).toBe(401);
   } finally {
-    await page.request.post(settingsPath, { form: { action: "remove", scope: "*" } });
-    await page.request.post(settingsPath, { form: { action: "remove", scope: "/teachers" } });
+    await remove(page, "*");
+    await remove(page, "/teachers");
     await guest.close();
   }
   expect((await page.request.get("/teachers")).status()).toBe(200);
 });
 
 test("explicit locks apply to routes exempt from the global lock", async ({ page, browser, baseURL }) => {
-  const guest = await browser.newContext({ baseURL });
+  const guest = await browser.newContext({ baseURL, ignoreHTTPSErrors: baseURL?.startsWith("https://127.0.0.1:") });
   try {
     await page.goto(settingsPath);
     await enterCode(page, ownerCode);
@@ -163,8 +185,8 @@ test("explicit locks apply to routes exempt from the global lock", async ({ page
     expect(unlocked.status()).toBe(303);
     expect((await guest.request.get("/login")).status()).toBe(200);
   } finally {
-    await page.request.post(settingsPath, { form: { action: "remove", scope: "*" } });
-    await page.request.post(settingsPath, { form: { action: "remove", scope: "/login" } });
+    await remove(page, "*");
+    await remove(page, "/login");
     await guest.close();
   }
 });
@@ -181,7 +203,7 @@ test("visitor lock guesses are persistently throttled", async ({ page, request }
     expect((await request.post(scope, { form: { code: "wrong-code" }, headers: proxyHeaders })).status()).toBe(429);
     expect((await request.post(scope, { form: { code: pageCode }, headers: proxyHeaders })).status()).toBe(429);
   } finally {
-    await page.request.post(settingsPath, { form: { action: "remove", scope } });
+    await remove(page, scope);
   }
 });
 
@@ -204,12 +226,12 @@ test("client-controlled forwarding entries cannot rotate the throttle identity",
     });
     expect(blocked.status()).toBe(429);
   } finally {
-    await page.request.post(settingsPath, { form: { action: "remove", scope } });
+    await remove(page, scope);
   }
 });
 
 test("owner lock guesses are persistently throttled", async ({ browser, baseURL }) => {
-  const guest = await browser.newContext({ baseURL });
+  const guest = await browser.newContext({ baseURL, ignoreHTTPSErrors: baseURL?.startsWith("https://127.0.0.1:") });
   const headers = { ...proxyHeaders, "x-forwarded-for": "192.0.2.251, 10.0.0.1" };
   try {
     for (let attempt = 0; attempt < 10; attempt += 1) {
@@ -223,7 +245,7 @@ test("owner lock guesses are persistently throttled", async ({ browser, baseURL 
 });
 
 test("concurrent owner guesses cannot bypass the attempt limit", async ({ browser, baseURL }) => {
-  const guest = await browser.newContext({ baseURL });
+  const guest = await browser.newContext({ baseURL, ignoreHTTPSErrors: baseURL?.startsWith("https://127.0.0.1:") });
   const headers = { ...proxyHeaders, "x-forwarded-for": "192.0.2.252, 10.0.0.1" };
   try {
     const statuses = await Promise.all(Array.from({ length: 20 }, () =>
@@ -237,7 +259,7 @@ test("concurrent owner guesses cannot bypass the attempt limit", async ({ browse
 });
 
 test("successful owner verification refunds its admission attempt", async ({ browser, baseURL }) => {
-  const guest = await browser.newContext({ baseURL });
+  const guest = await browser.newContext({ baseURL, ignoreHTTPSErrors: baseURL?.startsWith("https://127.0.0.1:") });
   const headers = { ...proxyHeaders, "x-forwarded-for": "192.0.2.253, 10.0.0.1" };
   try {
     expect((await guest.request.post(settingsPath, { form: { code: ownerCode }, headers, maxRedirects: 0 })).status()).toBe(303);

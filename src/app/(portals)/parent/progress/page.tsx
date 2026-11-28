@@ -1,10 +1,7 @@
-import { PortalShell } from "@/features/dashboards/portal-shell";
-import { DashboardView } from "@/features/dashboards/dashboard-view";
+import { LiveProgress } from "@/features/dashboards/live-progress";
 
-export default function ParentSectionPage() {
-  return (
-    <PortalShell role="parent">
-      <DashboardView role="parent" section="progress" />
-    </PortalShell>
-  );
+export const metadata = { title: "التقدّم والنشاط" };
+
+export default function Page() {
+  return <LiveProgress role="parent" />;
 }

@@ -3,14 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, SlidersHorizontal } from "lucide-react";
-import { grades as previewGrades, stages as previewStages } from "@/features/catalog/mock-data";
 import { Button } from "@/components/ui/button";
 
 type Option = { id: string; name: string };
 
-export function GradeFinder({ stages = previewStages, grades = previewGrades }: {
-  stages?: Option[];
-  grades?: (Option & { stageId: string })[];
+export function GradeFinder({ stages, grades }: {
+  stages: Option[];
+  grades: (Option & { stageId: string })[];
 }) {
   const initialStage = stages.find(({ id }) => id === "preparatory")?.id ?? stages[0]?.id ?? "";
   const [stage, setStage] = useState(initialStage);

@@ -47,7 +47,7 @@ Without Supabase configuration, public catalog/groups pages remain reachable but
 npm run test:qa:preview
 ```
 
-This command runs lint, typecheck, all Node unit tests, and the selected database-independent Chromium suite. Playwright builds and starts the application on `127.0.0.1:3100` inside its scrubbed server environment, forces explicit test markers and the approved local Supabase URL, and supplies no Supabase credentials. The guarded test build refuses to compile a conflicting public environment marker. Coverage includes authentication redirects, supported route protection, restricted preview routes, site locks, registration controls, unavailable data states, and unit-level attendance/chat/mutation regressions.
+This command runs lint, typecheck, all Node unit tests, and the selected database-independent Chromium, Firefox, and WebKit suite. Playwright builds once and starts a fresh loopback HTTPS server for each browser on `127.0.0.1:3143` inside its scrubbed server environment, forces explicit test markers and the approved local Supabase URL, and supplies no Supabase credentials. The preview server needs OpenSSL 1.1.1 or newer for its ephemeral certificate. On Windows it can also use OpenSSL from the default Git for Windows installation. The guarded test build refuses to compile a conflicting public environment marker. Coverage includes authentication redirects, supported route protection, restricted preview routes, site locks, registration controls, unavailable data states, and unit-level attendance/chat/mutation regressions.
 
 ### Local live integration gate
 

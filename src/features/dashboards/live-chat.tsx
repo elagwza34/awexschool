@@ -1,3 +1,4 @@
+import { isPreviewFixtureEnvironment } from "@/lib/environment";
 import { ChatWorkspace, type ChatData, type ChatRole, type ChatContact } from "./chat-workspace";
 import { chatThreads, chatMessageFixtures, previewStudentId, previewTeacherId } from "./chat-data";
 import { selectFixtureChat } from "./chat-safety";
@@ -7,6 +8,15 @@ export async function LiveChat({ role, section, searchParams }: {
   section: "chat" | "admin-chat";
   searchParams: Promise<{ contact?: string; user?: string }>;
 }) {
+  if (!isPreviewFixtureEnvironment()) {
+    return (
+      <main id="main-content" className="dashboard-width space-y-4 py-5">
+        <h1 className="text-2xl font-bold">المحادثات</h1>
+        <p role="status" className="soft-card p-4">المحادثات المباشرة غير متاحة حاليًا.</p>
+      </main>
+    );
+  }
+
   const params = await searchParams;
   const requestedContact = params.contact ?? params.user;
   const path = `/${role}/${section}`;

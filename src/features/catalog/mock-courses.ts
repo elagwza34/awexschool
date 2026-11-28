@@ -78,10 +78,20 @@ export function getMockCourses(): MockCourse[] {
   return mockCourses;
 }
 
-export function getCoursesByTeacher(teacherId: string): MockCourse[] {
-  return mockCourses.filter((c) => c.teacherId === teacherId);
+export function getCoursesByTeacher(
+  teacherId: string
+): MockCourse[] {
+  return mockCourses.filter(
+    (course) => course.teacherId === teacherId
+  );
 }
 
-export function getCoursesByStudent(studentId: string): MockCourse[] {
+export function getCoursesByStudent(
+  studentId: string
+): MockCourse[] {
+  // Demo-only behavior.
+  // Retain the parameter for existing callers.
+  void studentId;
+
   return mockCourses;
 }

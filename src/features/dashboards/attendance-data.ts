@@ -120,7 +120,7 @@ export async function loadAttendanceData(client: SupabaseClient, {
   }
   if (!studentIds.length) return { state: "empty" };
   const { data, error } = await client.from("session_attendance")
-    .select("session_id,student_id,status,class_sessions(title,starts_at),profiles(display_name)")
+    .select("session_id,student_id,status,class_sessions(title,starts_at),profiles!session_attendance_student_id_fkey(display_name)")
     .in("student_id", studentIds).order("marked_at", { ascending: false }).limit(50);
   if (error) return { state: "error" };
   const records = (data ?? []) as unknown as StudentAttendanceRecord[];
